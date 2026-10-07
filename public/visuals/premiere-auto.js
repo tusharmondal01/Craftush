@@ -49,6 +49,6 @@ function buildAutoXML(){
   <timecode>${rate}<string>00:00:00:00</string><frame>0</frame><displayformat>NDF</displayformat></timecode>
   <media><video><format><samplecharacteristics>${rate}<width>${sw}</width><height>${sh}</height>
     <anamorphic>FALSE</anamorphic><pixelaspectratio>square</pixelaspectratio><fielddominance>none</fielddominance>
-  </samplecharacteristics></format><track>${clips}<enabled>TRUE</enabled><locked>FALSE</locked></track></video></media>
+  </samplecharacteristics></format><track>${clips}<enabled>TRUE</enabled><locked>FALSE</locked></track></video>${narrationAudioXML(rate)}</media>
 </sequence></xmeml>`;
 }

@@ -1,6 +1,6 @@
 # Craftush
 
-Script-to-image and Premiere timeline tools using your Runware account, with a private admin backend. The current release adds cinematic transitions and a simpler workflow. The existing Netlify v12 site is separate and must remain untouched.
+Script-to-image and Premiere timeline tools using your Runware account, with a private admin backend. The current release aligns image scenes to the actual spoken narration and includes that narration in the Premiere package. The existing Netlify v12 site is separate and must remain untouched.
 
 ## Studio and workflow
 
@@ -8,9 +8,21 @@ Script-to-image and Premiere timeline tools using your Runware account, with a p
 - Stunning Visuals has four guided steps: script, prompts, images, and timeline/export. Progress, prerequisite guidance, Back buttons and retry messages make the next action clear. Advanced prompt, image and export settings remain available in expandable sections.
 - **One image per complete sentence** is the default split method. A long sentence stays intact; decimals, abbreviations, quotations and paragraph breaks do not create unintended fragments. **Smart scenes (AI)** is available when scene-level segmentation is preferred.
 - Script, title and creator notes are saved as a draft on the current device. Draft storage does not include API keys, passwords, access codes, generated images, audio or scene state. **Save script + prompts (.json)** preserves the scenes, prompts and transition settings for later import.
-- **Download images + XML (.zip)** packages the generated images, prompts.txt, prompts.json, timeline.xml and transitions.json when a timeline is ready. Image-only ZIP and separate XML downloads remain available.
+- **Download images + XML (.zip)** packages the generated images, prompts.txt, prompts.json, timeline.xml, timing.json, transitions.json and narration.wav after timing is confirmed. Image-only ZIP and separate XML downloads remain available.
 - Admin has section shortcuts, mobile-friendly controls and clearer usage labels. **Text requests** include scene planning, prompt writing, relevance review and optional image quality checks; one image can require several text requests.
 - Idea to Video keeps its existing ComfyUI workflow and controls, with connection-first guidance, optional fields tucked away and CORS instructions showing the current site's origin.
+
+## Narration and image timing
+
+Step 4 uses transcript words, not audio length, script length or loudness, to locate each image in the narration. Upload the exact final narration, choose Hindi/Hinglish or English, and press **Align spoken words**. The pinned multilingual Whisper model runs in a browser worker using Transformers.js; audio is not sent to Runware or a speech API, and no second API key is required. The first run downloads a large model and CPU recognition can take time. **Stop alignment**, an exact-audio SRT and manual starts remain available if the device cannot run recognition.
+
+- A global ordered transcript match preserves all scene/image identities, repeated phrases, pauses, opening silence and uneven speaking rates. Hindi/Hinglish phonetic matches are supported and uncertain boundaries are flagged. Missing lines, extra narration, invalid timestamps and unequal one-per-subtitle counts never trigger proportional timing or image truncation.
+- Existing SRT timestamps are not stretched or snapped to silence. Only the first word of a cue has an exact cue start; scene boundaries inside a multiword cue are visibly interpolated and require a listening check. A known SRT offset can be entered explicitly.
+- Listen beside each scene, edit its start or choose **Use playhead** at its first spoken word. Uncertain/manual starts require **Start checked**. XML export requires final timing confirmation and valid strictly increasing frame starts. Changing narration, scenes, subtitle offset or matching mode clears stale reviews. Frame quantization is at most half a frame; invalid starts never become fabricated one-frame clips.
+- The audio/image preview follows the exported frame map. The complete ZIP contains PCM16 **narration.wav**, placed at sequence/source 0:00 by the XML, plus images and timing.json. Mono/stereo samples and full narration duration are preserved; only the speech-recognition input is resampled to 16 kHz. Unzip everything into the same folder and import timeline.xml, relinking narration.wav and 001.jpg there if requested.
+- Image-only downloads remain available before confirmation, without an unverified XML. SRT-only exports use the same timestamp origin; add the exact corresponding narration at sequence 0:00. Automatic speech recognition can make mistakes, so the listening preview and editable starts are part of the export workflow. Native Premiere import must be checked in the target editor with the actual project audio; no automatic model guarantees every boundary.
+
+Pinned speech model: [onnx-community/whisper-small_timestamped](https://huggingface.co/onnx-community/whisper-small_timestamped/tree/65caa70f294b46e1c33ff820aae6b16d048ab818), Transformers.js **3.8.1**. Primary timestamp API: [Transformers.js speech pipeline](https://huggingface.co/docs/transformers.js/api/pipelines#module_pipelines.AutomaticSpeechRecognitionPipeline). Runware currently does not offer speech-to-text in its audio-generation API: [Runware audio FAQ](https://runware.ai/audio-generation-api).
 
 ## Cinematic transitions
 
@@ -77,7 +89,7 @@ Production project: **craftush-v13-live**, under **tusharmondal-1850s-projects**
 - Website: https://craftush-v13-live.vercel.app/
 - Admin: https://craftush-v13-live.vercel.app/admin
 
-This project was created separately from Netlify and currently has no Git integration. Updating GitHub alone does not publish it. Link the local directory explicitly to this existing Vercel project before deploying; do not create another project or connect/redeploy the Netlify v12 site.
+This project is connected to **tusharmondal01/Craftush**, with **main** as its production branch. Tested updates on main trigger a Vercel production deployment. Use this existing project; do not create another project or connect/redeploy the Netlify v12 site.
 
 Use the project's existing environment variables and storage. Do not copy secret values into source control or deployment ZIPs. For a staged production deployment, use `vercel deploy --prod --skip-domain`, verify that build, then `vercel promote <deployment-url>` to move the production domain to the tested build.
 
@@ -96,6 +108,6 @@ For Thumbnail Generator, upload the single HTML tool through `/admin`; it is ser
 
 ## Verification
 
-Run `node --test tests/*.test.cjs` from the repository root. The current suite has **31 regression tests**, covering the full-stop splitter, model parameters/relay handling, all 28 styles across vertical/horizontal/square frames, fractional interpolation/crop coverage, preview controls, shuffle timing stability, complete ZIP exports, retry behavior and script-draft privacy.
+Run `node --test tests/*.test.cjs` from the repository root. The current suite has **51 regression tests**, covering the full-stop splitter, model parameters/relay handling, all 28 styles across vertical/horizontal/square frames, fractional interpolation/crop coverage, preview controls, shuffle timing stability, complete ZIP exports, retry behavior, script-draft privacy and narration alignment. Narration regressions cover variable speaking speed, pauses, repeated phrases, missing/extra passages, Hindi/Hinglish, numbers, SRT cue uncertainty, subtitle replacement races, manual review, cancellation, frame rounding, PCM sample preservation and audio inclusion across all export modes.
 
 Additional local checks exercised full-script context, relevance rewrites/failures, quality-check selection, model routing, async polling, relay authentication/secret handling, private storage behavior and DOM assets with mocked AI responses. All **50 XML cases** parse with valid clip handles, transition boundaries and keyframe ranges. Native Premiere import/render and real-model generations are separate checks; automated local success does not establish those outcomes.

@@ -356,6 +356,7 @@
 button{min-height:44px}.field{min-width:0}.field select,.field input,.field textarea{max-width:100%}.bar .status{flex-basis:100%}
 .skip-link{position:absolute;left:16px;top:-90px;z-index:1000;background:var(--lime);color:#071106;padding:12px 18px;border-radius:10px}.skip-link:focus{top:12px}
 @media(max-width:700px){.hero{padding-top:22px}.orb-wrap{display:none}.hero{grid-template-columns:1fr}.workflow-head{padding:14px;gap:12px}.workflow-head progress{width:65px}.step{padding:22px 18px}.bar{align-items:stretch}.split-mode{flex:1 1 100%;min-width:0}.fields{grid-template-columns:1fr}input,select,textarea{font-size:16px}.step-foot{gap:12px;flex-wrap:wrap}.step-foot button{max-width:100%}}
+.voice-controls{margin:18px 0}.voice-controls .field{min-width:180px;flex:1}.narration-preview{display:grid;grid-template-columns:180px 1fr;gap:18px;align-items:center;margin:18px 0}.narration-preview img{width:100%;max-height:220px;object-fit:contain;border-radius:12px;background:#151923}.narration-preview audio{width:100%}.alignment-list{padding:0;list-style:none;display:grid;gap:12px}.alignment-row{display:grid;grid-template-columns:76px 1fr 240px;gap:16px;padding:16px;border:1px solid var(--line);border-radius:14px}.alignment-row.needs-review{border-color:#c88e31;background:rgba(221,166,55,.06)}.alignment-row>img{width:76px;max-height:120px;object-fit:contain;border-radius:8px}.alignment-row p{margin:7px 0}.alignment-row small{display:block;color:var(--muted);line-height:1.5}.alignment-row .timing-reason{margin-top:6px}.alignment-start label{display:block}.alignment-start input[type=text]{margin:5px 0}.alignment-start .bar{gap:6px;margin:9px 0}.alignment-start button{padding:8px 10px;font-size:.78rem}.alignment-number{font-weight:700;color:var(--muted)}.confirm-timing{margin:18px 0;padding:15px;border:1px solid var(--line);border-radius:12px}.confirm-timing input{flex-shrink:0}@media(max-width:750px){.alignment-row{grid-template-columns:55px 1fr}.alignment-row>img{width:55px}.alignment-start{grid-column:1/-1}.narration-preview{grid-template-columns:90px 1fr}}
 </style>
 </head>
 <body><a class="skip-link" href="#studioMain">Skip to the workflow</a>
@@ -585,7 +586,7 @@ button{min-height:44px}.field{min-width:0}.field select,.field input,.field text
 <section aria-labelledby="h4" class="step" id="st4">
 <span class="step-tag">Step 04 · Export</span>
 <h2 id="h4">Export to <span class="dim">Premiere Pro.</span></h2>
-<p class="lede">Add your voiceover or SRT to set the timing. Preview the transitions, then download the images and Premiere timeline together.</p><p aria-live="polite" class="guide" id="step4Guide">Add your voiceover or SRT to build the timeline.</p>
+<p class="lede">Add the exact narration used for this video. Match its spoken words to your scenes, listen to the starts, then export the images and audio together.</p><p aria-live="polite" class="guide" id="step4Guide">Add the exact narration audio or its SRT to align the scenes.</p>
 <label class="drop" id="drop">
 <input accept=".srt,text/plain" id="srtFile" type="file"/>
 <svg aria-hidden="true" height="40" viewbox="0 0 34 40" width="34"><path d="M3 4a3 3 0 0 1 3-3h15l10 10v25a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" fill="#FFF6D6" stroke="#F5B400" stroke-width="1.8"></path><path d="M21 1v10h10" fill="none" stroke="#F5B400" stroke-width="1.8"></path><path d="M9 22h16M9 27h12M9 32h14" stroke="#A67800" stroke-linecap="round" stroke-width="1.8"></path></svg>
@@ -598,16 +599,18 @@ button{min-height:44px}.field{min-width:0}.field select,.field input,.field text
 <input accept="video/*,audio/*,.mp4,.mov,.m4a,.mp3,.wav" id="voFile" type="file"/>
 <svg aria-hidden="true" height="40" viewbox="0 0 34 40" width="34"><path d="M3 4a3 3 0 0 1 3-3h15l10 10v25a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" fill="#FFF6D6" stroke="#F5B400" stroke-width="1.8"></path><path d="M21 1v10h10" fill="none" stroke="#F5B400" stroke-width="1.8"></path><path d="M9 30v-6M13 32v-10M17 29v-4M21 33v-12M25 30v-6" stroke="#A67800" stroke-linecap="round" stroke-width="1.8"></path></svg>
 <div>
-<strong id="voTitle">Recommended: add the HeyGen video (or its audio)</strong>
-<span id="voSub">Stays on your computer. The site listens for the real pauses in the voice, fixes SRT timings that drift, and can time the images without any SRT.</span>
+<strong id="voTitle">Add the final narration audio (or HeyGen video)</strong>
+<span id="voSub">Stays on this device. Spoken-word alignment locates each scene in the audio. The exported package includes this narration at 0:00.</span>
 </div>
 </label>
+<div class="bar voice-controls">
+<label class="field">Narration language <select id="voiceLanguage"><option value="hindi">Hindi / Hinglish</option><option value="english">English</option><option value="auto">Detect language</option></select></label>
+<button class="primary" disabled="" id="alignNarration" type="button">Align spoken words</button><button disabled="" id="cancelAlignment" type="button">Stop alignment</button>
+</div>
+<p aria-live="polite" class="meta" id="alignmentStatus">No extra API key needed. The first alignment downloads a large speech model; longer recordings take more time. An SRT from this exact audio is also supported.</p>
+<div class="narration-preview"><img alt="Current narration image" hidden="" id="narrationImage"/><div><audio controls="" id="narrationAudio" preload="metadata"></audio><p class="meta" id="audioPlayhead">Playhead 0:00.000</p><p class="meta" id="narrationImageCaption">Add narration to hear each image in context.</p></div></div>
+<div class="sub" hidden="" id="alignmentReview"><h3>Check image and narration timing</h3><p class="meta" id="timingSummary"></p><p class="note">Listen at each scene start. For a highlighted scene, correct its start or use the audio playhead, then check Start checked. Times use the beginning of the uploaded audio.</p><ol class="alignment-list" id="alignmentRows"></ol><label class="check confirm-timing"><input disabled="" id="confirmTiming" type="checkbox"/> I have checked the scene starts against this narration and confirmed the timing.</label></div>
 <div class="fields">
-
-
-
-
-
 <label class="field">Motion transitions <small>Varied camera moves, chosen for the scene and centered on your narration</small>
 <select id="trans">
 <option selected="" value="auto">Auto: Cinematic transitions (28 styles)</option>
@@ -630,11 +633,12 @@ button{min-height:44px}.field{min-width:0}.field select,.field input,.field text
 
 </div><details class="advanced" id="exportAdvanced"><summary>More timeline and export settings</summary><div class="fields"><label class="field">Match images to
         <select id="mode">
-<option value="words">Script sentences</option>
-<option value="cues">One image per subtitle line</option>
-<option value="audio">Voiceover audio only (no SRT needed)</option>
+<option value="words">Match script to SRT words</option>
+<option value="cues">One image per matching subtitle line</option>
+<option value="audio">Recognized spoken words (no SRT)</option>
+<option value="manual">Set starts manually while listening</option>
 </select>
-</label><label class="field">Frame rate
+</label><label class="field">Subtitle offset, seconds <small>Use only if the SRT has a known offset. Existing times are never stretched.</small><input id="syncOffset" type="number" value="0" step="0.001"/></label><label class="field">Frame rate
         <select id="fps">
 <option value="23.976">23.976</option>
 <option value="24">24</option>
@@ -662,7 +666,7 @@ button{min-height:44px}.field{min-width:0}.field select,.field input,.field text
 </select>
 </label><label class="field wide">Folder where you'll unzip the images <small>So Premiere finds them without relinking. Example: C:\Users\you\Videos\project\images or /Users/you/Movies/images</small>
 <input id="folder" placeholder="C:\Users\you\Videos\project\images" type="text"/>
-</label><label class="check"><input checked="" id="zero" type="checkbox"/> Start the first image at 0:00</label><label class="check"><input checked="" id="snap" type="checkbox"/> Snap cuts to pauses in the voiceover</label><label class="check"><input checked="" id="fill" type="checkbox"/> Scale images to fill the frame</label></div></details>
+</label><label class="check"><input id="zero" type="checkbox"/> Show the first image during any opening silence</label><label class="check"><input checked="" id="fill" type="checkbox"/> Scale images to fill the frame</label></div></details>
 <div class="bar">
 <button class="primary" disabled="" id="xmlBtn">
 <svg aria-hidden="true" height="16" viewbox="0 0 24 24" width="16"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 20h16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
@@ -696,7 +700,7 @@ button{min-height:44px}.field{min-width:0}.field select,.field input,.field text
 <div class="track" id="track"></div>
 <div class="ruler" id="ruler"></div>
 </div>
-<p class="note">In Premiere Pro: File, Import, pick the .xml. If you left the folder blank, Premiere will ask you to locate 001.jpg once and then finds the rest.</p>
+<p class="note">Unzip the complete package into one folder. In Premiere Pro: File → Import → timeline.xml. Relink 001.jpg and narration.wav from that folder if asked. The narration is already placed at 0:00; start playback from the sequence beginning.</p>
 <div class="step-foot"><button class="next back-step" data-go="2" type="button">← Back</button></div></section>
 </div>
 </main>
@@ -738,9 +742,11 @@ button{min-height:44px}.field{min-width:0}.field select,.field input,.field text
 <p id="viewerText"></p>
 <button id="viewerClose">Close</button>
 </dialog>
-<script src="transitions.js?v=14"></script>
-<script src="premiere-auto.js?v=14"></script>
-<script src="transition-preview.js?v=14"></script>
+<script src="transitions.js?v=15"></script>
+<script src="narration-alignment.js?v=15"></script>
+<script src="narration-sync.js?v=15"></script>
+<script src="premiere-auto.js?v=15"></script>
+<script src="transition-preview.js?v=15"></script>
 <script>
 const $ = s => document.querySelector(s);
 const state = { items: [], cues: [], timeline: [], transitionSeed: uuidSeed(), cancel: false, running: false, cost: { images: 0, prompts: 0, per: {} } };
@@ -1834,7 +1840,7 @@ async function downloadZip(sid){
   $('#zipBtn2').disabled = true; setStatus(sid, 'Packing the zip…');
   try {
     const zip = new JSZip(), log = [], imageCount = state.items.filter(it => it.b64).length;
-    const hasTimeline = state.timeline.length > 0, signature = exportSignature();
+    const hasTimeline = hasExportTiming(), signature = exportSignature();
     state.items.forEach((it, i) => {
       if (it.b64) zip.file(fname(i), it.b64, { base64: true });
       log.push(`${fname(i)}\nSentence: ${it.text}\nPrompt: ${it.prompt}\n`);
@@ -1843,6 +1849,8 @@ async function downloadZip(sid){
     zip.file('prompts.json', JSON.stringify(promptProjectData(), null, 2));
     if (hasTimeline){
       zip.file('timeline.xml', buildXML());
+      zip.file('timing.json', JSON.stringify(narrationTimingData(), null, 2));
+      if (state.vo?.blob) zip.file('narration.wav', state.vo.blob);
       zip.file('transitions.json', JSON.stringify({ seed: state.transitionSeed, mode: $('#trans').value,
         energy: $('#transitionEnergy').value, cuts: (state.transitionPlan || []).filter(Boolean).map(t => ({
           style: t.preset.name, cutFrame: t.cut, startFrame: t.start, endFrame: t.end, seconds: t.seconds
@@ -1851,12 +1859,12 @@ async function downloadZip(sid){
     const blob = await zip.generateAsync({ type: 'blob' });
     downloadBlob(blob, 'images.zip');
     if (hasTimeline && signature === exportSignature()) state.xmlDone = true;
-    setStatus(sid, `Downloaded images.zip with ${imageCount} images and saved prompts${hasTimeline ? ', plus timeline.xml and the transition plan' : ''}.`, 'ok');
+    setStatus(sid, `Downloaded images.zip with ${imageCount} images and saved prompts${hasTimeline ? ', plus timeline.xml, timing.json, the transition plan' + (state.vo?.blob ? ' and narration.wav' : '') : ' (XML excluded until timing is confirmed)'}.`, 'ok');
   } catch (error){ setStatus(sid, 'The download could not be packed. Try again, or download the XML separately. ' + error.message, 'err'); }
   finally { updateButtons(); }
 }
 function exportSignature(){
-  return JSON.stringify([state.timeline, state.transitionSeed, ...['#trans','#transitionEnergy','#fps','#motion','#zoomAmt','#fill','#folder','#seqName','#aspect','#imgModel','#quality'].map(id => [$(id).value, $(id).checked])]);
+  return JSON.stringify([state.timeline, state.transitionSeed, state.timingConfirmed, state.vo?.identity, ...['#trans','#transitionEnergy','#fps','#motion','#zoomAmt','#fill','#folder','#seqName','#aspect','#imgModel','#quality'].map(id => [$(id).value, $(id).checked])]);
 }
 $('#zipBtn2').addEventListener('click', () => downloadZip('#s4'));
 
@@ -1925,15 +1933,21 @@ function parseSRT(txt){
     const start = toSec(a), end = toSec(z);
     if (isNaN(start) || isNaN(end)) continue;
     const text = spoken(lines.slice(ti + 1).join(' ').replace(/<[^>]+>/g, '').replace(/\{[^}]*\}/g, '')).trim();
-    cues.push({ start, end: Math.max(end, start), text });
+    cues.push({ start, end, text });
   }
-  return cues.sort((x, y) => x.start - y.start);
+  return cues;
 }
+let subtitleTicket = 0;
 async function loadSRT(file){
   if (!file) return;
-  const cues = parseSRT(await file.text());
+  const ticket = ++subtitleTicket;
+  state.cues = []; state.narrationKey = null; refreshTimeline();
+  let cues;
+  try { cues = parseSRT(await file.text()); if(ticket !== subtitleTicket) return; CraftushAlignment.fromCues(cues); }
+  catch(error){ if(ticket === subtitleTicket) setStatus('#s4', 'Could not use these subtitles. ' + error.message, 'err'); return; }
   if (!cues.length){ setStatus('#s4', 'No subtitle timings found in that file. Make sure it\'s an .srt file.', 'err'); return; }
   state.cues = cues;
+  $('#mode').value = 'words';
   $('#dropTitle').textContent = file.name;
   $('#dropSub').textContent = `${cues.length} subtitle lines, ${fmtClock(cues[cues.length - 1].end)} long. Choose another file to replace it.`;
   refreshTimeline();
@@ -1943,112 +1957,10 @@ const drop = $('#drop');
 ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
 ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
 drop.addEventListener('drop', e => loadSRT(e.dataTransfer.files[0]));
-['#mode', '#fps', '#zero', '#snap'].forEach(s => $(s).addEventListener('change', refreshTimeline));
+['#mode', '#fps', '#zero'].forEach(s => $(s).addEventListener('change', refreshTimeline));
 
-/* ---------- Voiceover analysis (runs in the browser; the file is never uploaded) ----------
-   Decodes the HeyGen video's audio at 16 kHz, measures loudness every 20 ms and finds the speech segments
-   and the pauses between them. Used to fix SRT timings that drift and to time images without an SRT. */
-state.vo = null;
-function mediaDuration(file){
-  return new Promise(resolve => {
-    const url = URL.createObjectURL(file), el = document.createElement(/^audio\//.test(file.type) ? 'audio' : 'video');
-    el.preload = 'metadata';
-    el.onloadedmetadata = () => { const d = el.duration; URL.revokeObjectURL(url); resolve(isFinite(d) ? d : 0); };
-    el.onerror = () => { URL.revokeObjectURL(url); resolve(0); };
-    el.src = url;
-  });
-}
-async function analyseVoice(file){
-  const SR = 16000, HOP = 0.02;
-  let audio;
-  try {
-    const Ctx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-    audio = await new Ctx(1, SR, SR).decodeAudioData(await file.arrayBuffer());
-  } catch { return { name: file.name, duration: await mediaDuration(file), segs: null }; }
-  const n = audio.length, chans = audio.numberOfChannels, data = new Float32Array(n);
-  for (let c = 0; c < chans; c++){ const d = audio.getChannelData(c); for (let i = 0; i < n; i++) data[i] += d[i] / chans; }
-  const hop = Math.round(audio.sampleRate * HOP), frames = Math.floor(n / hop), db = new Float32Array(frames);
-  for (let f = 0; f < frames; f++){
-    let sum = 0; for (let i = f * hop, e = i + hop; i < e; i++) sum += data[i] * data[i];
-    db[f] = 10 * Math.log10(sum / hop + 1e-10);
-  }
-  const sorted = Array.from(db).sort((a, b) => a - b), pct = q => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))];
-  const floor = pct(0.1), loud = pct(0.95), thr = Math.max(floor + 6, floor + (loud - floor) * 0.3);
-  const on = Array.from(db, v => v > thr);
-  // Close tiny gaps inside words (< 100 ms) and drop clicks (< 60 ms).
-  for (let f = 0; f < frames;){ if (on[f]) { f++; continue; } let e = f; while (e < frames && !on[e]) e++; if (f > 0 && e < frames && e - f < 5) for (let k = f; k < e; k++) on[k] = true; f = e; }
-  const segs = [];
-  for (let f = 0; f < frames;){ if (!on[f]) { f++; continue; } let e = f; while (e < frames && on[e]) e++; if (e - f >= 3) segs.push([f * HOP, e * HOP]); f = e; }
-  // Pauses shorter than 150 ms are part of the flow of speech, not a break.
-  const merged = [];
-  segs.forEach(sg => { const last = merged[merged.length - 1]; if (last && sg[0] - last[1] < 0.15) last[1] = sg[1]; else merged.push(sg.slice()); });
-  return { name: file.name, duration: audio.duration, segs: merged.length ? merged : null };
-}
-async function loadVoice(file){
-  if (!file) return;
-  $('#voTitle').textContent = file.name; $('#voSub').textContent = 'Listening to the voiceover…';
-  const vo = await analyseVoice(file);
-  if (!vo.duration){ state.vo = null; $('#voSub').textContent = 'Couldn’t read that file. Try the MP4 from HeyGen, or an MP3/WAV of its audio.'; return; }
-  state.vo = vo;
-  $('#voSub').textContent = vo.segs
-    ? `${fmtClock(vo.duration)} long, speech from ${fmtTime(vo.segs[0][0])} to ${fmtTime(vo.segs[vo.segs.length - 1][1])}, ${vo.segs.length - 1} pauses found. Choose another file to replace it.`
-    : `${fmtClock(vo.duration)} long. The browser couldn’t decode its audio, so only its length is used (try an MP3/WAV for pause detection).`;
-  if (!state.cues.length) $('#mode').value = 'audio';
-  refreshTimeline();
-}
-$('#voFile').addEventListener('change', e => loadVoice(e.target.files[0]));
-const voDrop = $('#voDrop');
-['dragenter', 'dragover'].forEach(ev => voDrop.addEventListener(ev, e => { e.preventDefault(); voDrop.classList.add('over'); }));
-['dragleave', 'drop'].forEach(ev => voDrop.addEventListener(ev, e => { e.preventDefault(); voDrop.classList.remove('over'); }));
-voDrop.addEventListener('drop', e => loadVoice(e.dataTransfer.files[0]));
+initNarrationSync();
 
-/* Real time for a point measured in "speech time" (pauses removed). A point on a pause boundary lands on the next onset. */
-function speechToReal(segs, sp){
-  let acc = 0;
-  for (const [a, b] of segs){ if (sp < acc + (b - a)) return a + (sp - acc); acc += b - a; }
-  return segs[segs.length - 1][1];
-}
-/* Timing from the voiceover alone: each line gets a share of the speech time in proportion to its spoken length. */
-function audioStarts(){
-  const vo = state.vo, items = state.items;
-  const weight = it => tokens(spoken(it.text)).reduce((a, w) => a + w.length + 2, 0);
-  const ws = items.map(weight), total = ws.reduce((a, b) => a + b, 0) || 1;
-  const speech = vo.segs.reduce((a, [x, y]) => a + y - x, 0);
-  let acc = 0;
-  const starts = ws.map(w => { const t = speechToReal(vo.segs, acc / total * speech); acc += w; return t; });
-  return { starts, end: vo.duration, count: items.length, note: `Timed from the voiceover (${vo.segs.length - 1} pauses), no SRT used.` };
-}
-/* Fixes SRT-based starts with the real voiceover: stretch/shift the whole SRT onto the real speech, then snap cuts to pauses. */
-function voiceFix(r){
-  const vo = state.vo; if (!vo) return r;
-  const notes = [];
-  let starts = r.starts.slice();
-  if (r.fromSRT){
-    const c0 = state.cues[0].start, c1 = state.cues[state.cues.length - 1].end;
-    const s0 = vo.segs ? vo.segs[0][0] : c0, s1 = vo.segs ? vo.segs[vo.segs.length - 1][1] : Math.min(c1, vo.duration);
-    const diff = (c1 - c0) - (s1 - s0);
-    if (c1 > c0 && (Math.abs(diff) > Math.max(0.4, 0.015 * (s1 - s0)) || Math.abs(c0 - s0) > 0.4)){
-      starts = starts.map(t => s0 + (t - c0) * (s1 - s0) / (c1 - c0));
-      notes.push(`The SRT was ${Math.abs(diff).toFixed(1)} s ${diff > 0 ? 'longer' : 'shorter'} than the real speech, so its timings were stretched to fit the voiceover`);
-    }
-  }
-  if (vo.segs && $('#snap').checked){
-    // Without an SRT the estimate is rougher, so a cut may move a little further to reach a real pause.
-    const onsets = vo.segs.map(s => s[0]), win = r.fromSRT ? 0.6 : 1.0; let snapped = 0;
-    let prev = -Infinity;
-    starts = starts.map((t, k) => {
-      let out = t;
-      if (k){
-        // Nearest pause within the window; never onto (or before) the previous image's start.
-        let best = null; for (const o of onsets) if (Math.abs(o - t) <= win && o > prev + 0.3 && (best === null || Math.abs(o - t) < Math.abs(best - t))) best = o;
-        if (best !== null && best !== t){ snapped++; out = best; }
-      }
-      prev = out; return out;
-    });
-    if (snapped) notes.push(`${snapped} cuts snapped to pauses in the voice`);
-  }
-  return { ...r, starts, end: vo.duration, note: [String(r.note || '').replace(/\.\s*$/, ''), ...notes].filter(Boolean).join('. ') + '.' };
-}
 $('#motion').addEventListener('change', () => { $('#zoomAmt').disabled = $('#motion').value === 'none'; });
 $('#trans').addEventListener('change', () => { stopTransitionPreview(); refreshTimeline(); });
 $('#transitionEnergy').addEventListener('change', () => { stopTransitionPreview(); refreshTimeline(); });
@@ -2062,94 +1974,6 @@ function rateInfo(){
   const map = { '23.976': [24, true], '29.97': [30, true], '59.94': [60, true] };
   const [tb, ntsc] = map[v] || [Math.round(+v), false];
   return { tb, ntsc, fps: ntsc ? tb * 1000 / 1001 : tb };
-}
-
-function computeStarts(){
-  const items = state.items, cues = state.cues;
-  let mode = $('#mode').value;
-  if (!cues.length && state.vo && state.vo.segs) mode = 'audio';
-  if (mode === 'audio'){
-    if (state.vo && state.vo.segs) return audioStarts();
-    if (!cues.length) return null;
-    mode = 'words';
-  }
-  if (mode === 'cues'){
-    const n = Math.min(items.length, cues.length);
-    return { fromSRT: true, starts: cues.slice(0, n).map(c => c.start), end: cues[n - 1].end, count: n,
-      note: items.length !== cues.length ? `${items.length} images but ${cues.length} subtitle lines, so only the first ${n} are placed.` : '' };
-  }
-  const sw = [], st = [];
-  cues.forEach(c => {
-    const w = tokens(c.text); const span = c.end - c.start;
-    w.forEach((x, j) => { sw.push(x); st.push(c.start + span * j / w.length); });
-  });
-  if (!sw.length) return null;
-  const scriptTotal = items.reduce((a, it) => a + tokens(spoken(it.text)).length, 0) || 1;
-  let p = 0, k = 0, misses = 0, matched = 0;
-  const starts = items.map(it => {
-    const toks = tokens(spoken(it.text)); let first = null;
-    if (!toks.length) first = Math.min(p, sw.length - 1);
-    for (const w of toks){
-      let hit = -1;
-      for (let j = p; j < Math.min(p + 12, sw.length); j++) if (sw[j] === w){ hit = j; break; }
-      let map;
-      if (hit >= 0){ map = hit; p = hit + 1; misses = 0; matched++; }
-      else {
-        misses++;
-        if (misses > 20){ p = Math.min(sw.length - 1, Math.round(k * sw.length / scriptTotal)); misses = 0; }
-        map = Math.min(p, sw.length - 1);
-      }
-      if (first === null) first = map;
-      k++;
-    }
-    return st[first];
-  });
-  const pct = Math.round(matched / scriptTotal * 100);
-  // The SRT's words don't match the script (e.g. Gemini wrote it in Devanagari or paraphrased): the voiceover is more reliable.
-  if (pct < 50 && state.vo && state.vo.segs){
-    const a = audioStarts();
-    return { ...a, note: `Only ${pct}% of script words matched the SRT (it may be in another script or reworded), so the images were timed from the voiceover instead.` };
-  }
-  return { fromSRT: true, starts, end: cues[cues.length - 1].end, count: items.length,
-    note: pct < 70 ? `Only ${pct}% of script words matched the subtitles, so some timings are estimated. ${state.vo ? '' : 'Add the voiceover video above for accurate timing, or '}Check that the SRT is from this script.` : `${pct}% of script words matched the subtitles.` };
-}
-
-function refreshTimeline(){
-  stopTransitionPreview();
-  state.xmlDone = false;
-  const ok = state.items.length && (state.cues.length || (state.vo && state.vo.segs));
-  $('#timeline').hidden = !ok;
-  state.timeline = [];
-  if (!ok){ $('#tlMeta').textContent = ''; updateButtons(); return; }
-  const r0 = computeStarts();
-  if (!r0){ setStatus('#s4', 'The subtitles have no readable words to match against.', 'err'); updateButtons(); return; }
-  const r = voiceFix(r0);
-  const { fps } = rateInfo();
-  const n = r.count;
-  const sf = r.starts.map(s => Math.round(s * fps));
-  if ($('#zero').checked) sf[0] = 0;
-  for (let i = 1; i < n; i++) if (sf[i] <= sf[i - 1]) sf[i] = sf[i - 1] + 1;
-  const endF = Math.max(Math.round(r.end * fps), sf[n - 1] + 1);
-  state.timeline = sf.map((s, i) => ({ i, start: s, end: i < n - 1 ? sf[i + 1] : endF }));
-
-  const total = endF;
-  const lens = state.timeline.map(c => (c.end - c.start) / fps);
-  $('#tlMeta').textContent = `${n} images, ${fmtClock(total / fps)} total, ${Math.min(...lens).toFixed(1)}s to ${Math.max(...lens).toFixed(1)}s each`;
-  setStatus('#s4', r.note, /^Only \d+% of script words matched the subtitles|only the first/.test(r.note) ? 'err' : 'ok');
-
-  const autoTransitions = /^(auto|gentle|reference)$/.test($('#trans').value) ? getAutoTransitions() : [];
-  $('#track').innerHTML = state.timeline.map((c, k) => {
-    const it = state.items[c.i];
-    const bg = it.url ? `background-image:url('${it.url}')` : '';
-    const t = autoTransitions[k], info = t ? ` • ${t.preset.name}, ${t.seconds.toFixed(2)} s` : '';
-    return `<div class="clip" style="flex:${c.end - c.start} 0 0;${bg}" title="${esc(fname(c.i) + ' ' + fmtTime(c.start / fps) + ' to ' + fmtTime(c.end / fps) + info)}"><b>${c.end - c.start > total / 60 ? numStr(c.i) : ''}</b></div>`;
-  }).join('');
-  const secs = total / fps;
-  const stepS = secs > 600 ? 60 : secs > 240 ? 30 : secs > 90 ? 15 : 10;
-  let ticks = '';
-  for (let s = 0; s < secs; s += stepS) ticks += `<span style="left:${s / secs * 100}%">${fmtClock(s)}</span>`;
-  $('#ruler').innerHTML = ticks;
-  updateButtons();
 }
 
 function pathUrl(folder, name){
@@ -2213,6 +2037,7 @@ function transitionXML(t, start, end, rate){
 }
 
 function buildXML(){
+  if (!hasExportTiming()) throw new Error('Confirm the scene starts against the narration before exporting XML.');
   if (/^(auto|gentle|reference)$/.test($('#trans').value)) return buildAutoXML();
   state.transitionPlan = [];
   return buildLegacyXML();
@@ -2317,6 +2142,7 @@ ${clips}
           <locked>FALSE</locked>
         </track>
       </video>
+      ${narrationAudioXML(rate)}
     </media>
   </sequence>
 </xmeml>
@@ -2324,14 +2150,14 @@ ${clips}
 }
 
 $('#xmlBtn').addEventListener('click', () => {
-  if (!state.timeline.length) return;
+  if (!hasExportTiming()) { setStatus('#s4', 'Check and confirm narration timing before exporting XML.', 'err'); return; }
   const xml = buildXML();
   const name = ($('#seqName').value.trim() || 'Script images').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_') || 'timeline';
   downloadBlob(new Blob([xml], { type: 'application/xml' }), name + '.xml');
   state.xmlDone = true; updateButtons();
   const blends = state.transitionPlan?.filter(Boolean) || [];
   const note = /^(auto|gentle|reference)$/.test($('#trans').value) && blends.length ? ` ${blends.length} centered transitions (${Math.min(...blends.map(t => t.seconds)).toFixed(2)}–${Math.max(...blends.map(t => t.seconds)).toFixed(2)} s).` : '';
-  setStatus('#s4', `Downloaded ${name}.xml with ${state.timeline.length} images on the timeline.${note}`, 'ok');
+  setStatus('#s4', `Downloaded ${name}.xml with ${state.timeline.length} aligned images.${state.vo ? " Use the complete ZIP to include narration.wav." : " Place the same narration at sequence 0:00."}${note}`, 'ok');
 });
 
 /* ---------- shared ---------- */
@@ -2346,8 +2172,11 @@ function updateButtons(){
   $('#genBtn .lbl').textContent = !n ? 'Generate images' : missing === n ? `Generate ${n} images` : missing ? `Generate ${missing} remaining` : 'All images ready';
   $('#stopBtn').disabled = !state.running || state.cancel;
   $('#zipBtn2').disabled = !hasImg || state.running;
-  $('#xmlBtn').disabled = !state.timeline.length;
-  $('#zipBtn2').textContent = state.timeline.length ? 'Download images + XML (.zip)' : 'Download images (.zip)';
+  $('#xmlBtn').disabled = !hasExportTiming();
+  $('#alignNarration').disabled = !n || !state.vo?.samples || state.voiceLoading || state.transcribing;
+  $('#cancelAlignment').disabled = !state.transcribing;
+  $('#voiceLanguage').disabled = state.voiceLoading || state.transcribing;
+  $('#zipBtn2').textContent = hasExportTiming() ? (state.vo ? 'Download images + audio + XML (.zip)' : 'Download images + XML (.zip)') : 'Download images (.zip)';
   updateWorkflowHelp();
   updateTransitionControls();
   markSteps();
@@ -2361,7 +2190,8 @@ function updateWorkflowHelp(){
   $('#workflowHint').textContent = !n ? 'Step 1 of 4 · Paste your script and create scenes.' : prompts < n ?
     `Step 2 of 4 · ${n} scenes ready. Write or load their image prompts.` : images < n ?
     `Step 3 of 4 · ${images} of ${n} images ready. Generate or retry the remaining images.` : !state.timeline.length ?
-    'Step 4 of 4 · Images ready. Add your voiceover or SRT to set the timing.' : !state.xmlDone ?
+    'Step 4 of 4 · Images ready. Add the final narration and align its words.' : !hasExportTiming() ?
+    'Step 4 of 4 · Listen to the scene starts and confirm narration timing.' : !state.xmlDone ?
     'Step 4 of 4 · Preview your transitions and download the images + XML package.' : 'Ready · Your Premiere timeline has been exported.';
   $('#step2Guide').hidden = n > 0;
   $('#step3Guide').hidden = n > 0 && prompts === n;
