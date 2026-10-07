@@ -1,9 +1,20 @@
 /* Page adapter for automatic native Premiere XML transitions. */
 function getAutoTransitions(){
-  const plan = CraftushTransitions.planner(state.timeline, state.items, rateInfo().fps, state.transitionSeed);
-  if ($('#trans').value === 'reference') plan.forEach(t => { if (t) t.preset = CraftushTransitions.PRESETS[0]; });
+  const plan = CraftushTransitions.planner(state.timeline, state.items, rateInfo().fps, state.transitionSeed,
+    { mode: $('#trans').value, energy: $('#transitionEnergy').value });
   state.transitionPlan = plan;
   return plan;
+}
+
+function getClipMotion(k, blends){
+  const [sw, sh] = seqSize(), [iw, ih] = imgSize(), c = state.timeline[k];
+  const incoming = blends[k - 1] || null, outgoing = blends[k] || null;
+  const fill = $('#fill').checked, base = fill ? Math.max(sw / iw, sh / ih) * 100 : 100;
+  const zoom = parseFloat($('#zoomAmt').value) || 0, setting = $('#motion').value;
+  const direction = setting === 'in' ? 1 : setting === 'out' ? -1 : setting === 'alt' ? (k % 2 ? -1 : 1) : 0;
+  const motion = CraftushTransitions.motionSamples({ len: c.end - c.start, incoming, outgoing, base, zoom, direction, fill, sw, sh, iw, ih });
+  const animated = fill || direction !== 0 || [incoming, outgoing].some(t => t && t.preset.id !== 'dissolve');
+  return { incoming, outgoing, motion, animated };
 }
 
 function buildAutoXML(){
@@ -11,14 +22,9 @@ function buildAutoXML(){
   const [sw, sh] = seqSize(), [iw, ih] = imgSize();
   const tl = state.timeline, blends = getAutoTransitions();
   const total = tl[tl.length - 1].end, folder = $('#folder').value;
-  const fill = $('#fill').checked, base = fill ? Math.max(sw / iw, sh / ih) * 100 : 100;
-  const zoom = parseFloat($('#zoomAmt').value) || 0, setting = $('#motion').value;
   const clips = tl.map((c, k) => {
-    const incoming = blends[k - 1] || null, outgoing = blends[k] || null;
-    const id = k + 1, name = fname(c.i), len = c.end - c.start;
-    const direction = setting === 'in' ? 1 : setting === 'out' ? -1 : setting === 'alt' ? (k % 2 ? -1 : 1) : 0;
-    const motion = CraftushTransitions.motionSamples({ len, incoming, outgoing, base, zoom, direction, fill, sw, sh, iw, ih });
-    const animated = fill || direction !== 0 || [incoming, outgoing].some(t => t && t.preset.id !== 'dissolve');
+    const { incoming, outgoing, motion, animated } = getClipMotion(k, blends);
+    const id = k + 1, name = fname(c.i);
     const filter = CraftushTransitions.motionXML(motion, animated);
     // -1 is the interchange-format sentinel for a clip edge controlled by an adjacent transition.
     // Include both still-image handles in in/out; the nominal narration cuts remain unchanged.

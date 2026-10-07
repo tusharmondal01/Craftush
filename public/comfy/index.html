@@ -1,12 +1,13 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
 <title>Craftush · Idea to Video</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Inter+Tight:wght@300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
 <script>if(!matchMedia("(prefers-reduced-motion: reduce)").matches)document.documentElement.classList.add("js-anim")</script>
 <style>
   :root{
@@ -146,88 +147,87 @@
     .status:not(:empty){animation:fade .5s var(--ease)} @keyframes fade{from{opacity:0;transform:translateY(6px)}}
     .dotc.wait{animation:blink 1s ease-in-out infinite} @keyframes blink{50%{opacity:.35}}
   }
+
+:root{--muted:#acbaa9;--faint:#91a08e;--dim:rgba(238,245,236,.62)}
+.video-options{margin:16px 0}.video-options summary{cursor:pointer;padding:12px 0;font-weight:500}.video-options summary:focus-visible{outline:2px solid var(--lime);outline-offset:3px}
+@media(max-width:700px){#app{display:flex;flex-direction:column}.connection-panel{order:-1}.panel{padding:22px 18px}input,select,textarea{font-size:16px}button{min-height:44px}}
 </style>
 </head>
 <body>
-<div class="bg" aria-hidden="true"><i class="beam"></i></div>
+<div aria-hidden="true" class="bg"><i class="beam"></i></div>
 <div class="wrap">
-  <header class="top">
-    <div class="brand">
-      <a class="logo" href="/" aria-label="Craftush dashboard">
-        <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
-          <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D6FF9E"/><stop offset="1" stop-color="#7CFF2E"/></linearGradient></defs>
-          <path d="M13 2c1 7.5 4.5 11 12 12-7.5 1-11 4.5-12 12-1-7.5-4.5-11-12-12 7.5-1 11-4.5 12-12z" fill="url(#lg)"/>
-          <path d="M25 1c.4 2.6 1.4 3.6 4 4-2.6.4-3.6 1.4-4 4-.4-2.6-1.4-3.6-4-4 2.6-.4 3.6-1.4 4-4z" fill="#7CFF2E"/>
-        </svg>
+<header class="top">
+<div class="brand">
+<a aria-label="Craftush dashboard" class="logo" href="/">
+<svg aria-hidden="true" height="30" viewbox="0 0 30 30" width="30">
+<defs><lineargradient id="lg" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#D6FF9E"></stop><stop offset="1" stop-color="#7CFF2E"></stop></lineargradient></defs>
+<path d="M13 2c1 7.5 4.5 11 12 12-7.5 1-11 4.5-12 12-1-7.5-4.5-11-12-12 7.5-1 11-4.5 12-12z" fill="url(#lg)"></path>
+<path d="M25 1c.4 2.6 1.4 3.6 4 4-2.6.4-3.6 1.4-4 4-.4-2.6-1.4-3.6-4-4 2.6-.4 3.6-1.4 4-4z" fill="#7CFF2E"></path>
+</svg>
         Craftush
       </a>
-      <a class="back" href="/"><span aria-hidden="true">←</span> All tools</a>
-    </div>
-    <label class="keychip" id="codeChip" hidden title="Your admin gives you this code. It's remembered on this computer.">
-      <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.5" fill="none" stroke="#0A1A05" stroke-width="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" fill="none" stroke="#0A1A05" stroke-width="2" stroke-linecap="round"/></svg>
-      <div><small>Team access code · remembered here</small><input type="password" id="teamCode" autocomplete="off" placeholder="Enter your team code"></div>
-    </label>
-  </header>
-
-  <section class="intro">
-    <span class="eyebrow rv" style="--d:0">Idea to video</span>
-    <h1><span class="rv" style="--d:100;display:inline-block">Turn an idea</span> <span class="dim rv" style="--d:200;display:inline-block">into a video.</span></h1>
-    <p class="rv" style="--d:320">Describe what you want to see. Your team's ComfyUI workflow does the rest, and the finished video appears below.</p>
-  </section>
-
-  <div id="notice" class="notice" hidden></div>
-
-  <div class="grid rv" style="--d:420" id="app">
-    <section class="panel" aria-labelledby="hCreate">
-      <span class="tag">Create</span>
-      <h2 id="hCreate">Describe your <span class="dim">idea.</span></h2>
-      <p class="lede">Be specific about the subject, setting, movement and mood.</p>
-      <label class="field"><span class="sr" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Idea</span>
-        <textarea id="idea" placeholder="e.g. A red fox walking through a neon-lit Tokyo alley in the rain, slow camera push-in, cinematic"></textarea>
-      </label>
-      <div class="fields" id="fields"></div>
-      <div class="bar">
-        <button class="primary" id="genBtn">Generate video</button>
-        <button id="stopBtn" disabled>Stop</button>
-      </div>
-      <div class="progress" aria-hidden="true"><span id="bar"></span></div>
-      <p class="stage" id="stage"></p>
-      <p class="status" id="status" aria-live="polite"></p>
-    </section>
-
-    <section class="panel" aria-labelledby="hConn">
-      <span class="tag">Connection</span>
-      <h2 id="hConn">ComfyUI <span class="dim">engine.</span></h2>
-      <p class="lede">Where your ComfyUI is running. Your admin sets the default.</p>
-      <div class="conn"><span class="dotc" id="connDot"></span><span id="connText">Not checked yet</span></div>
-      <label class="field">ComfyUI address
-        <input type="text" id="server" spellcheck="false" autocomplete="off" placeholder="http://127.0.0.1:8000">
-        <small>Saved on this computer only. <a href="#" id="resetServer">Use the admin default</a></small>
-      </label>
-      <p class="gpu" id="gpu"></p>
-      <div class="bar"><button id="testBtn">Test connection</button></div>
-      <details>
-        <summary>Setting up ComfyUI Desktop</summary>
-        <ol>
-          <li>Open ComfyUI Desktop and keep it running while you work. The workflow's models must be installed on it.</li>
-          <li>In ComfyUI, open <b>Settings</b> and find <b>Server-Config</b>. Set <b>Enable CORS header</b> to <code>https://craftush.netlify.app</code> (or <code>*</code>), then restart ComfyUI.</li>
-          <li>Use the address <code>http://127.0.0.1:8000</code> for ComfyUI Desktop, or <code>http://127.0.0.1:8188</code> for the portable version.</li>
-          <li>Use Chrome or Edge. If the browser asks to access devices on your local network, click <b>Allow</b>.</li>
-        </ol>
-      </details>
-    </section>
-  </div>
-
-  <section class="results" aria-labelledby="hRes">
-    <h2 id="hRes">Your videos</h2>
-    <p class="lede">Videos stay here while this page is open. Download the ones you want to keep.</p>
-    <div class="gallery" id="gallery"><div class="empty">Nothing yet. Describe an idea and press Generate video.</div></div>
-  </section>
+<a class="back" href="/"><span aria-hidden="true">←</span> All tools</a>
 </div>
-
+<label class="keychip" hidden="" id="codeChip" title="Your admin gives you this code. It's remembered on this computer.">
+<svg aria-hidden="true" height="20" viewbox="0 0 24 24" width="20"><rect fill="none" height="10" rx="2.5" stroke="#0A1A05" stroke-width="2" width="14" x="5" y="10.5"></rect><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" fill="none" stroke="#0A1A05" stroke-linecap="round" stroke-width="2"></path></svg>
+<div><small>Team access code · remembered here</small><input autocomplete="off" id="teamCode" placeholder="Enter your team code" type="password"/></div>
+</label>
+</header>
+<section class="intro">
+<span class="eyebrow rv" style="--d:0">Idea to video</span>
+<h1><span class="rv" style="--d:100;display:inline-block">Turn an idea</span> <span class="dim rv" style="--d:200;display:inline-block">into a video.</span></h1>
+<p class="rv" style="--d:320">Check your ComfyUI connection, describe an idea, then generate and download your video.</p>
+</section>
+<div class="notice" hidden="" id="notice"></div>
+<p class="notice">1. Connect your engine   →   2. Describe your idea   →   3. Generate and download</p><div class="grid rv" id="app" style="--d:420">
+<section aria-labelledby="hCreate" class="panel">
+<span class="tag">Create</span>
+<h2 id="hCreate">Describe your <span class="dim">idea.</span></h2>
+<p class="lede">Be specific about the subject, setting, movement and mood.</p>
+<label class="field"><span class="sr" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Idea</span>
+<textarea id="idea" placeholder="e.g. A red fox walking through a neon-lit Tokyo alley in the rain, slow camera push-in, cinematic"></textarea>
+</label>
+<details class="video-options"><summary>Optional video settings</summary><div class="fields" id="fields"></div></details>
+<div class="bar">
+<button class="primary" id="genBtn">Generate video</button>
+<button disabled="" id="stopBtn">Stop</button>
+</div>
+<div aria-hidden="true" class="progress"><span id="bar"></span></div>
+<p class="stage" id="stage"></p>
+<p aria-live="polite" class="status" id="status"></p>
+</section>
+<section aria-labelledby="hConn" class="panel connection-panel">
+<span class="tag">Connection</span>
+<h2 id="hConn">ComfyUI <span class="dim">engine.</span></h2>
+<p class="lede">Where your ComfyUI is running. Your admin sets the default.</p>
+<div class="conn"><span class="dotc" id="connDot"></span><span id="connText">Not checked yet</span></div>
+<label class="field">ComfyUI address
+        <input autocomplete="off" id="server" placeholder="http://127.0.0.1:8000" spellcheck="false" type="text"/>
+<small>Saved on this computer only. <a href="#" id="resetServer">Use the admin default</a></small>
+</label>
+<p class="gpu" id="gpu"></p>
+<div class="bar"><button id="testBtn">Test connection</button></div>
+<details>
+<summary>Setting up ComfyUI Desktop</summary>
+<ol>
+<li>Open ComfyUI Desktop and keep it running while you work. The workflow's models must be installed on it.</li>
+<li>In ComfyUI, open <b>Settings</b> and find <b>Server-Config</b>. Set <b>Enable CORS header</b> to this studio's address: <code id="corsOrigin">the address in your browser</code>, then restart ComfyUI.</li>
+<li>Use the address <code>http://127.0.0.1:8000</code> for ComfyUI Desktop, or <code>http://127.0.0.1:8188</code> for the portable version.</li>
+<li>Use Chrome or Edge. If the browser asks to access devices on your local network, click <b>Allow</b>.</li>
+</ol>
+</details>
+</section>
+</div>
+<section aria-labelledby="hRes" class="results">
+<h2 id="hRes">Your videos</h2>
+<p class="lede">Videos stay here while this page is open. Download the ones you want to keep.</p>
+<div class="gallery" id="gallery"><div class="empty">Nothing yet. Describe an idea and press Generate video.</div></div>
+</section>
+</div>
 <script>
 (function(){
   const $ = s => document.querySelector(s);
+  $('#corsOrigin').textContent = location.origin;
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2));
   const S = { cfg: null, clientId: uuid(), ws: null, jobs: [], active: null };

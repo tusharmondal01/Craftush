@@ -1,12 +1,13 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
 <title>Craftush · Stunning Visuals</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Inter+Tight:wght@300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>if(!matchMedia("(prefers-reduced-motion: reduce)").matches)document.documentElement.classList.add("js-anim")</script>
 <style>
@@ -341,384 +342,405 @@
     @keyframes pop{from{opacity:0;transform:scale(.92);filter:blur(10px)}}
     @keyframes fadeIn{from{opacity:0}}
   }
+
+:root{--muted:#acbaa9;--faint:#91a08e;--dim:rgba(238,245,236,.62)}
+.hero{padding-top:30px;padding-bottom:24px;min-height:0}.hero h1{font-size:clamp(2.4rem,4.5vw,4.2rem);line-height:1.06}.hero-copy p{max-width:60ch}.orb-wrap{max-height:200px}
+.control-label{display:block;font-size:.78rem;color:var(--muted);margin-bottom:6px}.split-mode{align-self:flex-end}
+.workflow-head{display:flex;gap:20px;align-items:center;justify-content:space-between;margin:0 0 24px;padding:18px 22px;border:1px solid var(--line);border-radius:18px;background:rgba(124,255,46,.035)}
+.workflow-head .eyebrow{margin:0 0 6px}.workflow-head p{margin:0;font-size:.9rem;color:var(--muted)}
+.workflow-head progress{width:110px;height:7px;accent-color:var(--lime);flex:none;border:0;border-radius:12px;overflow:hidden}.workflow-head progress::-webkit-progress-bar{background:#223023}.workflow-head progress::-webkit-progress-value{background:var(--lime)}
+.advanced{border:1px solid var(--line);border-radius:16px;margin:22px 0;padding:0 18px;background:rgba(255,255,255,.018)}
+.advanced summary{cursor:pointer;padding:16px 0;color:#d9e4d5;font-weight:500;font-size:.9rem;min-height:48px}.advanced summary:focus-visible{outline:2px solid var(--lime);outline-offset:4px}.advanced[open] .fields{margin:6px 0 22px}
+.guide{border-left:3px solid var(--lime);padding:10px 14px;margin:0 0 20px;color:var(--muted);background:rgba(124,255,46,.04);border-radius:0 10px 10px 0;font-size:.9rem}
+.step-foot{justify-content:space-between}.step-foot .back-step{background:transparent;color:var(--muted);border:1px solid var(--line-2)}
+button{min-height:44px}.field{min-width:0}.field select,.field input,.field textarea{max-width:100%}.bar .status{flex-basis:100%}
+.skip-link{position:absolute;left:16px;top:-90px;z-index:1000;background:var(--lime);color:#071106;padding:12px 18px;border-radius:10px}.skip-link:focus{top:12px}
+@media(max-width:700px){.hero{padding-top:22px}.orb-wrap{display:none}.hero{grid-template-columns:1fr}.workflow-head{padding:14px;gap:12px}.workflow-head progress{width:65px}.step{padding:22px 18px}.bar{align-items:stretch}.split-mode{flex:1 1 100%;min-width:0}.fields{grid-template-columns:1fr}input,select,textarea{font-size:16px}.step-foot{gap:12px;flex-wrap:wrap}.step-foot button{max-width:100%}}
 </style>
 </head>
-<body>
-<div class="bg" aria-hidden="true"><i class="beam"></i></div>
+<body><a class="skip-link" href="#studioMain">Skip to the workflow</a>
+<div aria-hidden="true" class="bg"><i class="beam"></i></div>
 <div class="wrap">
-
 <header class="top">
-  <div class="brand"><a class="logo" href="/" aria-label="Craftush dashboard">
-    <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
-      <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D6FF9E"/><stop offset="1" stop-color="#7CFF2E"/></linearGradient></defs>
-      <path d="M13 2c1 7.5 4.5 11 12 12-7.5 1-11 4.5-12 12-1-7.5-4.5-11-12-12 7.5-1 11-4.5 12-12z" fill="url(#lg)"/>
-      <path d="M25 1c.4 2.6 1.4 3.6 4 4-2.6.4-3.6 1.4-4 4-.4-2.6-1.4-3.6-4-4 2.6-.4 3.6-1.4 4-4z" fill="#7CFF2E"/>
-    </svg>
+<div class="brand"><a aria-label="Craftush dashboard" class="logo" href="/">
+<svg aria-hidden="true" height="30" viewbox="0 0 30 30" width="30">
+<defs><lineargradient id="lg" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#D6FF9E"></stop><stop offset="1" stop-color="#7CFF2E"></stop></lineargradient></defs>
+<path d="M13 2c1 7.5 4.5 11 12 12-7.5 1-11 4.5-12 12-1-7.5-4.5-11-12-12 7.5-1 11-4.5 12-12z" fill="url(#lg)"></path>
+<path d="M25 1c.4 2.6 1.4 3.6 4 4-2.6.4-3.6 1.4-4 4-.4-2.6-1.4-3.6-4-4 2.6-.4 3.6-1.4 4-4z" fill="#7CFF2E"></path>
+</svg>
     Craftush
   </a>
-  <a class="back" href="/"><span aria-hidden="true">←</span> All tools</a></div>
-    <label class="keychip" id="codeChip" hidden title="Your admin gives you this code. It's remembered on this computer.">
-    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.5" fill="none" stroke="#0A1A05" stroke-width="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" fill="none" stroke="#0A1A05" stroke-width="2" stroke-linecap="round"/></svg>
-    <div>
-      <small>Team access code · remembered here</small>
-      <input type="password" id="teamCode" autocomplete="off" placeholder="Enter your team code">
-    </div>
-  </label>
+<a class="back" href="/"><span aria-hidden="true">←</span> All tools</a></div>
+<label class="keychip" hidden="" id="codeChip" title="Your admin gives you this code. It's remembered on this computer.">
+<svg aria-hidden="true" height="20" viewbox="0 0 24 24" width="20"><rect fill="none" height="10" rx="2.5" stroke="#0A1A05" stroke-width="2" width="14" x="5" y="10.5"></rect><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" fill="none" stroke="#0A1A05" stroke-linecap="round" stroke-width="2"></path></svg>
+<div>
+<small>Team access code · remembered here</small>
+<input autocomplete="off" id="teamCode" placeholder="Enter your team code" type="password"/>
+</div>
+</label>
 </header>
-
 <section class="hero">
-  <div class="hero-copy">
-    <span class="eyebrow rv" style="--d:0">AI powered visual storytelling</span>
-    <h1><span class="ln rv" style="--d:120">Turn Scripts into</span> <span class="ln rv" style="--d:220">Stunning Visuals.</span> <span class="ln rv yl" style="--d:320">In Minutes.</span></h1>
-    <p class="rv" style="--d:460">Paste a voiceover script and get one hyper-realistic image for every moment of it. Then drop in the SRT, and every image lands on a Premiere Pro timeline in order, timed to the narration.</p>
-  </div>
-  <div class="orb-wrap" aria-hidden="true"><canvas id="orb"></canvas></div>
-  <div class="scroll-hint rv" style="--d:620"><i></i>Start with step 01 below</div>
+<div class="hero-copy">
+<span class="eyebrow rv" style="--d:0">AI powered visual storytelling</span>
+<h1>Script to images.<br/><span class="yl">Ready for Premiere.</span></h1>
+<p class="rv" style="--d:460">Create script-relevant images, preview cinematic transitions, and export a timeline that follows your narration.</p>
+</div>
+<div aria-hidden="true" class="orb-wrap"><canvas id="orb"></canvas></div>
+
 </section>
+<main class="app" id="studioMain" tabindex="-1">
+<div class="app-body"><div class="workflow-head"><div><span class="eyebrow">Your workflow</span><p aria-live="polite" id="workflowHint">Start by pasting your script.</p></div><progress aria-label="Completed workflow steps" id="workflowProgress" max="4" value="0"></progress></div>
+<!-- STEP 1 -->
+<section aria-labelledby="h1" class="step" id="st1">
+<span class="step-tag">Step 01 · Script</span>
+<h2 id="h1">Paste your <span class="dim">script.</span></h2>
+<p class="lede">Paste your narration and add a title. Complete-sentence mode keeps every sentence intact; smart scenes lets AI choose the cuts.</p>
+<label class="field title-field">Video title <small>Helps the AI understand the topic before it splits the script and writes prompts</small>
+<input id="videoTitle" placeholder="e.g. Degree vs Skills: what really builds your career" type="text"/>
+</label>
+<div class="script-box">
+<label class="sr" for="script">Script</label>
+<textarea id="script" placeholder="Paste your 3-minute voiceover script here…"></textarea>
+<p class="meta" id="scriptMeta">0 words</p>
+</div><p aria-live="polite" class="meta" id="draftStatus">Your script draft is saved on this device. Save prompts as JSON to keep your scene and prompt work.</p>
+<div class="bar">
+<label class="split-mode"><span class="control-label">Split method</span>
+<select id="splitMode">
+<option value="smart">Smart scenes (AI)</option>
+<option selected="" value="stops">One image per complete sentence</option>
+</select>
+</label>
+<label class="split-mode" id="textModelWrap"><span class="control-label">Text model</span>
+<select id="textModelSel" title="Used for splitting, scene planning, prompt writing and relevance checks"><option value="">Admin text model</option><option value="anthropic:claude@opus-4.8">Claude Opus 4.8 · quality recommendation</option><option value="anthropic:claude@sonnet-4.6">Claude Sonnet 4.6 · faster alternative</option></select>
+</label>
+<label class="split-mode" id="paceWrap"><span class="control-label">Scene pace</span>
+<select id="pace">
+<option selected="" value="scene">By scene · new image where a line ends or a new situation starts</option>
+<option value="count">Exactly within the image range</option>
+<option value="fast">Fast cuts · about 2–3 s</option>
+<option value="vfast">Very fast · max ~20 characters</option>
+<option value="relaxed">Relaxed · about 3–6 s</option>
+</select>
+</label>
+<span class="count-range" id="countRange">
+<label><span class="sr">Fewest images</span><input id="minImg" max="500" min="2" type="number" value="60"/></label>
+<span aria-hidden="true">to</span>
+<label><span class="sr">Most images</span><input id="maxImg" max="500" min="2" type="number" value="70"/></label>
+<span aria-hidden="true">images</span>
+</span>
+<button class="primary" id="splitBtn">Create scenes</button>
+<span aria-live="polite" class="status" id="s1"></span>
+</div>
+<p class="note" hidden="" id="splitHelp">Full-stop mode keeps each complete sentence as one image, even when it is long. Cut speed and image-count limits apply to smart splitting.</p>
+<div class="step-foot"><button class="next" data-go="1">Next: Write Prompts <svg aria-hidden="true" height="16" viewbox="0 0 24 24" width="16"><path d="M5 12h14m-6-6l6 6-6 6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button></div>
+</section>
+<!-- STEP 2 -->
+<section aria-labelledby="h2" class="step" id="st2">
+<span class="step-tag">Step 02 · Prompts</span>
+<h2 id="h2">Write a prompt for <span class="dim">every moment.</span></h2>
+<p class="lede">Choose a look and write prompts. The Visual Director uses the whole script and nearby scenes to keep each image relevant.</p><p aria-live="polite" class="guide" id="step2Guide">Create scenes in step 1, then write or load prompts here.</p>
+<div class="fields">
 
-<main class="app">
-  <div class="app-body">
-
-  <!-- STEP 1 -->
-  <section class="step" id="st1" aria-labelledby="h1">
-    <span class="step-tag">Step 01 · Script</span>
-    <h2 id="h1">Paste your <span class="dim">script.</span></h2>
-    <p class="lede">AI reads the whole script, understands it, and splits it into complete moments at the cut speed you choose. Each moment becomes one image.</p>
-    <label class="field title-field">Video title <small>Helps the AI understand the topic before it splits the script and writes prompts</small>
-      <input type="text" id="videoTitle" placeholder="e.g. Degree vs Skills: what really builds your career">
-    </label>
-    <div class="script-box">
-      <label class="sr" for="script">Script</label>
-      <textarea id="script" placeholder="Paste your 3-minute voiceover script here…"></textarea>
-      <p class="meta" id="scriptMeta">0 words</p>
-    </div>
-    <div class="bar">
-      <label class="split-mode"><span class="sr">How to split the script</span>
-        <select id="splitMode">
-          <option value="smart" selected>Smart split by scene (AI model from /admin)</option>
-          <option value="stops">Split at every full stop</option>
-        </select>
-      </label>
-      <label class="split-mode" id="textModelWrap"><span class="sr">Runware text model for splitting and prompts</span>
-        <select id="textModelSel" title="Used for splitting, scene planning, prompt writing and relevance checks"><option value="">Admin text model</option><option value="anthropic:claude@opus-4.8">Claude Opus 4.8 · quality recommendation</option><option value="anthropic:claude@sonnet-4.6">Claude Sonnet 4.6 · faster alternative</option></select>
-      </label>
-      <label class="split-mode"><span class="sr">Cut speed</span>
-        <select id="pace">
-          <option value="scene" selected>By scene · new image where a line ends or a new situation starts</option>
-          <option value="count">Exactly within the image range</option>
-          <option value="fast">Fast cuts · about 2–3 s</option>
-          <option value="vfast">Very fast · max ~20 characters</option>
-          <option value="relaxed">Relaxed · about 3–6 s</option>
-        </select>
-      </label>
-      <span class="count-range" id="countRange">
-        <label><span class="sr">Fewest images</span><input type="number" id="minImg" value="60" min="2" max="500"></label>
-        <span aria-hidden="true">to</span>
-        <label><span class="sr">Most images</span><input type="number" id="maxImg" value="70" min="2" max="500"></label>
-        <span aria-hidden="true">images</span>
-      </span>
-      <button class="primary" id="splitBtn">Split script</button>
-      <span class="status" id="s1" aria-live="polite"></span>
-    </div>
-    <p class="note" id="splitHelp" hidden>Full-stop mode keeps each complete sentence as one image, even when it is long. Cut speed and image-count limits apply to smart splitting.</p>
-    <div class="step-foot"><button class="next" data-go="1">Next: Write Prompts <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
-  </section>
-
-  <!-- STEP 2 -->
-  <section class="step" id="st2" aria-labelledby="h2">
-    <span class="step-tag">Step 02 · Prompts</span>
-    <h2 id="h2">Write a prompt for <span class="dim">every moment.</span></h2>
-    <p class="lede">Each image explains its narration beat: the subject, process, cause, result or context. Prompts are checked against the script and stay editable.</p>
-    <div class="fields">
-      <label class="field">Prompt writer <small>Uses the text model set in /admin (on Runware). The Visual Director reads the whole script, plans every scene in story order, then writes each prompt with the previous ones in view.</small>
-        <select id="promptModel">
-          <option value="director" selected>Visual Director (recommended)</option>
-          <option value="runwareLLM">Direct: one prompt per line</option>
-        </select>
-      </label>
-      <select id="writerModel" hidden><option value="default" selected>Admin text model</option></select>
-      <input type="text" id="writerCustom" hidden>
-      <span id="writerCustomField" hidden></span><span id="writerModelField" hidden></span>
-      <label class="field">Visual style
+<select hidden="" id="writerModel"><option selected="" value="default">Admin text model</option></select>
+<input hidden="" id="writerCustom" type="text"/>
+<span hidden="" id="writerCustomField"></span><span hidden="" id="writerModelField"></span>
+<label class="field">Visual style
         <select id="style">
-          <option value="stunning" selected>Stunning photoreal (golden light, rich colour, premium stock look)</option>
-          <option value="real">Real photograph (muted, unedited)</option>
-          <option value="phone">Everyday phone photo (most casual and believable)</option>
-          <option value="documentary">Documentary photojournalism</option>
-          <option value="nature">Nature &amp; landscape (natural daylight)</option>
-          <option value="cinematic">Cinematic film still (restrained)</option>
-          <option value="thumbnail">High-impact thumbnail photo</option>
-        </select>
-      </label>
-      <label class="field">Prompt strength <small>Higher means longer, more specific prompts for each image</small>
-        <select id="pstrength">
-          <option value="standard">Standard (70 to 100 words)</option>
-          <option value="rich">Rich (110 to 150 words)</option>
-          <option value="max">Maximum (160 to 210 words)</option>
-          <option value="ultra" selected>Very detailed (200 to 250 words)</option>
-        </select>
-      </label>
-      <label class="field span2">Direction for the prompt writer <small>Optional, in English: place, era, mood, or a recurring person. People described here appear only in the lines that are about them, not in every image.</small>
-        <textarea id="notes" rows="2" placeholder="e.g. Ravi, a 28-year-old Indian man with short black hair and a white kurta; small-town Rajasthan in the 1990s; warm golden-hour light"></textarea>
-      </label>
-      <label class="field span2" id="bibleField">Video concept &amp; people <small>Filled from the whole script before any prompt is written: topic, concept, setting and any recurring people (often none). Every prompt is checked against it. A person listed here appears only in lines about them. Edit it and press Write prompts again, or empty it to re-read the script.</small>
-        <textarea id="bible" rows="4" placeholder="topic: ...&#10;setting: modern Indian city offices and homes, present day&#10;employee_01: Indian man, about 28 years old, short black hair, wearing a light-blue cotton oxford shirt and navy chinos (young professional)"></textarea>
-      </label>
-      <label class="field" id="anthField" hidden>Anthropic API key <small>Only needed when you open this file outside Claude</small>
-        <input type="password" id="anthKey" autocomplete="off" placeholder="Leave empty inside Claude">
-      </label>
-    </div>
-    <div class="bar">
-      <button class="primary" id="promptBtn" disabled>
-        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c.8 5.6 3.4 8.2 9 9-5.6.8-8.2 3.4-9 9-.8-5.6-3.4-8.2-9-9 5.6-.8 8.2-3.4 9-9z" fill="currentColor"/></svg>
+<option selected="" value="stunning">Premium realistic photography</option>
+<option value="real">Real photograph (muted, unedited)</option>
+<option value="phone">Everyday phone photo (most casual and believable)</option>
+<option value="documentary">Documentary photojournalism</option>
+<option value="nature">Nature &amp; landscape (natural daylight)</option>
+<option value="cinematic">Cinematic film still (restrained)</option>
+<option value="thumbnail">High-impact thumbnail photo</option>
+</select>
+</label>
+
+<label class="field span2">Direction for the prompt writer <small>Optional, in English: place, era, mood, or a recurring person. People described here appear only in the lines that are about them, not in every image.</small>
+<textarea id="notes" placeholder="Optional: location, time period, visual mood or a recurring character, only where relevant to the script." rows="2"></textarea>
+</label>
+
+
+</div><details class="advanced" id="promptAdvanced"><summary>More prompt settings</summary><div class="fields"><label class="field">Prompt writer <small>Uses the text model set in /admin (on Runware). The Visual Director reads the whole script, plans every scene in story order, then writes each prompt with the previous ones in view.</small>
+<select id="promptModel">
+<option selected="" value="director">Visual Director (recommended)</option>
+<option value="runwareLLM">Direct: one prompt per line</option>
+</select>
+</label><label class="field">Prompt strength <small>Higher means longer, more specific prompts for each image</small>
+<select id="pstrength">
+<option value="standard">Standard (70 to 100 words)</option>
+<option value="rich">Rich (110 to 150 words)</option>
+<option value="max">Maximum (160 to 210 words)</option>
+<option selected="" value="ultra">Very detailed (200 to 250 words)</option>
+</select>
+</label><label class="field span2" id="bibleField">Video concept &amp; people <small>Filled from the whole script before any prompt is written: topic, concept, setting and any recurring people (often none). Every prompt is checked against it. A person listed here appears only in lines about them. Edit it and press Write prompts again, or empty it to re-read the script.</small>
+<textarea id="bible" placeholder="The video concept is filled from your script. Open this section to review or refine it." rows="4"></textarea>
+</label><label class="field" hidden="" id="anthField">Anthropic API key <small>Only needed when you open this file outside Claude</small>
+<input autocomplete="off" id="anthKey" placeholder="Leave empty inside Claude" type="password"/>
+</label></div></details>
+<div class="bar">
+<button class="primary" disabled="" id="promptBtn">
+<svg aria-hidden="true" height="16" viewbox="0 0 24 24" width="16"><path d="M12 2c.8 5.6 3.4 8.2 9 9-5.6.8-8.2 3.4-9 9-.8-5.6-3.4-8.2-9-9 5.6-.8 8.2-3.4 9-9z" fill="currentColor"></path></svg>
         Write prompts
       </button>
-      <button id="exportBtn" disabled>Save prompts (.json)</button>
-      <button id="importBtn">Load prompts</button>
-      <button id="copyAllBtn" disabled title="Copy every line with its prompt">Copy all lines + prompts</button>
-      <input type="file" id="importFile" accept=".json,application/json" hidden>
-    </div>
-    <p class="status" id="s2" aria-live="polite"></p>
-    <ol class="rows" id="rows"><li class="empty">Split a script in step 1 and the sentences appear here.</li></ol>
-    <div class="step-foot"><button class="next" data-go="2">Next: Generate Images <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
-  </section>
-
-  <!-- STEP 3 -->
-  <section class="step" id="st3" aria-labelledby="h3">
-    <span class="step-tag">Step 03 · Images</span>
-    <h2 id="h3">Generate the <span class="dim">images.</span></h2>
-    <p class="lede">Choose the model, frame shape and quality, then generate every image with Runware.</p>
-    <div class="fields">
-      <label class="field">Image model
+<button disabled="" id="exportBtn">Save script + prompts (.json)</button>
+<button id="importBtn">Load saved prompts</button>
+<button disabled="" id="copyAllBtn" title="Copy every line with its prompt">Copy all lines + prompts</button>
+<input accept=".json,application/json" hidden="" id="importFile" type="file"/>
+</div>
+<p aria-live="polite" class="status" id="s2"></p>
+<ol class="rows" id="rows"><li class="empty">Split a script in step 1 and the sentences appear here.</li></ol>
+<div class="step-foot"><button class="next back-step" data-go="0" type="button">← Back</button><button class="next" data-go="2">Next: Generate Images <svg aria-hidden="true" height="16" viewbox="0 0 24 24" width="16"><path d="M5 12h14m-6-6l6 6-6 6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button></div>
+</section>
+<!-- STEP 3 -->
+<section aria-labelledby="h3" class="step" id="st3">
+<span class="step-tag">Step 03 · Images</span>
+<h2 id="h3">Generate the <span class="dim">images.</span></h2>
+<p class="lede">Choose an image model, frame shape and quality. Generate the batch, then review the images below; you can redo any one image.</p><p aria-live="polite" class="guide" id="step3Guide">Write prompts in step 2, then generate your images.</p>
+<div class="fields">
+<label class="field">Image model
         <select id="imgModel">
-          <option value="openai:gpt-image@2" data-steps="" selected>GPT Image 2 · current default</option>
-          <option value="openai:gpt-image@2.5-sunburst" data-steps="">GPT-Image-2.5 Sunburst · quality recommendation</option>
-          <option value="google:4@2" data-steps="">Nano Banana Pro · alternative</option>
-          <optgroup id="imgLive" label="More Runware models"></optgroup>
-          <option value="custom">Custom Runware model ID</option>
-        </select>
-      </label>
-      <div class="field pick-cell">
-        <span>Runware library</span>
-        <button type="button" id="browseModels">Browse all image models</button>
-        <small id="pickedInfo">Search every image model on Runware.</small>
-      </div>
-      <label class="field" id="customField" hidden>Model ID <small>Copy it from Runware's model library, e.g. provider:123@1</small>
-        <input type="text" id="customModel" placeholder="provider:123@1">
-      </label>
-      <label class="field">Frame shape
+<option data-steps="" selected="" value="openai:gpt-image@2">GPT Image 2 · current default</option>
+<option data-steps="" value="openai:gpt-image@2.5-sunburst">GPT-Image-2.5 Sunburst · quality recommendation</option>
+<option data-steps="" value="google:4@2">Nano Banana Pro · alternative</option>
+<optgroup id="imgLive" label="More Runware models"></optgroup>
+<option value="custom">Custom Runware model ID</option>
+</select>
+</label>
+
+
+<label class="field">Frame shape
         <select id="aspect">
-          <option value="1344x768" data-hi="1920x1088" data-gpt="1536x1024" data-seq="1920x1080">16:9 landscape</option>
-          <option value="768x1344" data-hi="1088x1920" data-gpt="1024x1536" data-seq="1080x1920">9:16 vertical</option>
-          <option value="1024x1024" data-hi="1408x1408" data-gpt="1024x1024" data-seq="1080x1080">1:1 square</option>
-          <option value="1152x896" data-hi="1536x1152" data-gpt="1536x1024" data-seq="1440x1080">4:3 classic</option>
-        </select>
-      </label>
-      <label class="field">Quality <small>High detail is sharper in Premiere, about 2× the cost</small>
-        <select id="quality">
-          <option value="high" selected>High detail (Full HD)</option>
-          <option value="standard">Standard (faster, cheaper)</option>
-        </select>
-      </label>
-      <label class="field">Look <small>Lower guidance looks more like a real photo (FLUX.1 Dev only)</small>
-        <select id="look">
-          <option value="2.2">Raw natural (least AI look)</option>
-          <option value="2.5" selected>Natural photo (most realistic)</option>
-          <option value="3">Balanced</option>
-          <option value="3.5">Vivid (FLUX default, best for Stunning look)</option>
-        </select>
-      </label>
-      <label class="field">Steps <small>32 for Dev, 4 for Schnell, empty for default</small>
-        <input type="number" id="steps" value="" min="1" max="100">
-      </label>
-      <label class="field">At the same time <small>Parallel requests</small>
-        <input type="number" id="conc" value="3" min="1" max="8">
-      </label>
-      <label class="field span2 check"><span><input type="checkbox" id="qcOn" checked> Check every image with Claude and redo the ones that fail</span>
-        <small>Claude looks at each image: real photo (not cartoon or CGI), right subject, action and place, no text, no distorted faces or hands. Failed images are regenerated with a corrected prompt. Adds a small text cost per image.</small>
-      </label>
-      <label class="field">Redo failed images <small>Extra attempts per image</small>
-        <select id="qcRetries"><option value="1" selected>Up to 1 time</option><option value="2">Up to 2 times</option><option value="0">Never (only mark them)</option></select>
-      </label>
-      <label class="field">Pass score <small>Minimum score out of 10</small>
-        <select id="qcMin"><option value="6">6 (lenient)</option><option value="7" selected>7 (recommended)</option><option value="8">8 (strict)</option></select>
-      </label>
-      <label class="field span2 check"><span><input type="checkbox" id="autoStrong" checked> Strengthen weak prompts before generating</span>
-        <small>Short, template or hand-typed prompts are rewritten into a full hyper-real shot description by the AI photographer first. If that fails, the realism layers are added automatically.</small>
-      </label>
-    </div>
-    <p class="meta cost" id="modelNote" hidden>All models use the same Runware key. Generate one image first to check its look and actual cost before starting the batch.</p>
-    <div class="bar">
-      <button class="primary" id="genBtn" disabled>
-        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3c.7 4.9 3 7.2 7.9 7.9-4.9.7-7.2 3-7.9 7.9-.7-4.9-3-7.2-7.9-7.9C7 10.2 9.3 7.9 10 3z" fill="currentColor"/><path d="M19 13c.3 2.2 1.3 3.2 3.5 3.5-2.2.3-3.2 1.3-3.5 3.5-.3-2.2-1.3-3.2-3.5-3.5 2.2-.3 3.2-1.3 3.5-3.5z" fill="currentColor"/></svg>
-        <span class="lbl">Generate images</span>
-      </button>
-      <button id="stopBtn" disabled>Stop</button>
-    </div>
-    <p class="meta cost" id="costMeta" aria-live="polite"></p>
-    <div class="progress" aria-hidden="true"><span id="bar"></span></div>
-    <p class="status" id="s3" aria-live="polite"></p>
+<option data-gpt="1536x1024" data-hi="1920x1088" data-seq="1920x1080" value="1344x768">16:9 landscape</option>
+<option data-gpt="1024x1536" data-hi="1088x1920" data-seq="1080x1920" value="768x1344">9:16 vertical</option>
+<option data-gpt="1024x1024" data-hi="1408x1408" data-seq="1080x1080" value="1024x1024">1:1 square</option>
+<option data-gpt="1536x1024" data-hi="1536x1152" data-seq="1440x1080" value="1152x896">4:3 classic</option>
+</select>
+</label>
+<label class="field">Quality <small>High detail is sharper in Premiere, about 2× the cost</small>
+<select id="quality">
+<option selected="" value="high">High detail (Full HD)</option>
+<option value="standard">Standard (faster, cheaper)</option>
+</select>
+</label>
 
-    <div class="sub">
-      <div class="sub-head">
-        <div>
-          <h3>Generated Images</h3>
-          <p>Images are named in script order (001.jpg, 002.jpg…) so they stay in sequence everywhere.</p>
-        </div>
-        <div class="sub-actions">
-          <span class="meta" id="genMeta"></span>
-        </div>
-      </div>
-      <div class="sheet" id="sheet"></div>
-    </div>
-    <div class="step-foot"><button class="next" data-go="3">Next: Export to Premiere <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
-  </section>
 
-  <!-- STEP 4 -->
-  <section class="step" id="st4" aria-labelledby="h4">
-    <span class="step-tag">Step 04 · Export</span>
-    <h2 id="h4">Export to <span class="dim">Premiere Pro.</span></h2>
-    <p class="lede">Upload the SRT and/or the voiceover video, then download the XML. The timings decide when each image starts. Images butt up against each other, so the timeline has no gaps.</p>
 
-    <label class="drop" id="drop">
-      <input type="file" id="srtFile" accept=".srt,text/plain">
-      <svg width="34" height="40" viewBox="0 0 34 40" aria-hidden="true"><path d="M3 4a3 3 0 0 1 3-3h15l10 10v25a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" fill="#FFF6D6" stroke="#F5B400" stroke-width="1.8"/><path d="M21 1v10h10" fill="none" stroke="#F5B400" stroke-width="1.8"/><path d="M9 22h16M9 27h12M9 32h14" stroke="#A67800" stroke-width="1.8" stroke-linecap="round"/></svg>
-      <div>
-        <strong id="dropTitle">Choose an SRT file or drop it here</strong>
-        <span id="dropSub">Exported from Premiere, CapCut, Descript, or any caption tool</span>
-      </div>
-    </label>
 
-    <label class="drop" id="voDrop">
-      <input type="file" id="voFile" accept="video/*,audio/*,.mp4,.mov,.m4a,.mp3,.wav">
-      <svg width="34" height="40" viewBox="0 0 34 40" aria-hidden="true"><path d="M3 4a3 3 0 0 1 3-3h15l10 10v25a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" fill="#FFF6D6" stroke="#F5B400" stroke-width="1.8"/><path d="M21 1v10h10" fill="none" stroke="#F5B400" stroke-width="1.8"/><path d="M9 30v-6M13 32v-10M17 29v-4M21 33v-12M25 30v-6" stroke="#A67800" stroke-width="1.8" stroke-linecap="round"/></svg>
-      <div>
-        <strong id="voTitle">Recommended: add the HeyGen video (or its audio)</strong>
-        <span id="voSub">Stays on your computer. The site listens for the real pauses in the voice, fixes SRT timings that drift, and can time the images without any SRT.</span>
-      </div>
-    </label>
 
-    <div class="fields">
-      <label class="field">Match images to
+
+
+</div><details class="advanced" id="imageAdvanced"><summary>More image settings and quality checks</summary><div class="fields"><div class="field pick-cell">
+<span>Runware library</span>
+<button id="browseModels" type="button">Browse all image models</button>
+<small id="pickedInfo">Search every image model on Runware.</small>
+</div><label class="field" hidden="" id="customField">Model ID <small>Copy it from Runware's model library, e.g. provider:123@1</small>
+<input id="customModel" placeholder="provider:123@1" type="text"/>
+</label><label class="field">Look <small>Lower guidance looks more like a real photo (FLUX.1 Dev only)</small>
+<select id="look">
+<option value="2.2">Raw natural (least AI look)</option>
+<option selected="" value="2.5">Natural photo (most realistic)</option>
+<option value="3">Balanced</option>
+<option value="3.5">Vivid (FLUX default, best for Stunning look)</option>
+</select>
+</label><label class="field">Steps <small>32 for Dev, 4 for Schnell, empty for default</small>
+<input id="steps" max="100" min="1" type="number" value=""/>
+</label><label class="field">At the same time <small>Parallel requests</small>
+<input id="conc" max="8" min="1" type="number" value="3"/>
+</label><label class="field span2 check"><span><input checked="" id="qcOn" type="checkbox"/> Check image quality and retry failed images</span>
+<small>Claude looks at each image: real photo (not cartoon or CGI), right subject, action and place, no text, no distorted faces or hands. Failed images are regenerated with a corrected prompt. Adds a small text cost per image.</small>
+</label><label class="field">Redo failed images <small>Extra attempts per image</small>
+<select id="qcRetries"><option selected="" value="1">Up to 1 time</option><option value="2">Up to 2 times</option><option value="0">Never (only mark them)</option></select>
+</label><label class="field">Pass score <small>Minimum score out of 10</small>
+<select id="qcMin"><option value="6">6 (lenient)</option><option selected="" value="7">7 (recommended)</option><option value="8">8 (strict)</option></select>
+</label><label class="field span2 check"><span><input checked="" id="autoStrong" type="checkbox"/> Strengthen weak prompts before generating</span>
+<small>Short, template or hand-typed prompts are rewritten into a full hyper-real shot description by the AI photographer first. If that fails, the realism layers are added automatically.</small>
+</label></div></details>
+<p class="meta cost" hidden="" id="modelNote">All models use the same Runware key. Generate one image first to check its look and actual cost before starting the batch.</p>
+<div class="bar">
+<button class="primary" disabled="" id="genBtn">
+<svg aria-hidden="true" height="16" viewbox="0 0 24 24" width="16"><path d="M10 3c.7 4.9 3 7.2 7.9 7.9-4.9.7-7.2 3-7.9 7.9-.7-4.9-3-7.2-7.9-7.9C7 10.2 9.3 7.9 10 3z" fill="currentColor"></path><path d="M19 13c.3 2.2 1.3 3.2 3.5 3.5-2.2.3-3.2 1.3-3.5 3.5-.3-2.2-1.3-3.2-3.5-3.5 2.2-.3 3.2-1.3 3.5-3.5z" fill="currentColor"></path></svg>
+<span class="lbl">Generate images</span>
+</button>
+<button disabled="" id="stopBtn">Stop</button>
+</div>
+<p aria-live="polite" class="meta cost" id="costMeta"></p>
+<div aria-hidden="true" class="progress"><span id="bar"></span></div>
+<p aria-live="polite" class="status" id="s3"></p>
+<div class="sub">
+<div class="sub-head">
+<div>
+<h3>Generated Images</h3>
+<p>Images are named in script order (001.jpg, 002.jpg…) so they stay in sequence everywhere.</p>
+</div>
+<div class="sub-actions">
+<span class="meta" id="genMeta"></span>
+</div>
+</div>
+<div class="sheet" id="sheet"></div>
+</div>
+<div class="step-foot"><button class="next back-step" data-go="1" type="button">← Back</button><button class="next" data-go="3">Next: Export to Premiere <svg aria-hidden="true" height="16" viewbox="0 0 24 24" width="16"><path d="M5 12h14m-6-6l6 6-6 6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button></div>
+</section>
+<!-- STEP 4 -->
+<section aria-labelledby="h4" class="step" id="st4">
+<span class="step-tag">Step 04 · Export</span>
+<h2 id="h4">Export to <span class="dim">Premiere Pro.</span></h2>
+<p class="lede">Add your voiceover or SRT to set the timing. Preview the transitions, then download the images and Premiere timeline together.</p><p aria-live="polite" class="guide" id="step4Guide">Add your voiceover or SRT to build the timeline.</p>
+<label class="drop" id="drop">
+<input accept=".srt,text/plain" id="srtFile" type="file"/>
+<svg aria-hidden="true" height="40" viewbox="0 0 34 40" width="34"><path d="M3 4a3 3 0 0 1 3-3h15l10 10v25a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" fill="#FFF6D6" stroke="#F5B400" stroke-width="1.8"></path><path d="M21 1v10h10" fill="none" stroke="#F5B400" stroke-width="1.8"></path><path d="M9 22h16M9 27h12M9 32h14" stroke="#A67800" stroke-linecap="round" stroke-width="1.8"></path></svg>
+<div>
+<strong id="dropTitle">Choose an SRT file or drop it here</strong>
+<span id="dropSub">Exported from Premiere, CapCut, Descript, or any caption tool</span>
+</div>
+</label>
+<label class="drop" id="voDrop">
+<input accept="video/*,audio/*,.mp4,.mov,.m4a,.mp3,.wav" id="voFile" type="file"/>
+<svg aria-hidden="true" height="40" viewbox="0 0 34 40" width="34"><path d="M3 4a3 3 0 0 1 3-3h15l10 10v25a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" fill="#FFF6D6" stroke="#F5B400" stroke-width="1.8"></path><path d="M21 1v10h10" fill="none" stroke="#F5B400" stroke-width="1.8"></path><path d="M9 30v-6M13 32v-10M17 29v-4M21 33v-12M25 30v-6" stroke="#A67800" stroke-linecap="round" stroke-width="1.8"></path></svg>
+<div>
+<strong id="voTitle">Recommended: add the HeyGen video (or its audio)</strong>
+<span id="voSub">Stays on your computer. The site listens for the real pauses in the voice, fixes SRT timings that drift, and can time the images without any SRT.</span>
+</div>
+</label>
+<div class="fields">
+
+
+
+
+
+<label class="field">Motion transitions <small>Varied camera moves, chosen for the scene and centered on your narration</small>
+<select id="trans">
+<option selected="" value="auto">Auto: Cinematic transitions (28 styles)</option>
+<option value="gentle">Auto: Gentle motion (original 12 styles)</option>
+<option value="reference">XML reference: Cross Dissolve only</option>
+<option value="0.5">Original 50 styles, 0.5 s each</option>
+<option value="1">Original 50 styles, 1 s each</option>
+<option value="0">Off</option>
+</select>
+</label>
+<label class="field">Transition energy <small>Close-ups, connected scenes and endings get calmer moves automatically</small>
+<select id="transitionEnergy">
+<option selected="" value="high">High energy</option>
+<option value="balanced">Balanced</option>
+</select>
+</label>
+
+
+
+
+</div><details class="advanced" id="exportAdvanced"><summary>More timeline and export settings</summary><div class="fields"><label class="field">Match images to
         <select id="mode">
-          <option value="words">Script sentences</option>
-          <option value="cues">One image per subtitle line</option>
-          <option value="audio">Voiceover audio only (no SRT needed)</option>
-        </select>
-      </label>
-      <label class="field">Frame rate
+<option value="words">Script sentences</option>
+<option value="cues">One image per subtitle line</option>
+<option value="audio">Voiceover audio only (no SRT needed)</option>
+</select>
+</label><label class="field">Frame rate
         <select id="fps">
-          <option value="23.976">23.976</option>
-          <option value="24">24</option>
-          <option value="25">25</option>
-          <option value="29.97">29.97</option>
-          <option value="30" selected>30</option>
-          <option value="50">50</option>
-          <option value="59.94">59.94</option>
-          <option value="60">60</option>
-        </select>
-      </label>
-      <label class="field">Sequence name
-        <input type="text" id="seqName" value="Script images">
-      </label>
-      <label class="field">Slow zoom (Ken Burns)
+<option value="23.976">23.976</option>
+<option value="24">24</option>
+<option value="25">25</option>
+<option value="29.97">29.97</option>
+<option selected="" value="30">30</option>
+<option value="50">50</option>
+<option value="59.94">59.94</option>
+<option value="60">60</option>
+</select>
+</label><label class="field">Sequence name
+        <input id="seqName" type="text" value="Script images"/>
+</label><label class="field">Slow zoom (Ken Burns)
         <select id="motion">
-          <option value="alt" selected>Alternate zoom in and out</option>
-          <option value="in">Zoom in on every image</option>
-          <option value="out">Zoom out on every image</option>
-          <option value="none">No movement</option>
-        </select>
-      </label>
-      <label class="field">Zoom amount
+<option selected="" value="alt">Alternate zoom in and out</option>
+<option value="in">Zoom in on every image</option>
+<option value="out">Zoom out on every image</option>
+<option value="none">No movement</option>
+</select>
+</label><label class="field">Zoom amount
         <select id="zoomAmt">
-          <option value="0.06" selected>Subtle (6%)</option>
-          <option value="0.10">Medium (10%)</option>
-          <option value="0.15">Strong (15%)</option>
-        </select>
-      </label>
-      <label class="field">Motion transitions <small>Auto varies timing and motion; every blend stays centered on the narration cut</small>
-        <select id="trans">
-          <option value="auto" selected>Auto: XML dissolve + motion tweens</option>
-          <option value="reference">XML reference: Cross Dissolve only</option>
-          <option value="0.5">Original 50 styles, 0.5 s each</option>
-          <option value="1">Original 50 styles, 1 s each</option>
-          <option value="0">Off</option>
-        </select>
-      </label>
-      <label class="field wide">Folder where you'll unzip the images <small>So Premiere finds them without relinking. Example: C:\Users\you\Videos\project\images or /Users/you/Movies/images</small>
-        <input type="text" id="folder" placeholder="C:\Users\you\Videos\project\images">
-      </label>
-      <label class="check"><input type="checkbox" id="zero" checked> Start the first image at 0:00</label>
-      <label class="check"><input type="checkbox" id="snap" checked> Snap cuts to pauses in the voiceover</label>
-      <label class="check"><input type="checkbox" id="fill" checked> Scale images to fill the frame</label>
-    </div>
-
-    <div class="bar">
-      <button class="primary" id="xmlBtn" disabled>
-        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 20h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+<option selected="" value="0.06">Subtle (6%)</option>
+<option value="0.10">Medium (10%)</option>
+<option value="0.15">Strong (15%)</option>
+</select>
+</label><label class="field wide">Folder where you'll unzip the images <small>So Premiere finds them without relinking. Example: C:\Users\you\Videos\project\images or /Users/you/Movies/images</small>
+<input id="folder" placeholder="C:\Users\you\Videos\project\images" type="text"/>
+</label><label class="check"><input checked="" id="zero" type="checkbox"/> Start the first image at 0:00</label><label class="check"><input checked="" id="snap" type="checkbox"/> Snap cuts to pauses in the voiceover</label><label class="check"><input checked="" id="fill" type="checkbox"/> Scale images to fill the frame</label></div></details>
+<div class="bar">
+<button class="primary" disabled="" id="xmlBtn">
+<svg aria-hidden="true" height="16" viewbox="0 0 24 24" width="16"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 20h16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
         Download Premiere XML
       </button>
-      <button id="zipBtn2" disabled>
-        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 20h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Download All (.zip)
-      </button>
-      <span class="meta" id="tlMeta"></span>
-    </div>
-    <p class="status" id="s4" aria-live="polite"></p>
-
-    <div class="timeline" id="timeline" hidden>
-      <div class="track" id="track"></div>
-      <div class="ruler" id="ruler"></div>
-    </div>
-    <p class="note">In Premiere Pro: File, Import, pick the .xml. If you left the folder blank, Premiere will ask you to locate 001.jpg once and then finds the rest.</p>
-  </section>
-
-  </div>
+<button disabled="" id="zipBtn2">
+<svg aria-hidden="true" height="16" viewbox="0 0 24 24" width="16"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 20h16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg> Download images (.zip)</button>
+<span class="meta" id="tlMeta"></span>
+</div>
+<p aria-live="polite" class="status" id="s4"></p>
+<div class="sub" id="transitionPanel">
+<div class="sub-head">
+<div><h3>Transition preview</h3><p>See the camera moves on your images before exporting. Shuffle for another mix.</p></div>
+<div class="sub-actions">
+<button disabled="" id="previewTransitions" type="button">Preview transitions</button>
+<button disabled="" id="shuffleTransitions" type="button">Shuffle transitions</button>
+</div>
+</div>
+<p aria-live="polite" class="meta" id="transitionSummary">Add timings to see the transition mix.</p>
+<div hidden="" id="transitionPreview">
+<canvas aria-label="Preview of the transition between two images" height="960" id="transitionCanvas" style="display:block;max-width:100%;max-height:440px;width:auto;margin:18px auto;background:#141820;border-radius:12px" width="540"></canvas>
+<div class="bar">
+<label class="field" style="flex:1">Image pair <select id="transitionPair"></select></label>
+<button id="transitionPlay" type="button">Pause</button>
+<button id="transitionClose" type="button">Close preview</button>
+</div>
+<p aria-live="polite" class="meta" id="transitionPreviewStatus"></p>
+</div>
+</div>
+<div class="timeline" hidden="" id="timeline">
+<div class="track" id="track"></div>
+<div class="ruler" id="ruler"></div>
+</div>
+<p class="note">In Premiere Pro: File, Import, pick the .xml. If you left the folder blank, Premiere will ask you to locate 001.jpg once and then finds the rest.</p>
+<div class="step-foot"><button class="next back-step" data-go="2" type="button">← Back</button></div></section>
+</div>
 </main>
-
-<nav class="dock" aria-label="Steps">
-  <ol class="stepper">
-      <li class="dock-ind" aria-hidden="true" role="presentation"></li>
-      <li><a class="chip" href="#st1"><b>1</b>Paste Script</a></li>
-      <li><a class="chip" href="#st2"><b>2</b>Write Prompts</a></li>
-      <li><a class="chip" href="#st3"><b>3</b>Generate Images</a></li>
-      <li><a class="chip" href="#st4"><b>4</b>Export to Premiere</a></li>
-    </ol>
+<nav aria-label="Steps" class="dock">
+<ol class="stepper">
+<li aria-hidden="true" class="dock-ind" role="presentation"></li>
+<li><a class="chip" href="#st1"><b>1</b>Paste Script</a></li>
+<li><a class="chip" href="#st2"><b>2</b>Write Prompts</a></li>
+<li><a class="chip" href="#st3"><b>3</b>Generate Images</a></li>
+<li><a class="chip" href="#st4"><b>4</b>Export to Premiere</a></li>
+</ol>
 </nav>
 </div>
-
-<dialog id="modelPicker" aria-labelledby="pmTitle">
-  <div class="pm">
-    <div class="pm-head">
-      <div><span class="step-tag">Runware library</span><h2 id="pmTitle">Choose an <span class="dim">image model.</span></h2></div>
-      <button type="button" id="pmClose" aria-label="Close">Close</button>
-    </div>
-    <div class="pm-tools">
-      <input type="text" id="pmSearch" placeholder="Search models, e.g. realistic, flux, portrait, anime" autocomplete="off">
-      <label class="check"><input type="checkbox" id="pmFeatured" checked> Featured only</label>
-    </div>
-    <div class="pm-chips" id="pmChips" role="group" aria-label="Model family">
-      <button type="button" class="chip-f on" data-arch="">All</button>
-      <button type="button" class="chip-f" data-arch="flux1d">FLUX Dev</button>
-      <button type="button" class="chip-f" data-arch="flux1s">FLUX Schnell</button>
-      <button type="button" class="chip-f" data-arch="sdxl">SDXL</button>
-      <button type="button" class="chip-f" data-arch="sd3">SD 3</button>
-      <button type="button" class="chip-f" data-arch="pony">Pony</button>
-      <button type="button" class="chip-f" data-arch="sd1x">SD 1.5</button>
-    </div>
-    <div class="pm-grid" id="pmResults"></div>
-    <div class="pm-foot"><span class="meta" id="pmStatus" aria-live="polite"></span><button type="button" id="pmMore" hidden>Load more</button></div>
-  </div>
+<dialog aria-labelledby="pmTitle" id="modelPicker">
+<div class="pm">
+<div class="pm-head">
+<div><span class="step-tag">Runware library</span><h2 id="pmTitle">Choose an <span class="dim">image model.</span></h2></div>
+<button aria-label="Close" id="pmClose" type="button">Close</button>
+</div>
+<div class="pm-tools">
+<input autocomplete="off" id="pmSearch" placeholder="Search models, e.g. realistic, flux, portrait, anime" type="text"/>
+<label class="check"><input checked="" id="pmFeatured" type="checkbox"/> Featured only</label>
+</div>
+<div aria-label="Model family" class="pm-chips" id="pmChips" role="group">
+<button class="chip-f on" data-arch="" type="button">All</button>
+<button class="chip-f" data-arch="flux1d" type="button">FLUX Dev</button>
+<button class="chip-f" data-arch="flux1s" type="button">FLUX Schnell</button>
+<button class="chip-f" data-arch="sdxl" type="button">SDXL</button>
+<button class="chip-f" data-arch="sd3" type="button">SD 3</button>
+<button class="chip-f" data-arch="pony" type="button">Pony</button>
+<button class="chip-f" data-arch="sd1x" type="button">SD 1.5</button>
+</div>
+<div class="pm-grid" id="pmResults"></div>
+<div class="pm-foot"><span aria-live="polite" class="meta" id="pmStatus"></span><button hidden="" id="pmMore" type="button">Load more</button></div>
+</div>
 </dialog>
-
 <dialog id="viewer">
-  <img id="viewerImg" alt="">
-  <p id="viewerText"></p>
-  <button id="viewerClose">Close</button>
+<img alt="" id="viewerImg"/>
+<p id="viewerText"></p>
+<button id="viewerClose">Close</button>
 </dialog>
-
-<script src="transitions.js?v=13"></script>
-<script src="premiere-auto.js?v=13"></script>
+<script src="transitions.js?v=14"></script>
+<script src="premiere-auto.js?v=14"></script>
+<script src="transition-preview.js?v=14"></script>
 <script>
 const $ = s => document.querySelector(s);
 const state = { items: [], cues: [], timeline: [], transitionSeed: uuidSeed(), cancel: false, running: false, cost: { images: 0, prompts: 0, per: {} } };
@@ -833,6 +855,7 @@ function countRange(){
 function updateSplitControls(){
   const stops = $('#splitMode').value === 'stops';
   $('#pace').disabled = stops;
+  $('#paceWrap').hidden = stops;
   $('#countRange').hidden = stops || (!countMode() && $('#pace').value !== 'scene');
   $('#splitHelp').hidden = !stops;
 }
@@ -1482,8 +1505,11 @@ $('#promptBtn').addEventListener('click', async () => {
   updateButtons();
 });
 
+function promptProjectData(){
+  return { title: $('#videoTitle').value, bible: $('#bible').value, script: $('#script').value, transitionSeed: state.transitionSeed, transitionSettings: { mode: $('#trans').value, energy: $('#transitionEnergy').value }, items: state.items.map(it => ({ text: it.text, prompt: it.prompt, scene: it.scene || null, promptReview: it.promptReview || null })) };
+}
 $('#exportBtn').addEventListener('click', () => {
-  const data = { title: $('#videoTitle').value, bible: $('#bible').value, script: $('#script').value, transitionSeed: state.transitionSeed, items: state.items.map(it => ({ text: it.text, prompt: it.prompt, scene: it.scene || null, promptReview: it.promptReview || null })) };
+  const data = promptProjectData();
   downloadBlob(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), 'prompts.json');
 });
 $('#importBtn').addEventListener('click', () => $('#importFile').click());
@@ -1497,6 +1523,10 @@ $('#importFile').addEventListener('change', async e => {
     if (data.script) { $('#script').value = data.script; $('#script').dispatchEvent(new Event('input')); }
     state.items = data.items.map(it => ({ text: String(it.text || ''), prompt: String(it.prompt || ''), scene: it.scene && typeof it.scene === 'object' ? it.scene : null, promptReview: it.promptReview || null, status: 'idle', b64: null, url: null, err: '' }));
     if (Number.isInteger(data.transitionSeed)) state.transitionSeed = data.transitionSeed;
+    if (data.transitionSettings){
+      if (['auto', 'gentle', 'reference', '0.5', '1', '0'].includes(data.transitionSettings.mode)) $('#trans').value = data.transitionSettings.mode;
+      if (['high', 'balanced'].includes(data.transitionSettings.energy)) $('#transitionEnergy').value = data.transitionSettings.energy;
+    }
     state.directorBible = null;
     setStatus('#s2', `Loaded ${state.items.length} sentences and prompts.`, 'ok');
     renderAll();
@@ -1575,6 +1605,7 @@ $('#rows').addEventListener('click', async e => {
 $('#imgModel').addEventListener('change', () => {
   const opt = $('#imgModel').selectedOptions[0];
   $('#customField').hidden = opt.value !== 'custom';
+  if ($('#imgModel').value === 'custom') $('#imageAdvanced').open = true;
   $('#steps').value = opt.dataset.steps || '';
   // Models from the live list carry their architecture, so negative prompt / size rules apply correctly.
   state.picked = opt.dataset.arch !== undefined
@@ -1801,16 +1832,31 @@ $('#stopBtn').addEventListener('click', () => { state.cancel = true; $('#stopBtn
 async function downloadZip(sid){
   if (typeof JSZip === 'undefined'){ setStatus(sid, 'The zip library didn\'t load. Check your connection and reload the page.', 'err'); return; }
   $('#zipBtn2').disabled = true; setStatus(sid, 'Packing the zip…');
-  const zip = new JSZip(); const log = [];
-  state.items.forEach((it, i) => {
-    if (it.b64) zip.file(fname(i), it.b64, { base64: true });
-    log.push(`${fname(i)}\nSentence: ${it.text}\nPrompt: ${it.prompt}\n`);
-  });
-  zip.file('prompts.txt', log.join('\n'));
-  const blob = await zip.generateAsync({ type: 'blob' });
-  downloadBlob(blob, 'images.zip');
-  setStatus(sid, `Downloaded images.zip with ${state.items.filter(it => it.b64).length} images and prompts.txt.`, 'ok');
-  updateButtons();
+  try {
+    const zip = new JSZip(), log = [], imageCount = state.items.filter(it => it.b64).length;
+    const hasTimeline = state.timeline.length > 0, signature = exportSignature();
+    state.items.forEach((it, i) => {
+      if (it.b64) zip.file(fname(i), it.b64, { base64: true });
+      log.push(`${fname(i)}\nSentence: ${it.text}\nPrompt: ${it.prompt}\n`);
+    });
+    zip.file('prompts.txt', log.join('\n'));
+    zip.file('prompts.json', JSON.stringify(promptProjectData(), null, 2));
+    if (hasTimeline){
+      zip.file('timeline.xml', buildXML());
+      zip.file('transitions.json', JSON.stringify({ seed: state.transitionSeed, mode: $('#trans').value,
+        energy: $('#transitionEnergy').value, cuts: (state.transitionPlan || []).filter(Boolean).map(t => ({
+          style: t.preset.name, cutFrame: t.cut, startFrame: t.start, endFrame: t.end, seconds: t.seconds
+        })) }, null, 2));
+    }
+    const blob = await zip.generateAsync({ type: 'blob' });
+    downloadBlob(blob, 'images.zip');
+    if (hasTimeline && signature === exportSignature()) state.xmlDone = true;
+    setStatus(sid, `Downloaded images.zip with ${imageCount} images and saved prompts${hasTimeline ? ', plus timeline.xml and the transition plan' : ''}.`, 'ok');
+  } catch (error){ setStatus(sid, 'The download could not be packed. Try again, or download the XML separately. ' + error.message, 'err'); }
+  finally { updateButtons(); }
+}
+function exportSignature(){
+  return JSON.stringify([state.timeline, state.transitionSeed, ...['#trans','#transitionEnergy','#fps','#motion','#zoomAmt','#fill','#folder','#seqName','#aspect','#imgModel','#quality'].map(id => [$(id).value, $(id).checked])]);
 }
 $('#zipBtn2').addEventListener('click', () => downloadZip('#s4'));
 
@@ -2004,7 +2050,12 @@ function voiceFix(r){
   return { ...r, starts, end: vo.duration, note: [String(r.note || '').replace(/\.\s*$/, ''), ...notes].filter(Boolean).join('. ') + '.' };
 }
 $('#motion').addEventListener('change', () => { $('#zoomAmt').disabled = $('#motion').value === 'none'; });
-$('#trans').addEventListener('change', refreshTimeline);
+$('#trans').addEventListener('change', () => { stopTransitionPreview(); refreshTimeline(); });
+$('#transitionEnergy').addEventListener('change', () => { stopTransitionPreview(); refreshTimeline(); });
+['#motion', '#zoomAmt', '#fill', '#aspect', '#imgModel', '#fps'].forEach(id => $(id).addEventListener('change', () => {
+  stopTransitionPreview(); state.xmlDone = false; updateButtons();
+}));
+initTransitionPreview();
 
 function rateInfo(){
   const v = $('#fps').value;
@@ -2064,6 +2115,8 @@ function computeStarts(){
 }
 
 function refreshTimeline(){
+  stopTransitionPreview();
+  state.xmlDone = false;
   const ok = state.items.length && (state.cues.length || (state.vo && state.vo.segs));
   $('#timeline').hidden = !ok;
   state.timeline = [];
@@ -2084,7 +2137,7 @@ function refreshTimeline(){
   $('#tlMeta').textContent = `${n} images, ${fmtClock(total / fps)} total, ${Math.min(...lens).toFixed(1)}s to ${Math.max(...lens).toFixed(1)}s each`;
   setStatus('#s4', r.note, /^Only \d+% of script words matched the subtitles|only the first/.test(r.note) ? 'err' : 'ok');
 
-  const autoTransitions = /^(auto|reference)$/.test($('#trans').value) ? getAutoTransitions() : [];
+  const autoTransitions = /^(auto|gentle|reference)$/.test($('#trans').value) ? getAutoTransitions() : [];
   $('#track').innerHTML = state.timeline.map((c, k) => {
     const it = state.items[c.i];
     const bg = it.url ? `background-image:url('${it.url}')` : '';
@@ -2160,7 +2213,9 @@ function transitionXML(t, start, end, rate){
 }
 
 function buildXML(){
-  return /^(auto|reference)$/.test($('#trans').value) ? buildAutoXML() : buildLegacyXML();
+  if (/^(auto|gentle|reference)$/.test($('#trans').value)) return buildAutoXML();
+  state.transitionPlan = [];
+  return buildLegacyXML();
 }
 
 function buildLegacyXML(){
@@ -2275,7 +2330,7 @@ $('#xmlBtn').addEventListener('click', () => {
   downloadBlob(new Blob([xml], { type: 'application/xml' }), name + '.xml');
   state.xmlDone = true; updateButtons();
   const blends = state.transitionPlan?.filter(Boolean) || [];
-  const note = /^(auto|reference)$/.test($('#trans').value) && blends.length ? ` ${blends.length} centered transitions (${Math.min(...blends.map(t => t.seconds)).toFixed(2)}–${Math.max(...blends.map(t => t.seconds)).toFixed(2)} s).` : '';
+  const note = /^(auto|gentle|reference)$/.test($('#trans').value) && blends.length ? ` ${blends.length} centered transitions (${Math.min(...blends.map(t => t.seconds)).toFixed(2)}–${Math.max(...blends.map(t => t.seconds)).toFixed(2)} s).` : '';
   setStatus('#s4', `Downloaded ${name}.xml with ${state.timeline.length} images on the timeline.${note}`, 'ok');
 });
 
@@ -2292,7 +2347,58 @@ function updateButtons(){
   $('#stopBtn').disabled = !state.running || state.cancel;
   $('#zipBtn2').disabled = !hasImg || state.running;
   $('#xmlBtn').disabled = !state.timeline.length;
+  $('#zipBtn2').textContent = state.timeline.length ? 'Download images + XML (.zip)' : 'Download images (.zip)';
+  updateWorkflowHelp();
+  updateTransitionControls();
   markSteps();
+}
+
+function updateWorkflowHelp(){
+  const n = state.items.length, prompts = state.items.filter(it => it.prompt?.trim()).length;
+  const images = state.items.filter(it => it.b64).length;
+  const complete = [n > 0, n > 0 && prompts === n, n > 0 && images === n, !!state.xmlDone && state.timeline.length > 0];
+  $('#workflowProgress').value = complete.filter(Boolean).length;
+  $('#workflowHint').textContent = !n ? 'Step 1 of 4 · Paste your script and create scenes.' : prompts < n ?
+    `Step 2 of 4 · ${n} scenes ready. Write or load their image prompts.` : images < n ?
+    `Step 3 of 4 · ${images} of ${n} images ready. Generate or retry the remaining images.` : !state.timeline.length ?
+    'Step 4 of 4 · Images ready. Add your voiceover or SRT to set the timing.' : !state.xmlDone ?
+    'Step 4 of 4 · Preview your transitions and download the images + XML package.' : 'Ready · Your Premiere timeline has been exported.';
+  $('#step2Guide').hidden = n > 0;
+  $('#step3Guide').hidden = n > 0 && prompts === n;
+  $('#step4Guide').hidden = state.timeline.length > 0;
+  document.querySelectorAll('.step-foot .next:not(.back-step)').forEach(button => {
+    const next = Number(button.dataset.go);
+    button.disabled = state.running || (next === 1 ? !n : next === 2 ? !prompts : !images && !state.timeline.length);
+  });
+}
+
+const SCRIPT_DRAFT_KEY = 'craftush-script-draft-v14';
+let scriptDraftTimer = null;
+function saveScriptDraft(){
+  // Only script fields: passwords, API keys, team codes, images and audio are never stored here.
+  const draft = { script: $('#script').value, title: $('#videoTitle').value, notes: $('#notes').value };
+  try {
+    if (draft.script.length > 150000) throw new Error('draft too large');
+    localStorage.setItem(SCRIPT_DRAFT_KEY, JSON.stringify(draft));
+    $('#draftStatus').textContent = 'Script draft saved on this device. Save prompts as JSON to keep your scenes and prompts.';
+  } catch { $('#draftStatus').textContent = 'Use Save script + prompts (.json) to keep your work; this browser could not save the draft.'; }
+}
+function initScriptDraft(){
+  try {
+    const saved = JSON.parse(localStorage.getItem(SCRIPT_DRAFT_KEY) || 'null');
+    if (saved && typeof saved.script === 'string' && saved.script.length <= 150000 && !$('#script').value){
+      $('#script').value = saved.script;
+      if (typeof saved.title === 'string') $('#videoTitle').value = saved.title;
+      if (typeof saved.notes === 'string') $('#notes').value = saved.notes;
+      $('#script').dispatchEvent(new Event('input'));
+      $('#draftStatus').textContent = 'Script draft restored. Create scenes to continue, or load your saved prompts JSON.';
+    }
+  } catch {}
+  document.addEventListener('input', e => {
+    if (!['script', 'videoTitle', 'notes'].includes(e.target?.id)) return;
+    clearTimeout(scriptDraftTimer); scriptDraftTimer = setTimeout(saveScriptDraft, 350);
+  });
+  addEventListener('pagehide', () => { clearTimeout(scriptDraftTimer); saveScriptDraft(); });
 }
 function markSteps(){
   const it = state.items, n = it.length;
@@ -2330,6 +2436,7 @@ updateButtons();
 showStep(0, false);
 loadServerStatus();
 applyModelRules();
+initScriptDraft();
 $('#teamCode').addEventListener('change', () => { if (server.configured && !$('#imgLive').children.length) loadImageModels(); });
 
 /* ---------- motion (visual only) ---------- */

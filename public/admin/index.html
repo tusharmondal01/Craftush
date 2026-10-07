@@ -1,13 +1,14 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex, nofollow">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="noindex, nofollow" name="robots"/>
 <title>Craftush · Admin</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Inter+Tight:wght@300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
 <style>
   :root{
     --bg:#040804; --glass:rgba(12,24,13,.58); --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.13); --line-lime:rgba(124,255,46,.22);
@@ -120,152 +121,145 @@
     @keyframes rise{from{opacity:0;transform:translateY(18px);filter:blur(8px)}}
     .status:not(:empty){animation:fade .5s var(--ease)} @keyframes fade{from{opacity:0;transform:translateY(6px)}}
   }
+
+:root{--muted:#acbaa9;--faint:#91a08e;--dim:rgba(238,245,236,.62)}
+.admin-nav{display:flex;flex-wrap:wrap;gap:10px;margin:-6px 0 24px}.admin-nav a{font-size:.85rem;padding:9px 14px;border:1px solid var(--line);border-radius:999px;text-decoration:none}.admin-nav a:focus-visible{outline:2px solid var(--lime);outline-offset:3px}.card{scroll-margin-top:20px}.card h2{flex-wrap:wrap}.mrow .nm code{overflow-wrap:anywhere}
+@media(max-width:650px){.wrap{padding:16px 16px 60px}.card{padding:22px 18px}.mrow{grid-template-columns:auto 1fr}.mrow .acts{grid-column:1/-1}.two{grid-template-columns:1fr}.fitem{grid-template-columns:auto 1fr}.fitem input[type=text]{grid-column:1/-1}.searchrow{flex-wrap:wrap}input,select{font-size:16px}button{min-height:44px}}
 </style>
 </head>
 <body>
-<div class="bg" aria-hidden="true"></div>
+<div aria-hidden="true" class="bg"></div>
 <div class="wrap">
-  <header class="top">
-    <a class="logo" href="/" aria-label="Craftush home">
-      <svg width="28" height="28" viewBox="0 0 30 30" aria-hidden="true">
-        <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D6FF9E"/><stop offset="1" stop-color="#7CFF2E"/></linearGradient></defs>
-        <path d="M13 2c1 7.5 4.5 11 12 12-7.5 1-11 4.5-12 12-1-7.5-4.5-11-12-12 7.5-1 11-4.5 12-12z" fill="url(#lg)"/>
-        <path d="M25 1c.4 2.6 1.4 3.6 4 4-2.6.4-3.6 1.4-4 4-.4-2.6-1.4-3.6-4-4 2.6-.4 3.6-1.4 4-4z" fill="#7CFF2E"/>
-      </svg>
+<header class="top">
+<a aria-label="Craftush home" class="logo" href="/">
+<svg aria-hidden="true" height="28" viewbox="0 0 30 30" width="28">
+<defs><lineargradient id="lg" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#D6FF9E"></stop><stop offset="1" stop-color="#7CFF2E"></stop></lineargradient></defs>
+<path d="M13 2c1 7.5 4.5 11 12 12-7.5 1-11 4.5-12 12-1-7.5-4.5-11-12-12 7.5-1 11-4.5 12-12z" fill="url(#lg)"></path>
+<path d="M25 1c.4 2.6 1.4 3.6 4 4-2.6.4-3.6 1.4-4 4-.4-2.6-1.4-3.6-4-4 2.6-.4 3.6-1.4 4-4z" fill="#7CFF2E"></path>
+</svg>
       Craftush <span class="tag">Admin</span>
-    </a>
-    <button id="signOut" hidden>Sign out</button>
-  </header>
-
-  <!-- Sign in -->
-  <section id="loginView" class="login">
-    <h1>Admin <span style="color:var(--dim)">sign in.</span></h1>
-    <p class="lede">Manage the Runware key and team access for Craftush.</p>
-    <div class="card">
-      <label class="field">Admin password
-        <input type="password" id="pw" autocomplete="current-password" autofocus>
-      </label>
-      <div class="row"><button class="primary" id="loginBtn">Sign in</button></div>
-      <p class="status" id="loginStatus" aria-live="polite"></p>
-    </div>
-  </section>
-
-  <!-- Panel -->
-  <section id="panel" hidden>
-    <h1>Control <span style="color:var(--dim)">room.</span></h1>
-    <p class="lede">Your team generates images at <a href="/">craftush.netlify.app</a> without ever seeing the key.</p>
-
-    <div class="card">
-      <h2>Runware API key <span class="pill" id="keyPill">…</span></h2>
-      <p class="help">Stored securely on Netlify's servers and added to every request by the relay. It's checked with Runware before saving.</p>
-      <p class="keyline" id="keyLine"></p>
-      <label class="field">New key
-        <input type="password" id="newKey" autocomplete="off" placeholder="Paste a Runware API key to save or replace it">
-      </label>
-      <div class="row">
-        <button class="primary" id="saveKey">Save key</button>
-        <button id="testKey">Test current key</button>
-        <button class="danger" id="removeKey">Remove key</button>
-      </div>
-      <p class="status" id="keyStatus" aria-live="polite"></p>
-    </div>
-
-    <div class="card">
-      <h2>Team access code <span class="pill" id="codePill">…</span></h2>
-      <p class="help">When set, only people who enter this code on the main page can generate images, so strangers who find the link can't spend your credits. Leave it empty to turn it off. Change it anytime; everyone will be asked for the new one.</p>
-      <label class="field">Code
-        <input type="text" id="code" autocomplete="off" maxlength="64" placeholder="e.g. craftush-team-2026">
-      </label>
-      <div class="row"><button class="primary" id="saveCode">Save code</button></div>
-      <p class="status" id="codeStatus" aria-live="polite"></p>
-    </div>
-
-    <div class="card">
-      <h2>Text models <span class="pill on" id="textPill">AI</span></h2>
-      <p class="help">The AI models your team can pick for smart split (step 1 of Stunning Visuals). They run on your Runware key. The first one is the default, and if a model fails, the next one is tried automatically.</p>
-      <div class="mlist" id="textList"></div>
-      <p class="section-title" style="margin:22px 0 10px">Add a text model</p>
-      <div class="two">
-        <label class="field">Model ID<input type="text" id="addTextId" spellcheck="false" autocomplete="off" placeholder="provider:model@version"></label>
-        <label class="field">Friendly name (optional)<input type="text" id="addTextName" maxlength="60" placeholder="e.g. DeepSeek V4 Flash"></label>
-      </div>
-      <div class="row"><button class="primary" id="addText">Test &amp; add</button></div>
-      <p class="help" style="margin-top:14px">Quick add (text models listed on runware.ai/models):</p>
-      <div class="row" id="textQuick">
-        <button data-air="anthropic:claude@sonnet-4.6" data-name="Claude Sonnet 4.6">Claude Sonnet 4.6</button>
-        <button data-air="anthropic:claude@opus-4.8" data-name="Claude Opus 4.8">Claude Opus 4.8</button>
-        <button data-air="anthropic:claude@fable-5" data-name="Claude Fable 5">Claude Fable 5</button>
-        <button data-air="deepseek:v4@flash" data-name="DeepSeek V4 Flash">DeepSeek V4 Flash</button>
-      </div>
-      <p class="section-title" style="margin:22px 0 10px">Or search Runware's catalogue</p>
-      <div class="searchrow"><input type="text" id="textSearch" placeholder="e.g. claude, deepseek, gemini, gpt, llama"><button id="textSearchBtn">Search</button></div>
-      <div class="results" id="textResults"></div>
-      <p class="status" id="textStatus" aria-live="polite"></p>
-    </div>
-
-    <div class="card">
-      <h2>Usage</h2>
-      <p class="help">Counted by the relay from Runware's replies. Runware's own dashboard is the final word on billing.</p>
-      <div class="stats">
-        <div class="stat"><span>Images generated</span><b id="uImages">0</b></div>
-        <div class="stat"><span>Prompts written</span><b id="uPrompts">0</b></div>
-        <div class="stat"><span>Spent</span><b id="uCost">$0.00</b></div>
-      </div>
-      <p class="small" id="uSince"></p>
-      <div class="row"><button id="refresh">Refresh</button><button class="danger" id="resetUsage">Reset counters</button></div>
-      <p class="status" id="usageStatus" aria-live="polite"></p>
-    </div>
-    <p class="section-title">Dashboard</p>
-
-    <div class="card">
-      <h2>Dashboard cards</h2>
-      <p class="help">What your team sees on the three cards at craftush.netlify.app. Turn a card off to hide it.</p>
-      <div class="cardgrid" id="cardRows"></div>
-      <p class="status" id="cardStatus" aria-live="polite"></p>
-    </div>
-
-    <div class="card">
-      <h2>Thumbnail generator <span class="pill" id="thumbPill">…</span></h2>
-      <p class="help">Upload your thumbnail generator as a single HTML file. The team opens it from the first card, at <a href="/thumbnail" target="_blank" rel="noopener">/thumbnail</a>. Uploading a new file replaces the old one.</p>
-      <p class="fileinfo" id="thumbInfo"></p>
-      <div class="filebox"><input type="file" id="thumbFile" accept=".html,.htm,text/html"></div>
-      <div class="row"><button class="primary" id="uploadThumb">Upload HTML</button><button class="danger" id="removeThumb">Remove</button></div>
-      <p class="status" id="thumbStatus" aria-live="polite"></p>
-    </div>
-
-    <div class="card">
-      <h2>Idea to Video workflow <span class="pill" id="comfyPill">…</span></h2>
-      <p class="help">In ComfyUI, open your workflow and choose <b>Workflow → Export (API)</b>, then upload that JSON file here. The team uses it at <a href="/comfy/" target="_blank" rel="noopener">/comfy</a>.</p>
-      <p class="fileinfo" id="comfyInfo"></p>
-      <div class="filebox"><input type="file" id="comfyFile" accept=".json,application/json"></div>
-      <div class="row"><button class="primary" id="uploadWorkflow">Upload workflow</button><button class="danger" id="removeWorkflow">Remove</button></div>
-      <p class="status" id="comfyUpStatus" aria-live="polite"></p>
-
-      <div id="comfySettings" hidden>
-        <p class="section-title" style="margin-top:28px">Workflow settings</p>
-        <div class="two">
-          <label class="field">The team's idea goes into
-            <select id="promptKey"></select>
-          </label>
-          <label class="field">Negative prompt (optional, stays as saved)
-            <select id="negKey"></select>
-          </label>
-        </div>
-        <label class="field" style="margin-bottom:14px">Default ComfyUI address
-          <input type="text" id="comfyServer" spellcheck="false" placeholder="http://127.0.0.1:8000">
-        </label>
-        <label class="switch" style="margin-bottom:18px"><input type="checkbox" id="randomSeed" checked> New random seed for every video</label>
-        <p class="help" style="margin:14px 0 10px">Settings your team can change (tick up to 12, and give each a friendly name):</p>
-        <div class="fieldlist" id="fieldList"></div>
-        <div class="row"><button class="primary" id="saveComfy">Save workflow settings</button></div>
-        <p class="status" id="comfyStatus" aria-live="polite"></p>
-      </div>
-    </div>
-
-    <p class="small" id="ver"></p>
-  </section>
+</a>
+<button hidden="" id="signOut">Sign out</button>
+</header>
+<!-- Sign in -->
+<section class="login" id="loginView">
+<h1>Admin <span style="color:var(--dim)">sign in.</span></h1>
+<p class="lede">Manage the Runware key and team access for Craftush.</p>
+<div class="card">
+<label class="field">Admin password
+        <input autocomplete="current-password" autofocus="" id="pw" type="password"/>
+</label>
+<div class="row"><button class="primary" id="loginBtn">Sign in</button></div>
+<p aria-live="polite" class="status" id="loginStatus"></p>
 </div>
-
+</section>
+<!-- Panel -->
+<section hidden="" id="panel">
+<h1>Control <span style="color:var(--dim)">room.</span></h1>
+<p class="lede">Manage models, access and usage for your <a href="/">Craftush studio</a>.</p><nav aria-label="Admin sections" class="admin-nav"><a href="#admin-keys">API key</a><a href="#admin-models">Models</a><a href="#admin-usage">Usage</a><a href="#admin-access">Team access</a><a href="#admin-cards">Tools</a><a href="#admin-workflow">Video workflow</a></nav>
+<div class="card" id="admin-keys">
+<h2>Runware API key <span class="pill" id="keyPill">…</span></h2>
+<p class="help">Saved on the server and used for generation. Your team never needs to enter the API key. A new key is checked with Runware before saving.</p>
+<p class="keyline" id="keyLine"></p>
+<label class="field">New key
+        <input autocomplete="off" id="newKey" placeholder="Paste a Runware API key to save or replace it" type="password"/>
+</label>
+<div class="row">
+<button class="primary" id="saveKey">Save key</button>
+<button id="testKey">Test current key</button>
+<button class="danger" id="removeKey">Remove key</button>
+</div>
+<p aria-live="polite" class="status" id="keyStatus"></p>
+</div>
+<div class="card" id="admin-access">
+<h2>Team access code <span class="pill" id="codePill">…</span></h2>
+<p class="help">When set, only people who enter this code on the main page can generate images, so strangers who find the link can't spend your credits. Leave it empty to turn it off. Change it anytime; everyone will be asked for the new one.</p>
+<label class="field">Code
+        <input autocomplete="off" id="code" maxlength="64" placeholder="e.g. craftush-team-2026" type="text"/>
+</label>
+<div class="row"><button class="primary" id="saveCode">Save code</button></div>
+<p aria-live="polite" class="status" id="codeStatus"></p>
+</div>
+<div class="card" id="admin-models">
+<h2>Text models <span class="pill on" id="textPill">AI</span></h2>
+<p class="help">Text models for scene planning, prompt writing and quality checks. The first model is the default; models below it provide fallbacks. Image models are selected on the Visuals page.</p>
+<div class="mlist" id="textList"></div>
+<p class="section-title" style="margin:22px 0 10px">Add a text model</p>
+<div class="two">
+<label class="field">Model ID<input autocomplete="off" id="addTextId" placeholder="provider:model@version" spellcheck="false" type="text"/></label>
+<label class="field">Friendly name (optional)<input id="addTextName" maxlength="60" placeholder="e.g. DeepSeek V4 Flash" type="text"/></label>
+</div>
+<div class="row"><button class="primary" id="addText">Test &amp; add</button></div>
+<p class="help" style="margin-top:14px">Quick add (text models listed on runware.ai/models):</p>
+<div class="row" id="textQuick">
+<button data-air="anthropic:claude@sonnet-4.6" data-name="Claude Sonnet 4.6">Claude Sonnet 4.6</button>
+<button data-air="anthropic:claude@opus-4.8" data-name="Claude Opus 4.8">Claude Opus 4.8</button>
+<button data-air="anthropic:claude@fable-5" data-name="Claude Fable 5">Claude Fable 5</button>
+<button data-air="deepseek:v4@flash" data-name="DeepSeek V4 Flash">DeepSeek V4 Flash</button>
+</div>
+<p class="section-title" style="margin:22px 0 10px">Or search Runware's catalogue</p>
+<div class="searchrow"><input id="textSearch" placeholder="e.g. claude, deepseek, gemini, gpt, llama" type="text"/><button id="textSearchBtn">Search</button></div>
+<div class="results" id="textResults"></div>
+<p aria-live="polite" class="status" id="textStatus"></p>
+</div>
+<div class="card" id="admin-usage">
+<h2>Usage</h2>
+<p class="help">Counted by the relay from Runware's replies. Runware's own dashboard is the final word on billing.</p>
+<div class="stats">
+<div class="stat"><span>Images generated</span><b id="uImages">0</b></div>
+<div class="stat"><span>Text requests</span><b id="uPrompts">0</b></div>
+<div class="stat"><span>Spent</span><b id="uCost">$0.00</b></div>
+</div>
+<p class="help">Text requests include planning, prompt writing, relevance reviews and image checks. One image may use several text requests.</p>
+<p class="small" id="uSince"></p>
+<div class="row"><button id="refresh">Refresh</button><button class="danger" id="resetUsage">Reset counters</button></div>
+<p aria-live="polite" class="status" id="usageStatus"></p>
+</div>
+<p class="section-title">Dashboard</p>
+<div class="card" id="admin-cards">
+<h2>Dashboard cards</h2>
+<p class="help">Edit the tool names and descriptions shown in the studio. Turn a card off to hide it.</p>
+<div class="cardgrid" id="cardRows"></div>
+<p aria-live="polite" class="status" id="cardStatus"></p>
+</div>
+<div class="card" id="admin-thumbnails">
+<h2>Thumbnail generator <span class="pill" id="thumbPill">…</span></h2>
+<p class="help">Upload your thumbnail generator as a single HTML file. The team opens it from the first card, at <a href="/thumbnail" rel="noopener" target="_blank">/thumbnail</a>. Uploading a new file replaces the old one.</p>
+<p class="fileinfo" id="thumbInfo"></p>
+<div class="filebox"><input accept=".html,.htm,text/html" id="thumbFile" type="file"/></div>
+<div class="row"><button class="primary" id="uploadThumb">Upload HTML</button><button class="danger" id="removeThumb">Remove</button></div>
+<p aria-live="polite" class="status" id="thumbStatus"></p>
+</div>
+<div class="card" id="admin-workflow">
+<h2>Idea to Video workflow <span class="pill" id="comfyPill">…</span></h2>
+<p class="help">In ComfyUI, open your workflow and choose <b>Workflow → Export (API)</b>, then upload that JSON file here. The team uses it at <a href="/comfy/" rel="noopener" target="_blank">/comfy</a>.</p>
+<p class="fileinfo" id="comfyInfo"></p>
+<div class="filebox"><input accept=".json,application/json" id="comfyFile" type="file"/></div>
+<div class="row"><button class="primary" id="uploadWorkflow">Upload workflow</button><button class="danger" id="removeWorkflow">Remove</button></div>
+<p aria-live="polite" class="status" id="comfyUpStatus"></p>
+<div hidden="" id="comfySettings">
+<p class="section-title" style="margin-top:28px">Workflow settings</p>
+<div class="two">
+<label class="field">The team's idea goes into
+            <select id="promptKey"></select>
+</label>
+<label class="field">Negative prompt (optional, stays as saved)
+            <select id="negKey"></select>
+</label>
+</div>
+<label class="field" style="margin-bottom:14px">Default ComfyUI address
+          <input id="comfyServer" placeholder="http://127.0.0.1:8000" spellcheck="false" type="text"/>
+</label>
+<label class="switch" style="margin-bottom:18px"><input checked="" id="randomSeed" type="checkbox"/> New random seed for every video</label>
+<p class="help" style="margin:14px 0 10px">Settings your team can change (tick up to 12, and give each a friendly name):</p>
+<div class="fieldlist" id="fieldList"></div>
+<div class="row"><button class="primary" id="saveComfy">Save workflow settings</button></div>
+<p aria-live="polite" class="status" id="comfyStatus"></p>
+</div>
+</div>
+<p class="small" id="ver"></p>
+</section>
+</div>
 <script>
 const $ = s => document.querySelector(s);
 let PW = '';
