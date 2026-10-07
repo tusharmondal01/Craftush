@@ -420,6 +420,7 @@
       <button class="primary" id="splitBtn">Split script</button>
       <span class="status" id="s1" aria-live="polite"></span>
     </div>
+    <p class="note" id="splitHelp" hidden>Full-stop mode keeps each complete sentence as one image, even when it is long. Cut speed and image-count limits apply to smart splitting.</p>
     <div class="step-foot"><button class="next" data-go="1">Next: Write Prompts <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
   </section>
 
@@ -777,19 +778,31 @@ function seqSize(){ return $('#aspect').selectedOptions[0].dataset.seq.split('x'
 
 /* ---------- STEP 1: split ---------- */
 function splitSentences(text){
-  const abbr = /\b(mr|mrs|ms|dr|prof|sr|jr|st|vs|etc|e\.g|i\.e|no|inc|ltd|co|mt|ft|approx)\.$/i;
-  const paras = text.replace(/\r/g,'').split(/\n+/).map(p => p.trim()).filter(Boolean);
-  const out = [];
-  for (const p of paras){
-    const parts = p.replace(/\s+/g,' ').split(/(?<=[.!?।…]["'”’)\]]*)\s+/);
-    let buf = '';
-    for (const part of parts){
-      buf = buf ? buf + ' ' + part : part;
-      if (abbr.test(buf) || /(^|\s)[A-Z]\.$/.test(buf)) continue;
-      out.push(buf.trim()); buf = '';
+  // Line wrapping is not a sentence boundary. Preserve every word and punctuation mark.
+  const script = String(text || '').replace(/\s+/g, ' ').trim();
+  const protectedDots = new Set();
+  const protect = (pattern, trimEnd = false) => {
+    for (const match of script.matchAll(pattern)){
+      const token = trimEnd ? match[0].replace(/[.,!?।॥…"'”’)\]]+$/, '') : match[0];
+      for (let i = 0; i < token.length; i++) if (token[i] === '.') protectedDots.add(match.index + i);
     }
-    if (buf.trim()) out.push(buf.trim());
+  };
+  protect(/\b(?:https?:\/\/|www\.)\S+/gi, true);
+  protect(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g);
+  protect(/\b[\w-]+(?:\.[\w-]+)*\.(?:com|org|net|edu|gov|in|app|dev|io|ai|co\.uk)\b/gi);
+  protect(/\b(?:mr|mrs|ms|dr|prof|sr|jr|st|vs|etc|e\.g|i\.e|no|inc|ltd|co|mt|ft|approx)\./gi);
+  protect(/\b(?:[A-Za-z]\.){2,}/g);
+  protect(/\b[A-Z]\.(?=\s*(?:[A-Z][\p{L}\p{M}]+|[A-Z]\.))/gu);
+  for (let i = 1; i < script.length - 1; i++)
+    if (script[i] === '.' && /\d/.test(script[i - 1]) && /\d/.test(script[i + 1])) protectedDots.add(i);
+  const out = []; let start = 0;
+  for (const match of script.matchAll(/[.!?।॥…]+["'”’)\]]*/gu)){
+    const stops = match[0].match(/^[.!?।॥…]+/)[0];
+    if (/^\.+$/.test(stops) && [...stops].every((_, i) => protectedDots.has(match.index + i))) continue;
+    const end = match.index + match[0].length;
+    out.push(script.slice(start, end).trim()); start = end;
   }
+  if (start < script.length) out.push(script.slice(start).trim());
   return out.filter(s => /[\p{L}\p{N}]/u.test(s));
 }
 
@@ -817,7 +830,15 @@ function countRange(){
   if (lo > hi) [lo, hi] = [hi, lo];
   return { lo, hi, mid: Math.round((lo + hi) / 2) };
 }
-$('#pace').addEventListener('change', () => { $('#countRange').hidden = !countMode() && $('#pace').value !== 'scene'; });
+function updateSplitControls(){
+  const stops = $('#splitMode').value === 'stops';
+  $('#pace').disabled = stops;
+  $('#countRange').hidden = stops || (!countMode() && $('#pace').value !== 'scene');
+  $('#splitHelp').hidden = !stops;
+}
+$('#pace').addEventListener('change', updateSplitControls);
+$('#splitMode').addEventListener('change', updateSplitControls);
+updateSplitControls();
 
 $('#textModelSel').addEventListener('change', () => { TEXT_MODEL = $('#textModelSel').value || 'default'; try { localStorage.setItem('craftush-text-model', $('#textModelSel').value); } catch {} });
 ['#minImg', '#maxImg'].forEach(s => $(s).addEventListener('input', () => { const { lo, hi } = countRange(); $('#pace').querySelector('option[value="count"]').textContent = `Exactly ${lo}–${hi} images`; }));
@@ -1012,17 +1033,18 @@ $('#splitBtn').addEventListener('click', async () => {
     } else segs = splitSentences(text);
   } finally { $('#splitBtn').disabled = false; }
   let countNote = '';
-  if (countMode()){
+  // Pacing must never chop or merge full-stop sentences, including the AI fallback.
+  if (smart && countMode()){
     const { lo, hi } = countRange();
     segs = fitCount(segs, lo, hi);
     if (segs.length < lo) countNote = ` The script only has enough words for ${segs.length} pieces.`;
-  } else segs = enforcePace(segs, pace());
+  } else if (smart) segs = enforcePace(segs, pace());
   state.items.forEach(it => it.url && URL.revokeObjectURL(it.url));
   state.items = segs.map(t => ({ text: t, prompt: '', status: 'idle', b64: null, url: null, err: '' }));
   const secs = segs.map(secsFor), avg = secs.reduce((a, b) => a + b, 0) / (secs.length || 1);
   const summary = smart
     ? `Found ${segs.length} complete moments, so ${segs.length} images, about ${avg.toFixed(1)} s each (${Math.min(...secs)} to ${Math.max(...secs)} s)${splitModel ? ', split by ' + splitModel : ''}.`
-    : `Split into ${segs.length} pieces, so ${segs.length} images, about ${avg.toFixed(1)} s each.`;
+    : `Split into ${segs.length} complete sentences, one image per sentence, about ${avg.toFixed(1)} s each. Long sentences stay intact.`;
   setStatus('#s1', summary + note + countNote, note || countNote ? 'err' : 'ok');
   renderAll();
   if (!note) showStep(1);
@@ -1194,18 +1216,25 @@ async function loadImageModels(){
 }
 
 async function relay(tasks){
+  // Keep text requests compatible even when this page talks to an older relay.
+  // Model selection still applies to prompt writing when full-stop mode is selected.
+  const safeTasks = tasks.map(task => {
+    if (task.taskType !== 'textInference') return task;
+    const { temperature: _temperature, ...settings } = task.settings || {};
+    return { ...task, settings };
+  });
   let res;
   try {
     res = await fetch('/api/runware', {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'x-team-code': teamCode() },
-      body: JSON.stringify(tasks)
+      body: JSON.stringify(safeTasks)
     });
-  } catch { throw new Error('Couldn\'t reach the Craftush server. Images can only be generated on craftush.netlify.app.'); }
+  } catch { throw new Error('Couldn\'t reach the Craftush server. Try again on the published site.'); }
   let json;
   try { json = await res.json(); }
   catch {
     throw new Error(res.status === 404 || res.status === 405
-      ? 'The Craftush server isn\'t available here. Open craftush.netlify.app to generate images.'
+      ? 'The Craftush server isn\'t available here. Use the published Craftush site to generate images.'
       : res.status >= 500 ? `The server took too long or failed (HTTP ${res.status}). Try again, or lower "At the same time".`
       : 'Server answered with HTTP ' + res.status);
   }

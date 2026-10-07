@@ -32,10 +32,11 @@ async function forward(apiKey, tasks, timeout = RUNWARE_TIMEOUT) {
 const ALLOWED = new Set(["imageInference", "promptEnhance", "textInference", "modelSearch", "getResponse"]);
 const SEARCH_KEYS = ["search", "tags", "category", "type", "architecture", "conditioning", "featured", "limit", "offset", "taskUUID"];
 const MAX_TASKS = 12;
-const settingsForModel = (settings, model) => {
+const settingsForModel = (settings) => {
   const s = { ...settings };
-  // These documented Claude schemas use thinkingLevel rather than temperature.
-  if (model === 'anthropic:claude@opus-4.8' || model === 'anthropic:claude@sonnet-4.6') delete s.temperature;
+  // This app does not expose temperature. Omit it for portable Runware text tasks:
+  // Claude Sonnet 4.6 rejects it, and a fallback model may have a different schema.
+  delete s.temperature;
   return s;
 };
 
@@ -75,12 +76,12 @@ export default async (req) => {
     // Text tasks always use the model chosen in /admin, answer in one reply, and can't call tools.
     const { tools: _t, toolChoice: _c, webhookURL: _w, strictModel, ...rest } = t;
     const s = rest.settings && typeof rest.settings === "object" ? { ...rest.settings } : {};
-    s.maxTokens = Math.min(Number(s.maxTokens) || 4000, 8000);
+    s.maxTokens = Math.max(1, Math.min(Math.round(Number(s.maxTokens)) || 4000, 8000));
     // The team may pick any model the admin approved; anything else falls back to the default.
     // The team may pick any Runware text model ID (Claude, GPT, Gemini...); it runs on the same Runware key.
     // If Runware rejects it, the loop below falls back to the models approved in /admin.
     const model = MODEL_ID.test(String(rest.model || "")) ? rest.model : textModel(settings);
-    return { ...rest, model, deliveryMethod: "sync", settings: s, ...(strictModel ? { _strict: true } : {}) };
+    return { ...rest, model, deliveryMethod: "sync", settings: settingsForModel(s), ...(strictModel ? { _strict: true } : {}) };
   });
 
   let result, usedModel = null;
@@ -98,7 +99,7 @@ export default async (req) => {
         if (attempt) await sleep(1200);
         const tasksForModel = clean.map((t) => ({
           ...t, model, taskUUID: tried.length ? crypto.randomUUID() : t.taskUUID,
-          settings: settingsForModel({ ...t.settings, maxTokens: mi ? 8000 : t.settings.maxTokens }, model),
+          settings: settingsForModel({ ...t.settings, maxTokens: mi ? 8000 : t.settings.maxTokens }),
         }));
         result = await forward(apiKey, tasksForModel, Math.max(5000, RUNWARE_TIMEOUT - (Date.now() - started)));
         usedModel = model; tried.push(model);
@@ -114,7 +115,7 @@ export default async (req) => {
       result.status = 503;
     }
   } else {
-    result = await forward(apiKey, clean);
+    result = await forward(apiKey, clean.map(({ _strict: _ignored, ...task }) => task));
   }
   const upstream = { status: result.status };
   const data = result.data || {};
