@@ -148,6 +148,15 @@ test('subtitle load errors clear stale timelines and replacement races keep the 
   assert.equal(run('state.cues[0].start'),2);
 });
 
+test('an edited automatic start must be checked before timing can be confirmed again',()=>{
+  const {run,el}=previewFixture();
+  el('#alignmentRows').events.change({target:{dataset:{cut:'1'},value:'0:04.200'}});
+  assert.equal(run('state.timeline[1].start'),126);assert.equal(el('#xmlBtn').disabled,true);assert.equal(el('#confirmTiming').disabled,true);
+  el('#alignmentRows').events.change({target:{dataset:{review:'1'},checked:true}});
+  assert.equal(el('#confirmTiming').disabled,false);assert.equal(el('#xmlBtn').disabled,true);
+  el('#confirmTiming').checked=true;el('#confirmTiming').events.change();assert.equal(el('#xmlBtn').disabled,false);
+});
+
 test('all XML modes place the same mono/stereo narration at sequence zero',()=>{
   const {run,el}=previewFixture();
   for(const fps of ['23.976','25','29.97','30','59.94'])for(const channels of [1,2])for(const mode of ['auto','gentle','reference','0.5','1','0']){

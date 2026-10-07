@@ -105,9 +105,12 @@ function refreshTimeline(){
     $('#alignmentRows').innerHTML='';$('#alignmentReview').hidden=!state.items.length;
     $('#timingSummary').textContent=state.timingErrors[0]||'Create scenes and add narration or an SRT to align their starts.';
     $('#confirmTiming').disabled=true;state.timingConfirmed=false;$('#confirmTiming').checked=false;
-    if(state.timingErrors.length)setStatus('#s4',state.timingErrors[0],'err');updateButtons();return;
+    if(state.timingErrors.length)setStatus('#s4',state.timingErrors[0],'err');
+    else if(state.voiceLoading||state.transcribing)setStatus('#s4',state.voiceLoading?'Reading narration audio…':'Aligning the spoken narration. Export will become available after the timing check.');
+    updateButtons();return;
   }
-  const rows=r.rows.map(row=>({...row,start:state.cutOverrides.has(row.i)?state.cutOverrides.get(row.i):row.start,reviewed:state.cutReviewed.has(row.i)}));
+  const rows=r.rows.map(row=>({...row,start:state.cutOverrides.has(row.i)?state.cutOverrides.get(row.i):row.start,
+    reasons:state.cutOverrides.has(row.i)?[...row.reasons,'Manually set start; check while listening']:row.reasons,reviewed:state.cutReviewed.has(row.i)}));
   if($('#zero').checked&&rows.length&&!state.cutOverrides.has(0))rows[0].start=0;
   const {fps}=rateInfo(),built=CraftushAlignment.buildTimeline(rows,r.end,fps);
   state.timeline=built.clips;state.timingErrors=built.errors;
@@ -184,5 +187,6 @@ function initNarrationSync(){
     if(narrationPreviewLimit!==null&&audio.currentTime>=narrationPreviewLimit){audio.pause();narrationPreviewLimit=null;}
   });
   $('#narrationAudio').addEventListener('play',()=>{if(narrationPreviewLimit!==null&&$('#narrationAudio').currentTime>narrationPreviewLimit)narrationPreviewLimit=null;});
+  ['pointerdown','keydown'].forEach(event=>$('#narrationAudio').addEventListener(event,()=>{narrationPreviewLimit=null;}));
   $('#confirmTiming').addEventListener('change',()=>{state.timingConfirmed=$('#confirmTiming').checked;state.xmlDone=false;refreshTimeline();});
 }
