@@ -1857,9 +1857,10 @@ async function downloadZip(sid){
         })) }, null, 2));
     }
     const blob = await zip.generateAsync({ type: 'blob' });
-    downloadBlob(blob, 'images.zip');
+    const zipName = imageCount ? 'images.zip' : state.vo?.blob && hasTimeline ? 'timeline-audio.zip' : 'timeline.zip';
+    downloadBlob(blob, zipName);
     if (hasTimeline && signature === exportSignature()) state.xmlDone = true;
-    setStatus(sid, `Downloaded images.zip with ${imageCount} images and saved prompts${hasTimeline ? ', plus timeline.xml, timing.json, the transition plan' + (state.vo?.blob ? ' and narration.wav' : '') : ' (XML excluded until timing is confirmed)'}.`, 'ok');
+    setStatus(sid, `Downloaded ${zipName} with ${imageCount} images and saved prompts${hasTimeline ? ', plus timeline.xml, timing.json, the transition plan' + (state.vo?.blob ? ' and narration.wav' : '') : ' (XML excluded until timing is confirmed)'}.${!imageCount && hasTimeline ? ' Keep your existing numbered JPGs in the same folder as this timeline package.' : ''}`, 'ok');
   } catch (error){ setStatus(sid, 'The download could not be packed. Try again, or download the XML separately. ' + error.message, 'err'); }
   finally { updateButtons(); }
 }
@@ -2171,12 +2172,12 @@ function updateButtons(){
   $('#genBtn').disabled = !n || !missing || state.running;
   $('#genBtn .lbl').textContent = !n ? 'Generate images' : missing === n ? `Generate ${n} images` : missing ? `Generate ${missing} remaining` : 'All images ready';
   $('#stopBtn').disabled = !state.running || state.cancel;
-  $('#zipBtn2').disabled = !hasImg || state.running;
+  $('#zipBtn2').disabled = (!hasImg && !hasExportTiming()) || state.running;
   $('#xmlBtn').disabled = !hasExportTiming();
   $('#alignNarration').disabled = !n || !state.vo?.samples || state.voiceLoading || state.transcribing;
   $('#cancelAlignment').disabled = !state.transcribing;
   $('#voiceLanguage').disabled = state.voiceLoading || state.transcribing;
-  $('#zipBtn2').textContent = hasExportTiming() ? (state.vo ? 'Download images + audio + XML (.zip)' : 'Download images + XML (.zip)') : 'Download images (.zip)';
+  $('#zipBtn2').textContent = hasExportTiming() ? (hasImg ? (state.vo ? 'Download images + audio + XML (.zip)' : 'Download images + XML (.zip)') : (state.vo ? 'Download timeline + audio (.zip)' : 'Download timeline (.zip)')) : 'Download images (.zip)';
   updateWorkflowHelp();
   updateTransitionControls();
   markSteps();
@@ -2187,7 +2188,7 @@ function updateWorkflowHelp(){
   const images = state.items.filter(it => it.b64).length;
   const complete = [n > 0, n > 0 && prompts === n, n > 0 && images === n, !!state.xmlDone && state.timeline.length > 0];
   $('#workflowProgress').value = complete.filter(Boolean).length;
-  $('#workflowHint').textContent = !n ? 'Step 1 of 4 · Paste your script and create scenes.' : prompts < n ?
+  $('#workflowHint').textContent = hasExportTiming() && images < n ? 'Timing ready · Download the corrected timeline package and use your existing numbered JPGs.' : !n ? 'Step 1 of 4 · Paste your script and create scenes.' : prompts < n ?
     `Step 2 of 4 · ${n} scenes ready. Write or load their image prompts.` : images < n ?
     `Step 3 of 4 · ${images} of ${n} images ready. Generate or retry the remaining images.` : !state.timeline.length ?
     'Step 4 of 4 · Images ready. Add the final narration and align its words.' : !hasExportTiming() ?
