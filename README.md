@@ -91,10 +91,12 @@ Script-to-Premiere image tool with a private backend.
 
 ## Hosting on Vercel (instead of Netlify)
 
-The same code runs on Vercel. `api/*.js` are Vercel functions that reuse the handlers in `netlify/edge-functions/`, and `vercel.json` serves `public/`, maps `/thumbnail` and sets the admin headers. On Vercel, settings are stored in **Upstash Redis** (free) instead of Netlify Blobs.
+The same code runs on Vercel. `api/*.js` are Vercel functions that reuse the handlers in `netlify/edge-functions/`, and `vercel.json` serves `public/`, maps `/thumbnail` and sets the admin headers. Vercel settings can use **Upstash Redis** or a separate **Vercel Private Blob** store instead of Netlify Blobs.
+
+For Private Blob, create a **Private** store from the new project's Storage page and use the custom environment prefix `CRAFTUSH`. This creates `CRAFTUSH_STORE_ID`. The backend uses that store explicitly with Vercel's rotating OIDC credentials, private uploads, and uncached reads so settings changes appear immediately. The store must be private. No static Blob token is needed. This preserves the same admin actions, counters, thumbnail HTML and ComfyUI workflow uploads. Each deployment host has its own settings and uploads; the Runware key must be saved in the new site's `/admin`. Existing Netlify data is not migrated or changed. Vercel's usage allowance and storage limits apply.
 
 1. Go to **vercel.com → Add New → Project**, import the GitHub repository and press **Deploy** (leave build settings empty; `vercel.json` sets them).
-2. In the project, open **Storage → Marketplace → Upstash (Redis) → Create**, and connect it to the project. This adds `KV_REST_API_URL` and `KV_REST_API_TOKEN` automatically. (Or create a database at upstash.com and add `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` yourself.)
+2. Connect a **Private Blob** store with the `CRAFTUSH` prefix as described above. Alternatively, use **Storage → Marketplace → Upstash (Redis)** and connect a database to the project. Redis requires `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` or `KV_REST_API_URL`/`KV_REST_API_TOKEN`. Check the provider's current plan before provisioning.
 3. **Settings → Environment Variables**: add `ADMIN_PASSWORD` (a long password only you know).
 4. **Deployments → Redeploy** so the new variables are used.
 5. Open `your-project.vercel.app/admin`, sign in, paste the Runware key, and set a team code.

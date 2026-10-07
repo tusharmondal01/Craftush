@@ -1,5 +1,6 @@
 // Shared helpers for the Craftush edge functions.
 import { getStore } from "@netlify/blobs";
+import { privateBlobStore } from "./blob-store.js";
 
 // Shown on the admin page so you can confirm which backend version is live.
 export const VERSION = "13";
@@ -27,12 +28,14 @@ export const cleanMessage = (m) => String(m || "").replace(/<[^>]*>/g, " ").repl
 export const RUNWARE_URL = "https://api.runware.ai/v1";
 
 // One private store holds the settings (Runware key, team code) and usage totals.
-// On Netlify it is Netlify Blobs. On Vercel (or anywhere else) it is Upstash Redis over its REST API,
-// used when UPSTASH_REDIS_REST_URL/TOKEN (or Vercel's KV_REST_API_URL/TOKEN) are set.
+// Netlify uses Netlify Blobs. Other hosts can use Upstash Redis over its REST API.
+// Vercel also supports an isolated private Blob store connected with the CRAFTUSH prefix.
 export const openStore = () => {
   const url = env("UPSTASH_REDIS_REST_URL") || env("KV_REST_API_URL");
   const token = env("UPSTASH_REDIS_REST_TOKEN") || env("KV_REST_API_TOKEN");
   if (url && token) return redisStore(url.replace(/\/+$/, ""), token);
+  const blobId = env("CRAFTUSH_STORE_ID");
+  if (blobId) return privateBlobStore(blobId);
   return getStore({ name: "craftush", consistency: "strong" });
 };
 
