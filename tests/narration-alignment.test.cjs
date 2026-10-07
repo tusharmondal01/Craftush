@@ -39,6 +39,14 @@ test('extra spoken passages and incomplete first words require a review',()=>{
   assert(missing.rows[0].reasons.includes('First word is missing'));
 });
 
+test('incomplete repeated narration flags every possible matching scene as uncertain',()=>{
+  const line='Tiny caterpillars eat green leaves.';
+  const r=A.align(scenes([line,line,line]),[...words(line,2),...words(line,17)],{duration:25});
+  assert.equal(r.coverage,2/3);assert(r.rows.every(row=>row.confidence==='review'));
+  assert(r.rows.every(row=>row.reasons.some(reason=>reason.includes('verify every scene'))));
+  assert(A.buildTimeline(r.rows,25,30).errors.length>0);
+});
+
 test('Hindi and Hinglish matching handles script changes without an audio-length fallback',()=>{
   const items=scenes(['Titli phoolon par baithti hai.','Patte ke neeche ande hain.']);
   const transcript=[...words('तितली फूलों पर बैठती है।',2),...words('पत्ते के नीचे अंडे हैं।',11)];
@@ -81,6 +89,47 @@ test('multiword ASR spans remain marked as interpolated boundaries',()=>{
   const transcript=A.fromWords([{text:'Butterflies visit flowers.',timestamp:[1,4]}],8);
   const r=A.align(scenes(['Butterflies visit flowers.']),transcript,{duration:8});
   assert.equal(r.rows[0].confidence,'review');
+});
+
+test('speech timestamps that absorb opening silence require a listening check',()=>{
+  const words=A.fromWords([{text:'Butterflies',timestamp:[0,3.5]},{text:'visit',timestamp:[3.5,4]},{text:'flowers.',timestamp:[4,4.5]}],8);
+  const r=A.align(scenes(['Butterflies visit flowers.']),words,{duration:8});
+  assert.equal(r.rows[0].confidence,'review');assert(r.rows[0].reasons.some(reason=>reason.includes('unusually long')));
+  const exact=A.align(scenes(['Butterflies.']),A.fromCues([{text:'Butterflies.',start:2,end:8}]),{duration:10});
+  assert(!exact.rows[0].reasons.some(reason=>reason.includes('unusually long')));
+});
+
+test('overlapping speech windows keep absolute starts and select each boundary word once',async()=>{
+  const {transcribeWindows}=await import('../public/visuals/transcription-windows.mjs');
+  const audio=Float32Array.from({length:400},(_,i)=>i),calls=[],progress=[];
+  const result=await transcribeWindows(async(samples,options)=>{
+    const from=samples[0]/10;calls.push({from,length:samples.length/10,options});
+    return {chunks:[{text:' One',timestamp:[1-from,1.2-from]},{text:' boundary',timestamp:[14.8-from,15.2-from]},{text:' final',timestamp:[30.2-from,30.6-from]}].filter(c=>c.timestamp[0]>=0&&c.timestamp[1]<=samples.length/10)};
+  },audio,'english',{sampleRate:10,onChunk:p=>progress.push(p)});
+  assert.deepEqual(calls.map(c=>[c.from,c.length]),[[0,19],[11,23],[26,14]]);
+  assert.deepEqual(result.chunks.map(c=>c.timestamp[0]),[1,14.8,30.2]);
+  assert.deepEqual(progress,[{count:1,total:3},{count:2,total:3},{count:3,total:3}]);
+  assert(calls.every(c=>c.options.task==='transcribe'&&c.options.return_timestamps==='word'&&c.options.language==='english'));
+});
+
+test('speech window stitching preserves repeated phrases at different audio positions',async()=>{
+  const {transcribeWindows}=await import('../public/visuals/transcription-windows.mjs');
+  const audio=Float32Array.from({length:400},(_,i)=>i);let call=0;
+  const r=await transcribeWindows(async(samples)=>({chunks:[{text:' Repeat',timestamp:[6+15*call++-samples[0]/10,6.5+15*(call-1)-samples[0]/10]}]}),audio,'auto',{sampleRate:10});
+  assert.deepEqual(r.chunks.map(c=>c.timestamp[0]),[6,21,36]);assert.equal(r.chunks.length,3);
+});
+
+test('speech window failures do not manufacture incomplete word timestamps',async()=>{
+  const {transcribeWindows}=await import('../public/visuals/transcription-windows.mjs');
+  for(const timestamp of [[0,null],[4,3],[0,30]])await assert.rejects(()=>transcribeWindows(async()=>({chunks:[{text:'word',timestamp}]}),new Float32Array(16000),'english'),/incomplete word timestamp/);
+});
+
+test('speech windows reject invalid input and preserve automatic language detection',async()=>{
+  const {transcribeWindows}=await import('../public/visuals/transcription-windows.mjs');let options;
+  await transcribeWindows(async(audio,o)=>{options=o;return {chunks:[{text:' Hi',timestamp:[0,.3]}]};},new Float32Array(16000),'auto');
+  assert(!Object.hasOwn(options,'language'));assert.equal(options.task,'transcribe');
+  await assert.rejects(()=>transcribeWindows(()=>{},new Float32Array(16000),'english',{coreSeconds:30,contextSeconds:4}),/window size/);
+  await assert.rejects(()=>transcribeWindows(()=>{},new Float32Array(),'english'),/No narration/);
 });
 
 test('frame rounding stays within half a frame and never invents extra one-frame scenes',()=>{

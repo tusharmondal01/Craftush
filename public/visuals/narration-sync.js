@@ -6,7 +6,7 @@ function ensureNarrationState(){
   const key=narrationKey();
   if(state.narrationKey!==key){state.narrationKey=key;resetNarrationReview();}
 }
-function hasExportTiming(){return state.timeline.length===state.items.length&&state.items.length>0&&state.timingConfirmed&&!state.voiceLoading&&!state.transcribing&&!state.timingErrors?.length;}
+function hasExportTiming(){return state.timeline.length===state.items.length&&state.items.length>0&&state.timingConfirmed&&!state.timingNeedsReview&&!state.voiceLoading&&!state.transcribing&&!state.timingErrors?.length;}
 function stopNarrationWorker(){
   narrationTicket++;if(narrationWorker){narrationWorker.terminate();narrationWorker=null;}state.transcribing=false;
 }
@@ -54,7 +54,7 @@ function transcribeNarration(){
       if(data.type==='progress'){
         $('#alignmentStatus').textContent=data.status==='progress'?`Downloading speech model: ${Math.round(data.progress||0)}% of ${String(data.file||'model').split('/').pop()}`:'Loading speech recognition on this device…';
       }else if(data.type==='listening'||data.type==='chunk'){
-        $('#alignmentStatus').textContent='Transcribing the actual narration'+(data.count?` · ${data.count} audio chunks processed`:'')+'…';
+        $('#alignmentStatus').textContent='Transcribing the actual narration'+(data.count?` · ${data.count}${data.total?' of '+data.total:''} audio sections processed`:'')+'…';
       }else if(data.type==='complete'){
         try{
           vo.words=CraftushAlignment.fromWords(data.chunks,vo.duration);vo.transcript=String(data.text||'');
@@ -96,7 +96,7 @@ function computeStarts(){
   return r;
 }
 function refreshTimeline(){
-  stopTransitionPreview();state.xmlDone=false;state.timeline=[];state.timingErrors=[];
+  stopTransitionPreview();state.xmlDone=false;state.timeline=[];state.timingErrors=[];state.timingNeedsReview=true;
   $('#track').innerHTML='';$('#ruler').innerHTML='';$('#tlMeta').textContent='';$('#timeline').hidden=true;
   let r=null;
   try{if(state.items.length)r=computeStarts();}catch(error){state.timingErrors=[error.message];}
@@ -115,6 +115,7 @@ function refreshTimeline(){
   const {fps}=rateInfo(),built=CraftushAlignment.buildTimeline(rows,r.end,fps);
   state.timeline=built.clips;state.timingErrors=built.errors;
   const unresolved=rows.filter(row=>row.reasons.length&&!row.reviewed);
+  state.timingNeedsReview=unresolved.length>0;
   $('#alignmentReview').hidden=false;
   $('#alignmentRows').innerHTML=rows.map((row,k)=>{
     const it=state.items[row.i],end=k+1<rows.length?rows[k+1].start:r.end;

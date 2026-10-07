@@ -60,7 +60,7 @@
       if(!finite(c.start)||!finite(c.end)||c.start<0||c.end<=c.start||c.start<previous-.01) throw new Error('Subtitle timings overlap or are invalid. Use subtitles exported from this exact narration.');
       previous=c.end;
       const ts=tokenize(c.text);
-      ts.forEach((t,j)=>words.push({...t,start:c.start+(c.end-c.start)*j/ts.length,end:c.start+(c.end-c.start)*(j+1)/ts.length,exact:j===0,cue:i}));
+      ts.forEach((t,j)=>words.push({...t,start:c.start+(c.end-c.start)*j/ts.length,end:c.start+(c.end-c.start)*(j+1)/ts.length,exact:j===0,cue:i,source:'srt'}));
     }
     return words;
   }
@@ -71,7 +71,7 @@
       if(!finite(start)||!finite(end)||start<0||end<=start||start<previous-.04||(finite(duration)&&end>duration+.2)) throw new Error('Speech recognition returned incomplete or invalid word timestamps. Load an SRT or set the affected starts while listening.');
       previous=start;
       const ts=tokenize(c.text);
-      ts.forEach((t,j)=>words.push({...t,start:start+(end-start)*j/ts.length,end:start+(end-start)*(j+1)/ts.length,exact:ts.length===1,cue:null}));
+      ts.forEach((t,j)=>words.push({...t,start:start+(end-start)*j/ts.length,end:start+(end-start)*(j+1)/ts.length,exact:ts.length===1,cue:null,source:'audio'}));
     }
     return words;
   }
@@ -112,6 +112,7 @@
       if(!first) reasons.push('First word is missing');
       else if(!words[first.index].exact) reasons.push('Scene begins inside an SRT cue; start is interpolated');
       else if(first.score<.94) reasons.push('First spoken word is a phonetic match; check its start');
+      if(first&&words[first.index].source==='audio'&&words[first.index].end-words[first.index].start>1.2)reasons.push('First word timestamp is unusually long; check the start');
       if(content.length&&contentHits.length<Math.min(2,content.length)) reasons.push('Not enough meaningful words matched');
       if(onePerCue){
         const ct=tokenize(cues[scene]?.text||'');
@@ -129,6 +130,7 @@
       extra=[];
     }
     for(let k=0;k<m;k++){ if(!used.has(k))extra.push(k);else if(extra.length)closeExtra(); } if(extra.length)closeExtra();
+    if(matches.size/n<.9)rows.forEach(r=>{r.reasons.push('Narration transcript is incomplete; verify every scene start');r.confidence='review';});
     const end=finite(duration)?duration:words.reduce((end,w)=>Math.max(end,w.end+offset),0);
     return {rows,end,coverage:matches.size/n,matched:matches.size,total:n,source:onePerCue?'cues':'words'};
   }
