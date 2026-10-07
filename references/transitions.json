@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Cross Dissolve",
+    "effectid": "Cross Dissolve",
+    "alignment": "center",
+    "frames": 14,
+    "fps": 23.976023976023978,
+    "seconds": 0.5839166666666666
+  },
+  {
+    "name": "Cross Dissolve",
+    "effectid": "Cross Dissolve",
+    "alignment": "center",
+    "frames": 16,
+    "fps": 23.976023976023978,
+    "seconds": 0.6673333333333333
+  },
+  {
+    "name": "Cross Dissolve",
+    "effectid": "Cross Dissolve",
+    "alignment": "center",
+    "frames": 14,
+    "fps": 23.976023976023978,
+    "seconds": 0.5839166666666666
+  },
+  {
+    "name": "Cross Dissolve",
+    "effectid": "Cross Dissolve",
+    "alignment": "center",
+    "frames": 14,
+    "fps": 23.976023976023978,
+    "seconds": 0.5839166666666666
+  },
+  {
+    "name": "Cross Dissolve",
+    "effectid": "Cross Dissolve",
+    "alignment": "center",
+    "frames": 14,
+    "fps": 23.976023976023978,
+    "seconds": 0.5839166666666666
+  },
+  {
+    "name": "Cross Dissolve",
+    "effectid": "Cross Dissolve",
+    "alignment": "center",
+    "frames": 16,
+    "fps": 23.976023976023978,
+    "seconds": 0.6673333333333333
+  }
+]

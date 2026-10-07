@@ -1,0 +1,648 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE xmeml>
+<xmeml version="4">
+	<sequence id="sequence-1" TL.SQAudioVisibleBase="0" TL.SQVideoVisibleBase="0" TL.SQVisibleBaseTime="0" TL.SQAVDividerPosition="0.5" TL.SQHideShyTracks="0" TL.SQHeaderWidth="204" TL.SQDataTrackViewControlState="0" Monitor.ProgramZoomOut="2383781400000" Monitor.ProgramZoomIn="0" TL.SQTimePerPixel="0.013450654923213127" MZ.EditLine="2002376376000" MZ.Sequence.PreviewFrameSizeHeight="1920" MZ.Sequence.PreviewFrameSizeWidth="1080" MZ.Sequence.AudioTimeDisplayFormat="200" MZ.Sequence.PreviewRenderingClassID="1061109567" MZ.Sequence.PreviewRenderingPresetCodec="1634755443" MZ.Sequence.PreviewRenderingPresetPath="EncoderPresets\SequencePreview\9678af98-a7b7-4bdb-b477-7ac9c8df4a4e\QuickTime.epr" MZ.Sequence.PreviewUseMaxRenderQuality="false" MZ.Sequence.PreviewUseMaxBitDepth="false" MZ.Sequence.EditingModeGUID="9678af98-a7b7-4bdb-b477-7ac9c8df4a4e" MZ.Sequence.VideoTimeDisplayFormat="110" MZ.WorkOutPoint="1260755496000" MZ.WorkInPoint="0" explodedTracks="true">
+		<uuid>e3c24acd-49c8-4ee6-aa15-75c0b357d73d</uuid>
+		<duration>225</duration>
+		<rate>
+			<timebase>24</timebase>
+			<ntsc>TRUE</ntsc>
+		</rate>
+		<name>Adjustment Layer</name>
+		<media>
+			<video>
+				<format>
+					<samplecharacteristics>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>TRUE</ntsc>
+						</rate>
+						<codec>
+							<name>Apple ProRes 422</name>
+							<appspecificdata>
+								<appname>Final Cut Pro</appname>
+								<appmanufacturer>Apple Inc.</appmanufacturer>
+								<appversion>7.0</appversion>
+								<data>
+									<qtcodec>
+										<codecname>Apple ProRes 422</codecname>
+										<codectypename>Apple ProRes 422</codectypename>
+										<codectypecode>apcn</codectypecode>
+										<codecvendorcode>appl</codecvendorcode>
+										<spatialquality>1024</spatialquality>
+										<temporalquality>0</temporalquality>
+										<keyframerate>0</keyframerate>
+										<datarate>0</datarate>
+									</qtcodec>
+								</data>
+							</appspecificdata>
+						</codec>
+						<width>1080</width>
+						<height>1920</height>
+						<anamorphic>FALSE</anamorphic>
+						<pixelaspectratio>square</pixelaspectratio>
+						<fielddominance>none</fielddominance>
+						<colordepth>24</colordepth>
+					</samplecharacteristics>
+				</format>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1">
+					<clipitem id="clipitem-1">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>Adjustment Layer</name>
+						<enabled>TRUE</enabled>
+						<duration>1035764</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>TRUE</ntsc>
+						</rate>
+						<start>0</start>
+						<end>-1</end>
+						<in>86313</in>
+						<out>86343</out>
+						<pproTicksIn>914450328792000</pproTicksIn>
+						<pproTicksOut>914768166312000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<pixelaspectratio>square</pixelaspectratio>
+						<anamorphic>FALSE</anamorphic>
+						<file id="file-1">
+							<name>Black Video</name>
+							<mediaSource>Slug</mediaSource>
+							<rate>
+								<timebase>30</timebase>
+								<ntsc>TRUE</ntsc>
+							</rate>
+							<timecode>
+								<rate>
+									<timebase>30</timebase>
+									<ntsc>TRUE</ntsc>
+								</rate>
+								<string>00;00;00;00</string>
+								<frame>0</frame>
+								<displayformat>DF</displayformat>
+							</timecode>
+							<media>
+								<video>
+									<samplecharacteristics>
+										<rate>
+											<timebase>30</timebase>
+											<ntsc>TRUE</ntsc>
+										</rate>
+										<width>1080</width>
+										<height>1920</height>
+										<anamorphic>FALSE</anamorphic>
+										<pixelaspectratio>square</pixelaspectratio>
+										<fielddominance>none</fielddominance>
+									</samplecharacteristics>
+								</video>
+							</media>
+						</file>
+						<logginginfo>
+							<description></description>
+							<scene></scene>
+							<shottake></shottake>
+							<lognote></lognote>
+							<good></good>
+							<originalvideofilename></originalvideofilename>
+							<originalaudiofilename></originalaudiofilename>
+						</logginginfo>
+						<colorinfo>
+							<lut></lut>
+							<lut1></lut1>
+							<asc_sop></asc_sop>
+							<asc_sat></asc_sat>
+							<lut2></lut2>
+						</colorinfo>
+						<labels>
+						</labels>
+					</clipitem>
+					<transitionitem>
+						<start>16</start>
+						<end>30</end>
+						<alignment>center</alignment>
+						<cutPointTicks>74162088000</cutPointTicks>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>TRUE</ntsc>
+						</rate>
+						<effect>
+							<name>Cross Dissolve</name>
+							<effectid>Cross Dissolve</effectid>
+							<effectcategory>Dissolve</effectcategory>
+							<effecttype>transition</effecttype>
+							<mediatype>video</mediatype>
+							<wipecode>0</wipecode>
+							<wipeaccuracy>100</wipeaccuracy>
+							<startratio>0</startratio>
+							<endratio>1</endratio>
+							<reverse>FALSE</reverse>
+						</effect>
+					</transitionitem>
+					<clipitem id="clipitem-2">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>Adjustment Layer</name>
+						<enabled>TRUE</enabled>
+						<duration>1035764</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>TRUE</ntsc>
+						</rate>
+						<start>-1</start>
+						<end>-1</end>
+						<in>86329</in>
+						<out>86375</out>
+						<pproTicksIn>914619842136000</pproTicksIn>
+						<pproTicksOut>915107193000000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1"/>
+						<logginginfo>
+							<description></description>
+							<scene></scene>
+							<shottake></shottake>
+							<lognote></lognote>
+							<good></good>
+							<originalvideofilename></originalvideofilename>
+							<originalaudiofilename></originalaudiofilename>
+						</logginginfo>
+						<colorinfo>
+							<lut></lut>
+							<lut1></lut1>
+							<asc_sop></asc_sop>
+							<asc_sat></asc_sat>
+							<lut2></lut2>
+						</colorinfo>
+						<labels>
+						</labels>
+					</clipitem>
+					<transitionitem>
+						<start>46</start>
+						<end>62</end>
+						<alignment>center</alignment>
+						<cutPointTicks>84756672000</cutPointTicks>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>TRUE</ntsc>
+						</rate>
+						<effect>
+							<name>Cross Dissolve</name>
+							<effectid>Cross Dissolve</effectid>
+							<effectcategory>Dissolve</effectcategory>
+							<effecttype>transition</effecttype>
+							<mediatype>video</mediatype>
+							<wipecode>0</wipecode>
+							<wipeaccuracy>100</wipeaccuracy>
+							<startratio>0</startratio>
+							<endratio>1</endratio>
+							<reverse>FALSE</reverse>
+						</effect>
+					</transitionitem>
+					<clipitem id="clipitem-3">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>Adjustment Layer</name>
+						<enabled>TRUE</enabled>
+						<duration>1035764</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>TRUE</ntsc>
+						</rate>
+						<start>-1</start>
+						<end>-1</end>
+						<in>86359</in>
+						<out>86403</out>
+						<pproTicksIn>914937679656000</pproTicksIn>
+						<pproTicksOut>915403841352000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1"/>
+						<logginginfo>
+							<description></description>
+							<scene></scene>
+							<shottake></shottake>
+							<lognote></lognote>
+							<good></good>
+							<originalvideofilename></originalvideofilename>
+							<originalaudiofilename></originalaudiofilename>
+						</logginginfo>
+						<colorinfo>
+							<lut></lut>
+							<lut1></lut1>
+							<asc_sop></asc_sop>
+							<asc_sat></asc_sat>
+							<lut2></lut2>
+						</colorinfo>
+						<labels>
+						</labels>
+					</clipitem>
+					<transitionitem>
+						<start>76</start>
+						<end>90</end>
+						<alignment>center</alignment>
+						<cutPointTicks>74162088000</cutPointTicks>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>TRUE</ntsc>
+						</rate>
+						<effect>
+							<name>Cross Dissolve</name>
+							<effectid>Cross Dissolve</effectid>
+							<effectcategory>Dissolve</effectcategory>
+							<effecttype>transition</effecttype>
+							<mediatype>video</mediatype>
+							<wipecode>0</wipecode>
+							<wipeaccuracy>100</wipeaccuracy>
+							<startratio>0</startratio>
+							<endratio>1</endratio>
+							<reverse>FALSE</reverse>
+						</effect>
+					</transitionitem>
+					<clipitem id="clipitem-4">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>Adjustment Layer</name>
+						<enabled>TRUE</enabled>
+						<duration>1035764</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>TRUE</ntsc>
+						</rate>
+						<start>-1</start>
+						<end>-1</end>
+						<in>86389</in>
+						<out>86439</out>
+						<pproTicksIn>915255517176000</pproTicksIn>
+						<pproTicksOut>915785246376000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1"/>
+						<logginginfo>
+							<description></description>
+							<scene></scene>
+							<shottake></shottake>
+							<lognote></lognote>
+							<good></good>
+							<originalvideofilename></originalvideofilename>
+							<originalaudiofilename></originalaudiofilename>
+						</logginginfo>
+						<colorinfo>
+							<lut></lut>
+							<lut1></lut1>
+							<asc_sop></asc_sop>
+							<asc_sat></asc_sat>
+							<lut2></lut2>
+						</colorinfo>
+						<labels>
+						</labels>
+					</clipitem>
+					<transitionitem>
+						<start>112</start>
+						<end>126</end>
+						<alignment>center</alignment>
+						<cutPointTicks>74162088000</cutPointTicks>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>TRUE</ntsc>
+						</rate>
+						<effect>
+							<name>Cross Dissolve</name>
+							<effectid>Cross Dissolve</effectid>
+							<effectcategory>Dissolve</effectcategory>
+							<effecttype>transition</effecttype>
+							<mediatype>video</mediatype>
+							<wipecode>0</wipecode>
+							<wipeaccuracy>100</wipeaccuracy>
+							<startratio>0</startratio>
+							<endratio>1</endratio>
+							<reverse>FALSE</reverse>
+						</effect>
+					</transitionitem>
+					<clipitem id="clipitem-5">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>Adjustment Layer</name>
+						<enabled>TRUE</enabled>
+						<duration>1035764</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>TRUE</ntsc>
+						</rate>
+						<start>-1</start>
+						<end>-1</end>
+						<in>86389</in>
+						<out>86438</out>
+						<pproTicksIn>915255517176000</pproTicksIn>
+						<pproTicksOut>915774651792000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1"/>
+						<logginginfo>
+							<description></description>
+							<scene></scene>
+							<shottake></shottake>
+							<lognote></lognote>
+							<good></good>
+							<originalvideofilename></originalvideofilename>
+							<originalaudiofilename></originalaudiofilename>
+						</logginginfo>
+						<colorinfo>
+							<lut></lut>
+							<lut1></lut1>
+							<asc_sop></asc_sop>
+							<asc_sat></asc_sat>
+							<lut2></lut2>
+						</colorinfo>
+						<labels>
+						</labels>
+					</clipitem>
+					<transitionitem>
+						<start>147</start>
+						<end>161</end>
+						<alignment>center</alignment>
+						<cutPointTicks>74162088000</cutPointTicks>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>TRUE</ntsc>
+						</rate>
+						<effect>
+							<name>Cross Dissolve</name>
+							<effectid>Cross Dissolve</effectid>
+							<effectcategory>Dissolve</effectcategory>
+							<effecttype>transition</effecttype>
+							<mediatype>video</mediatype>
+							<wipecode>0</wipecode>
+							<wipeaccuracy>100</wipeaccuracy>
+							<startratio>0</startratio>
+							<endratio>1</endratio>
+							<reverse>FALSE</reverse>
+						</effect>
+					</transitionitem>
+					<clipitem id="clipitem-6">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>Adjustment Layer</name>
+						<enabled>TRUE</enabled>
+						<duration>1035764</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>TRUE</ntsc>
+						</rate>
+						<start>-1</start>
+						<end>-1</end>
+						<in>86389</in>
+						<out>86439</out>
+						<pproTicksIn>915255517176000</pproTicksIn>
+						<pproTicksOut>915785246376000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1"/>
+						<logginginfo>
+							<description></description>
+							<scene></scene>
+							<shottake></shottake>
+							<lognote></lognote>
+							<good></good>
+							<originalvideofilename></originalvideofilename>
+							<originalaudiofilename></originalaudiofilename>
+						</logginginfo>
+						<colorinfo>
+							<lut></lut>
+							<lut1></lut1>
+							<asc_sop></asc_sop>
+							<asc_sat></asc_sat>
+							<lut2></lut2>
+						</colorinfo>
+						<labels>
+						</labels>
+					</clipitem>
+					<transitionitem>
+						<start>181</start>
+						<end>197</end>
+						<alignment>center</alignment>
+						<cutPointTicks>84756672000</cutPointTicks>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>TRUE</ntsc>
+						</rate>
+						<effect>
+							<name>Cross Dissolve</name>
+							<effectid>Cross Dissolve</effectid>
+							<effectcategory>Dissolve</effectcategory>
+							<effecttype>transition</effecttype>
+							<mediatype>video</mediatype>
+							<wipecode>0</wipecode>
+							<wipeaccuracy>100</wipeaccuracy>
+							<startratio>0</startratio>
+							<endratio>1</endratio>
+							<reverse>FALSE</reverse>
+						</effect>
+					</transitionitem>
+					<clipitem id="clipitem-7">
+						<masterclipid>masterclip-1</masterclipid>
+						<name>Adjustment Layer</name>
+						<enabled>TRUE</enabled>
+						<duration>1035764</duration>
+						<rate>
+							<timebase>24</timebase>
+							<ntsc>TRUE</ntsc>
+						</rate>
+						<start>-1</start>
+						<end>225</end>
+						<in>86388</in>
+						<out>86432</out>
+						<pproTicksIn>915244922592000</pproTicksIn>
+						<pproTicksOut>915711084288000</pproTicksOut>
+						<alphatype>none</alphatype>
+						<file id="file-1"/>
+						<logginginfo>
+							<description></description>
+							<scene></scene>
+							<shottake></shottake>
+							<lognote></lognote>
+							<good></good>
+							<originalvideofilename></originalvideofilename>
+							<originalaudiofilename></originalaudiofilename>
+						</logginginfo>
+						<colorinfo>
+							<lut></lut>
+							<lut1></lut1>
+							<asc_sop></asc_sop>
+							<asc_sat></asc_sat>
+							<lut2></lut2>
+						</colorinfo>
+						<labels>
+						</labels>
+					</clipitem>
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+				<track TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+				</track>
+			</video>
+			<audio>
+				<numOutputChannels>2</numOutputChannels>
+				<format>
+					<samplecharacteristics>
+						<depth>16</depth>
+						<samplerate>48000</samplerate>
+					</samplecharacteristics>
+				</format>
+				<outputs>
+					<group>
+						<index>1</index>
+						<numchannels>1</numchannels>
+						<downmix>0</downmix>
+						<channel>
+							<index>1</index>
+						</channel>
+					</group>
+					<group>
+						<index>2</index>
+						<numchannels>1</numchannels>
+						<downmix>0</downmix>
+						<channel>
+							<index>2</index>
+						</channel>
+					</group>
+				</outputs>
+				<track TL.SQTrackAudioKeyframeStyle="0" TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1" PannerCurrentValue="0.5" PannerIsInverted="true" PannerStartKeyframe="-91445760000000000,0.5,0,0,0,0,0,0" PannerName="Balance" currentExplodedTrackIndex="0" totalExplodedTrackCount="2" premiereTrackType="Stereo">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+					<outputchannelindex>1</outputchannelindex>
+				</track>
+				<track TL.SQTrackAudioKeyframeStyle="0" TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1" PannerCurrentValue="0.5" PannerIsInverted="true" PannerStartKeyframe="-91445760000000000,0.5,0,0,0,0,0,0" PannerName="Balance" currentExplodedTrackIndex="1" totalExplodedTrackCount="2" premiereTrackType="Stereo">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+					<outputchannelindex>2</outputchannelindex>
+				</track>
+				<track TL.SQTrackAudioKeyframeStyle="0" TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1" PannerCurrentValue="0.5" PannerIsInverted="true" PannerStartKeyframe="-91445760000000000,0.5,0,0,0,0,0,0" PannerName="Balance" currentExplodedTrackIndex="0" totalExplodedTrackCount="2" premiereTrackType="Stereo">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+					<outputchannelindex>1</outputchannelindex>
+				</track>
+				<track TL.SQTrackAudioKeyframeStyle="0" TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1" PannerCurrentValue="0.5" PannerIsInverted="true" PannerStartKeyframe="-91445760000000000,0.5,0,0,0,0,0,0" PannerName="Balance" currentExplodedTrackIndex="1" totalExplodedTrackCount="2" premiereTrackType="Stereo">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+					<outputchannelindex>2</outputchannelindex>
+				</track>
+				<track TL.SQTrackAudioKeyframeStyle="0" TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1" PannerCurrentValue="0.5" PannerIsInverted="true" PannerStartKeyframe="-91445760000000000,0.5,0,0,0,0,0,0" PannerName="Balance" currentExplodedTrackIndex="0" totalExplodedTrackCount="2" premiereTrackType="Stereo">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+					<outputchannelindex>1</outputchannelindex>
+				</track>
+				<track TL.SQTrackAudioKeyframeStyle="0" TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="1" PannerCurrentValue="0.5" PannerIsInverted="true" PannerStartKeyframe="-91445760000000000,0.5,0,0,0,0,0,0" PannerName="Balance" currentExplodedTrackIndex="1" totalExplodedTrackCount="2" premiereTrackType="Stereo">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+					<outputchannelindex>2</outputchannelindex>
+				</track>
+				<track TL.SQTrackAudioKeyframeStyle="0" TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="0" PannerCurrentValue="0.5" PannerIsInverted="true" PannerStartKeyframe="-91445760000000000,0.5,0,0,0,0,0,0" PannerName="Balance" currentExplodedTrackIndex="0" totalExplodedTrackCount="2" premiereTrackType="Stereo">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+					<outputchannelindex>1</outputchannelindex>
+				</track>
+				<track TL.SQTrackAudioKeyframeStyle="0" TL.SQTrackShy="0" TL.SQTrackExpandedHeight="17" TL.SQTrackExpanded="0" MZ.TrackTargeted="0" PannerCurrentValue="0.5" PannerIsInverted="true" PannerStartKeyframe="-91445760000000000,0.5,0,0,0,0,0,0" PannerName="Balance" currentExplodedTrackIndex="1" totalExplodedTrackCount="2" premiereTrackType="Stereo">
+					<enabled>TRUE</enabled>
+					<locked>FALSE</locked>
+					<outputchannelindex>2</outputchannelindex>
+				</track>
+			</audio>
+		</media>
+		<timecode>
+			<rate>
+				<timebase>24</timebase>
+				<ntsc>TRUE</ntsc>
+			</rate>
+			<string>00:00:00:00</string>
+			<frame>0</frame>
+			<displayformat>NDF</displayformat>
+		</timecode>
+		<labels>
+			<label2>Forest</label2>
+		</labels>
+		<logginginfo>
+			<description></description>
+			<scene></scene>
+			<shottake></shottake>
+			<lognote></lognote>
+			<good></good>
+			<originalvideofilename></originalvideofilename>
+			<originalaudiofilename></originalaudiofilename>
+		</logginginfo>
+	</sequence>
+</xmeml>
