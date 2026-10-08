@@ -1,6 +1,14 @@
-# Craftush
+# Craftush v16
 
-Script-to-image and Premiere timeline tools using your Runware account, with a private admin backend. The current release aligns image scenes to the actual spoken narration and includes that narration in the Premiere package. The existing Netlify v12 site is separate and must remain untouched.
+Four dashboard tools using your Runware account, with a private admin backend. This release adds **Documentary Studio**, a browser workflow for your complete 13-scene Runware documentary, including video previews, concatenation, background music and final MP4 download. The existing Netlify v12 site is separate and must remain untouched.
+
+## New in v16: Documentary Studio
+
+Open `/documentary/` from the fourth dashboard card. It uses the existing admin Runware key and team access code. The supplied v18 master and scene system prompts are preserved byte for byte: Claude Fable 5 writes the complete plan, Claude Sonnet 4.6 directs each scene from that complete plan, and PixVerse V6 generates thirteen 12-second 720 × 1280 videos with native audio. ComfyUI and a desktop video editor are not required for this tool.
+
+Review or edit the master JSON and scene prompts, preview each clip, resume submitted jobs, retry individual failures, or upload replacement scene MP4s. Add optional music, then assemble and download the final video in the browser. The bundled FFmpeg engine keeps video unchanged when clip formats match and normalizes incompatible formats when necessary. It preserves the complete generated narration and ambient sound.
+
+See [DOCUMENTARY-STUDIO.md](DOCUMENTARY-STUDIO.md) for deployment, usage, project backup and workflow details. Deploy the complete project, including `api/`, `netlify/` and the bundled `public/documentary/vendor/` assets. Model availability and final narration quality still depend on your Runware account and the generated results. Live paid Runware generation has not been exercised in this release's local checks.
 
 ## Studio and workflow
 
@@ -77,11 +85,13 @@ Documentation: [Opus 4.8](https://runware.ai/docs/models/anthropic-claude-opus-4
 | `public/visuals/` | Script, prompts, images, transitions, preview and Premiere XML export |
 | `public/admin/index.html` | Password-protected admin interface |
 | `public/comfy/index.html` | ComfyUI front end |
+| `public/documentary/` | New Runware documentary studio, local media storage and browser FFmpeg export |
 | `netlify/edge-functions/` | Shared admin, Runware, tool and thumbnail handlers |
+| `netlify/lib/documentary-*.js` | Fixed original workflow, asynchronous task receipts and bounded video downloads |
 | `api/` | Vercel wrappers using the shared handlers |
 | `vercel.json` | Public assets, API/thumbnail routing and admin headers |
 | `netlify.toml` | Separate Netlify hosting configuration |
-| `tests/` | Sentence splitting, Runware relay and cinematic transition regressions |
+| `tests/` | Existing regressions plus documentary workflow, access, resume, media and export checks |
 
 ## Existing Vercel deployment
 
@@ -91,6 +101,8 @@ Production project: **craftush-v13-live**, under **tusharmondal-1850s-projects**
 - Admin: https://craftush-v13-live.vercel.app/admin
 
 This project is connected to **tusharmondal01/Craftush**, with **main** as its production branch. Tested updates on main trigger a Vercel production deployment. Use this existing project; do not create another project or connect/redeploy the Netlify v12 site.
+
+The Git release restores the large Documentary Studio engine during `npm run build` from the locked `@ffmpeg/core` 0.12.10 package. The build checks both engine files against the v16 ZIP's SHA-256 manifest before placing them in `public/documentary/vendor/`. This keeps the published engine identical to the supplied ZIP while avoiding the large Git upload. Run `npm ci` and `npm run build` when deploying a checkout from Git.
 
 Use the project's existing environment variables and storage. Do not copy secret values into source control or deployment ZIPs. For a staged production deployment, use `vercel deploy --prod --skip-domain`, verify that build, then `vercel promote <deployment-url>` to move the production domain to the tested build.
 
@@ -109,6 +121,6 @@ For Thumbnail Generator, upload the single HTML tool through `/admin`; it is ser
 
 ## Verification
 
-Run `node --test tests/*.test.cjs` from the repository root. The current suite has **59 regression tests**, covering the full-stop splitter, model parameters/relay handling, all 28 styles across vertical/horizontal/square frames, fractional interpolation/crop coverage, preview controls, shuffle timing stability, complete ZIP exports, retry behavior, script-draft privacy and narration alignment. Narration regressions cover variable speaking speed, pauses, repeated phrases, missing/extra passages, Hindi/Hinglish, numbers, SRT cue uncertainty, subtitle replacement races, manual review, cancellation, frame rounding, PCM sample preservation and audio inclusion across all export modes.
+Run `npm ci` followed by `npm test` from the repository root. The suite has **71 tests**: the original 59 regressions and 12 documentary checks. Documentary checks cover the exact supplied prompts, model settings, master-plan validation, access control, task UUID recovery, provider-response privacy, project import/export, audio-preserving FFmpeg commands and bounded media downloads. Existing checks cover the full-stop splitter, model parameters/relay handling, all 28 styles across vertical/horizontal/square frames, fractional interpolation/crop coverage, preview controls, shuffle timing stability, complete ZIP exports, retry behavior, script-draft privacy and narration alignment. Narration regressions cover variable speaking speed, pauses, repeated phrases, missing/extra passages, Hindi/Hinglish, numbers, SRT cue uncertainty, subtitle replacement races, manual review, cancellation, frame rounding, PCM sample preservation and audio inclusion across all export modes.
 
 Additional local checks exercised full-script context, relevance rewrites/failures, quality-check selection, model routing, async polling, relay authentication/secret handling, private storage behavior and DOM assets with mocked AI responses. All **50 XML cases** parse with valid clip handles, transition boundaries and keyframe ranges. Native Premiere import/render and real-model generations are separate checks; automated local success does not establish those outcomes.

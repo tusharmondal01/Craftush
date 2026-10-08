@@ -1,0 +1,40 @@
+{
+  "version": "v18-720p",
+  "sceneCount": 13,
+  "sceneSeconds": 12,
+  "totalSeconds": 156,
+  "width": 720,
+  "height": 1280,
+  "video": {
+    "model": "pixverse:1@8",
+    "width": 720,
+    "height": 1280,
+    "duration": 12,
+    "seed": 42,
+    "numberResults": 1,
+    "outputFormat": "MP4",
+    "outputQuality": 95,
+    "settings": {
+      "audio": true,
+      "multiClip": true,
+      "thinking": "auto"
+    }
+  },
+  "music": {
+    "musicVolumeDb": -18,
+    "narrationVolumeDb": 0,
+    "loop": true,
+    "fadeIn": 1,
+    "fadeOut": 3,
+    "start": 0
+  },
+  "sourceHashes": {
+    "masterPrompt": "07df024de5432d83a59dd0af1d51924348f2148707e2f5fdad7a5eb26691d486",
+    "directorPrompt": "8cbd3f1e8cb7adedccedee60d8b414b92b4a2f0af8ce116c7d21e7f88369c51d"
+  },
+  "models": {
+    "master": "anthropic:claude@fable-5",
+    "director": "anthropic:claude@sonnet-4.6",
+    "video": "pixverse:1@8"
+  }
+}

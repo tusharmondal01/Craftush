@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Create, preview and export a complete cinematic Hinglish documentary with your Runware account.">
+  <title>Documentary Studio · Craftush</title>
+  <link rel="stylesheet" href="./studio.css">
+  <script type="module" src="./studio.js"></script>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Craftush dashboard"><span class="brand-mark">✦</span> Craftush <span class="brand-section">/ Documentary Studio</span></a>
+    <nav aria-label="Studio navigation"><a href="/">All tools</a><a href="/admin">Admin</a></nav>
+  </header>
+  <main class="shell">
+    <section class="intro">
+      <div><span class="eyebrow">04 / Runware documentary</span><h1>Your idea.<br><span>A complete documentary.</span></h1><p>Plan the story, direct every scene, then bring it all together.</p></div>
+      <div class="format"><span>9:16</span><b>720p</b><small>13 scenes · 12 seconds each<br>2 min 36 sec target</small></div>
+    </section>
+    <div class="connection panel">
+      <span class="connection-status" id="connectionStatus" role="status"><i></i>Checking Runware connection…</span>
+      <label id="teamCodeWrap" hidden>Team access code <input id="teamCode" type="password" autocomplete="off" placeholder="Enter your team code" maxlength="64"></label>
+      <button class="text-button" id="checkConnection" type="button">Check connection</button>
+      <a href="/admin" id="setupLink" hidden>Set up Runware key ↗</a>
+    </div>
+    <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+    <nav class="steps" aria-label="Documentary stages">
+      <button data-step="idea" class="step active" aria-current="step"><span>01</span> Idea</button>
+      <button data-step="story" class="step"><span>02</span> Story plan</button>
+      <button data-step="scenes" class="step"><span>03</span> Scenes</button>
+      <button data-step="export" class="step"><span>04</span> Preview & save</button>
+    </nav>
+    <div class="workspace">
+      <section class="editor">
+        <section class="panel stage" id="stage-idea">
+          <div class="section-head"><div><span class="eyebrow">Start with a story</span><h2>What are we exploring?</h2></div><span class="badge">v18 workflow</span></div>
+          <label for="projectTitle">Project title <span class="optional">optional</span></label><input id="projectTitle" maxlength="120" placeholder="A name for your documentary" autocomplete="off">
+          <label for="idea">Documentary idea</label><textarea id="idea" rows="7" maxlength="20000" placeholder="Describe your topic, the angle you want to explore, and any facts the documentary should cover."></textarea>
+          <div class="field-foot"><span>A cinematic Hinglish story, with narration and natural sound.</span><span id="ideaCount">0 / 20,000</span></div>
+          <div class="actions"><button id="generateAll" class="primary" type="button">Generate full documentary <span>↗</span></button><button id="generatePlan" class="secondary" type="button">Create story plan only</button></div>
+          <p class="help">Generation uses your Runware credits. You can pause the queue, review scenes, and retry individual results.</p>
+          <details class="settings-details"><summary>Workflow settings</summary><dl class="workflow-settings"><div><dt>Master director</dt><dd>Claude Fable 5 · high thinking</dd></div><div><dt>Scene direction</dt><dd>Claude Sonnet 4.6 · high thinking</dd></div><div><dt>Video</dt><dd>PixVerse V6 · native audio · multi-shot</dd></div><div><dt>Format</dt><dd>720 × 1280 · 12 seconds · seed 42</dd></div></dl><label for="concurrency">Scenes processed at once</label><select id="concurrency"><option value="3">3 scenes</option><option value="1">1 scene</option><option value="5">5 scenes</option><option value="13">13 scenes</option></select><p class="help">Each scene reads the same complete story plan. This control changes queue speed, not the workflow prompts.</p></details>
+        </section>
+        <section class="panel stage" id="stage-story" hidden>
+          <div class="section-head"><div><span class="eyebrow">One source of truth</span><h2>The complete story plan</h2></div><span class="badge" id="masterStatus">Not started</span></div>
+          <p class="help">The glossary, subjects and continuity sheet keep all 13 scenes connected. Every scene director receives this entire plan.</p>
+          <div class="story-summary" id="storySummary"><p class="empty-copy">Create a story plan to see it here.</p></div>
+          <details class="settings-details"><summary>View or edit master JSON</summary><label class="sr-only" for="masterText">Master script JSON</label><textarea id="masterText" rows="14" spellcheck="false" placeholder="Your master script will appear here."></textarea><div class="actions"><button id="saveMaster" class="secondary" type="button">Apply master edits</button><button id="retryMaster" class="text-button" type="button">Generate a new plan</button></div><p class="help">A new or edited plan starts a new set of scenes. Save the current project before replacing it.</p></details>
+          <div class="actions"><button id="generateScenes" class="primary" type="button">Generate all scenes <span>↗</span></button><button class="secondary" data-go="idea" type="button">Back to idea</button><button id="downloadMaster" class="text-button" type="button">Download master script</button></div>
+        </section>
+        <section class="stage" id="stage-scenes" hidden>
+          <div class="panel scene-heading"><div><span class="eyebrow">Every scene, in order</span><h2>Scene workspace</h2></div><div class="actions"><button id="resume" class="primary" type="button">Generate remaining scenes</button><button id="retryFailed" class="secondary" type="button">Retry failed scenes</button></div></div>
+          <div class="scene-grid" id="sceneGrid" aria-label="13 documentary scenes"></div>
+          <section class="panel scene-details">
+            <div class="section-head"><div><span class="eyebrow" id="selectedLabel">Scene 01 / 13</span><h2>Scene direction</h2></div><span class="badge" id="selectedStatus">Waiting</span></div>
+            <p id="selectedNarration" class="narration" lang="hi">The narration for this scene will appear after the story plan is ready.</p>
+            <details id="promptDetails" class="settings-details"><summary>Scene video prompt <span id="promptCount"></span></summary><label class="sr-only" for="scenePrompt">Selected scene video prompt</label><textarea id="scenePrompt" rows="12" spellcheck="false" placeholder="The scene director's video prompt will appear here."></textarea><div class="actions"><button id="savePrompt" class="secondary" type="button">Apply prompt edits</button><button id="downloadPrompt" class="text-button" type="button">Download prompt</button></div></details>
+            <div class="actions"><button id="generateSelected" class="primary" type="button">Generate this scene</button><button id="retryDirection" class="secondary" type="button">Rewrite scene prompt</button><button id="downloadScene" class="text-button" type="button">Download scene MP4</button><label class="upload-button" for="sceneFile">Upload scene MP4<input id="sceneFile" type="file" accept="video/mp4,.mp4"></label></div>
+            <p class="help">Retrying a prompt or video uses Runware credits. Uploaded clips should match the scene's narration and 12-second format.</p>
+          </section>
+          <div class="actions stage-next"><button class="primary" data-go="export" type="button">Preview & save <span>→</span></button><button class="secondary" data-go="story" type="button">Back to story plan</button></div>
+        </section>
+        <section class="panel stage" id="stage-export" hidden>
+          <div class="section-head"><div><span class="eyebrow">Bring the story together</span><h2>Your final documentary</h2></div><span class="badge" id="exportStatus">Waiting for scenes</span></div>
+          <div class="export-readiness"><strong id="readyCount">0 of 13 scenes ready</strong><div class="progress-track"><div id="readyBar"></div></div><p class="help" id="exportHint">Generate or upload every scene before assembling the final video.</p></div>
+          <label for="musicFile">Background music <span class="optional">optional</span></label><div class="music-upload"><input id="musicFile" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac"><button id="removeMusic" class="text-button" type="button" hidden>Remove</button></div><p id="musicName" class="help">The generated narration and ambient sound stay in the final video.</p><audio id="musicPreview" controls hidden preload="metadata"></audio>
+          <div class="mix-grid"><label>Music volume <output id="musicDb">−18 dB</output><input id="musicVolume" type="range" min="-60" max="0" value="-18"></label><label>Narration volume <output id="narrationDb">0 dB</output><input id="narrationVolume" type="range" min="-30" max="6" value="0"></label></div>
+          <details class="settings-details"><summary>Music settings</summary><div class="mix-settings"><label>Fade in (seconds)<input id="fadeIn" type="number" min="0" max="20" step="0.1" value="1"></label><label>Fade out (seconds)<input id="fadeOut" type="number" min="0" max="20" step="0.1" value="3"></label><label>Start music at (seconds)<input id="musicStart" type="number" min="0" max="3600" step="0.1" value="0"></label><label class="check"><input id="loopMusic" type="checkbox" checked>Loop music to the end</label></div></details>
+          <div class="actions"><button id="assemble" class="primary" type="button">Assemble final video <span>↗</span></button><button id="downloadFinal" class="secondary" type="button" disabled>Download final MP4</button></div>
+          <div id="assemblyProgress" class="assembly-progress" hidden><span id="assemblyLabel">Preparing scene files…</span><progress id="assemblyBar" max="100" value="0"></progress><button id="stopAssembly" class="text-button" type="button">Stop assembly</button></div>
+          <p class="help">Assembly runs in this browser and uses no extra API credits. Keep this tab open until the final video is ready.</p>
+          <div class="final-meta" id="finalMeta" hidden></div><div class="actions stage-next"><button class="secondary" data-go="scenes" type="button">Back to scenes</button><button id="saveProjectExport" class="text-button" type="button">Save project JSON</button></div>
+        </section>
+      </section>
+      <aside class="preview panel">
+        <div class="preview-head"><span class="eyebrow" id="previewLabel">Scene preview</span><span class="badge" id="previewTag">9:16</span></div>
+        <div class="player-wrap"><video id="previewVideo" controls playsinline preload="metadata" hidden></video><div class="player-empty" id="previewEmpty"><div class="preview-icon">▶</div><strong>Your story starts here.</strong><span>Select a generated scene<br>or assemble your final video.</span></div></div>
+        <div class="preview-footer"><strong id="previewTitle">Scene 01</strong><span id="previewMeta">12 seconds · 720p</span></div>
+        <div class="run-summary"><div><span>Scenes ready</span><b id="summaryScenes">0 / 13</b></div><div><span>Reported Runware cost</span><b id="summaryCost">$0.00</b></div></div>
+        <div class="queue-status" id="queueStatus" role="status">Ready when you are.</div><button id="pause" class="secondary wide" type="button" hidden>Pause generation queue</button>
+        <div class="project-actions"><button id="saveProject" class="text-button" type="button">Save project</button><label class="upload-button" for="projectFile">Open project<input id="projectFile" type="file" accept=".json,application/json"></label><button id="newProject" class="text-button" type="button">New project</button></div>
+        <p class="help small">Drafts and downloaded scene files are saved on this device. Save project JSON and scene MP4s for a portable backup.</p>
+      </aside>
+    </div>
+    <footer class="footer"><span>Craftush Documentary Studio</span><span>Your Runware account. Your story.</span></footer>
+  </main>
+</body>
+</html>

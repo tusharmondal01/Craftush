@@ -12,3 +12,13 @@
   for = "/visuals/*"
   [headers.values]
     Cache-Control = "no-cache, must-revalidate"
+
+[[headers]]
+  for = "/documentary/*"
+  [headers.values]
+    Cache-Control = "no-cache, must-revalidate"
+
+[[headers]]
+  for = "/documentary/vendor/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

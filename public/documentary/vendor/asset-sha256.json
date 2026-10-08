@@ -1,0 +1,12 @@
+{
+  "core/dist/esm/ffmpeg-core.js": "67a48f11645f85439f3fde4f2119042c16b374b910206b7a7a24f342e28dcae3",
+  "core/dist/esm/ffmpeg-core.wasm": "9f57947a5bd530d8f00c5b3f2cb2a3492faa7e5d823315342d6a8656d0a6b7b7",
+  "ffmpeg/dist/esm/classes.js": "7a829c898bdbc3a8806652a5502d9101178ce4e988a2c50b3abc1306ce4fc919",
+  "ffmpeg/dist/esm/const.js": "9e3bc9dd84781c81daf459e2c46eeec815edac35089832681d9a9a0f383060d0",
+  "ffmpeg/dist/esm/empty.mjs": "92f665ead7579ff7cd0f08d63e2eb6b27bce16be06991b2aa93510ba07741dbf",
+  "ffmpeg/dist/esm/errors.js": "619310d7ef5fe5fefa0a31927db862b7c291713cfef4d71753fa8aafd18f4db6",
+  "ffmpeg/dist/esm/index.js": "cad19572420f7ead17272082d9582ebaed7f2856e19875542f83daf8d25d3b5d",
+  "ffmpeg/dist/esm/types.js": "72f80e6fd44fcd18b55c9a0deb3bc70b9bb37480cf969045ca4521f5a11300f5",
+  "ffmpeg/dist/esm/utils.js": "8c2e0e16445f8d3a0acbb812f2c60541a92c88ed0bf9ffe96c52e7fb6c8b1d72",
+  "ffmpeg/dist/esm/worker.js": "feff0ac937ea225e997e1fae997a74f8b8d572423a526da59eb56624b1f3cde7"
+}

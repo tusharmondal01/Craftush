@@ -3,7 +3,7 @@ import { getStore } from "@netlify/blobs";
 import { privateBlobStore } from "./blob-store.js";
 
 // Shown on the admin page so you can confirm which backend version is live.
-export const VERSION = "13";
+export const VERSION = "16";
 
 // Text model used for smart script splitting (confirmed in Runware's official SDK examples).
 export const DEFAULT_TEXT_MODEL = "deepseek:v4@flash";
@@ -134,6 +134,7 @@ export const DEFAULT_CARDS = {
   thumbnail: { title: "Thumbnail Generator", desc: "Design scroll-stopping thumbnails for every video.", enabled: true },
   visuals: { title: "Stunning Visuals", desc: "Turn a script into one hyper-realistic image per sentence, timed on a Premiere Pro timeline.", enabled: true },
   comfy: { title: "Idea to Video", desc: "Describe an idea and your ComfyUI workflow turns it into a video.", enabled: true },
+  documentary: { title: "Documentary Studio", desc: "Create a cinematic Hinglish documentary with Runware. Preview scenes, add music and save the final video.", enabled: true },
 };
 
 export function dashboardView(settings) {
@@ -142,7 +143,7 @@ export function dashboardView(settings) {
   for (const id of Object.keys(DEFAULT_CARDS)) cards[id] = { ...DEFAULT_CARDS[id], ...((d.cards || {})[id] || {}) };
   return {
     cards,
-    available: { thumbnail: !!d.thumb, visuals: true, comfy: !!d.comfyFile },
+    available: { thumbnail: !!d.thumb, visuals: true, comfy: !!d.comfyFile, documentary: true },
     thumb: d.thumb || null,
     comfyFile: d.comfyFile || null,
   };

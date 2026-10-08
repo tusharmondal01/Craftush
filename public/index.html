@@ -155,11 +155,12 @@
 :root{--muted:#acbaa9;--faint:#91a08e;--dim:rgba(238,245,236,.62)}
 .studio-nav{display:flex;gap:16px;align-items:center}.studio-nav a{font-size:.88rem;text-decoration:none;padding:10px 4px}.studio-nav a:focus-visible{outline:2px solid var(--lime);outline-offset:3px}
 .intro{padding:36px 0 16px}.intro h1{font-size:clamp(2.5rem,5vw,4rem)}
-.track{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));max-width:1220px;margin:0 auto;padding:20px 28px 35px;overflow:visible;cursor:auto;gap:18px}
+.track{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));max-width:1220px;margin:0 auto;padding:20px 28px 35px;overflow:visible;cursor:auto;gap:18px}
 .slide{min-width:0;perspective:none}.card{grid-template-columns:1fr;min-height:430px;will-change:auto;border-radius:24px}
 .art{height:170px;border-right:0;border-bottom:1px solid var(--line)}.info{padding:24px;justify-content:flex-start}.title{font-size:1.8rem}.desc{font-size:.93rem;margin-bottom:22px;flex:1}.open{min-height:44px}
 @media(max-width:900px){.track{grid-template-columns:1fr}.card{grid-template-columns:.65fr 1fr;min-height:230px}.art{height:auto;border-right:1px solid var(--line);border-bottom:0}.info{padding:24px}}
 @media(max-width:540px){.track{padding:16px}.wrap{padding-left:18px;padding-right:18px}.card{grid-template-columns:1fr;min-height:0}.art{height:140px;border-right:0;border-bottom:1px solid var(--line)}}
+.doc-art{display:flex;align-items:center;justify-content:center;gap:25px;background:radial-gradient(ellipse at 60% 20%,#31582355,transparent 65%)}.doc-film{position:relative;width:98px;height:148px;border:1px solid #99de7370;border-radius:12px;overflow:hidden;background:linear-gradient(160deg,#2c503a,#152525 50%,#07140c)}.doc-sun{position:absolute;width:52px;height:52px;border-radius:50%;background:#b9d99c;top:25px;right:12px;box-shadow:0 0 30px #aecb7240}.doc-mountain{position:absolute;left:-25px;right:-15px;bottom:-30px;height:110px;transform:rotate(-25deg);background:#123419;border-radius:20px}.doc-play{position:absolute;inset:0;display:grid;place-items:center;color:white;font-size:26px}.doc-time{position:absolute;bottom:8px;left:10px;color:#c7d5c0;font:10px var(--mono)}.doc-strip{display:flex;flex-direction:column;gap:7px}.doc-strip i{display:block;width:125px;height:14px;border:1px solid #81ca5650;background:linear-gradient(90deg,#6ca64244 30%,#263826 30%);border-radius:4px}.doc-strip i:nth-child(2n){width:100px;background:linear-gradient(90deg,#426ea044 65%,#263826 65%)}
 </style>
 </head>
 <body>
@@ -178,8 +179,8 @@
 </header>
 <section class="intro">
 <span class="eyebrow rv" style="--d:0">Craftush studio</span>
-<h1><span class="rv" style="--d:100;display:inline-block">One studio.</span> <span class="dim rv" style="--d:200;display:inline-block">Three tools.</span></h1>
-<p class="rv" style="--d:320">Choose a tool below. For script visuals, follow four steps: script, prompts, images, then export.</p>
+<h1><span class="rv" style="--d:100;display:inline-block">One studio.</span> <span class="dim rv" style="--d:200;display:inline-block">Four tools.</span></h1>
+<p class="rv" style="--d:320">Choose a tool below. Create thumbnails, script visuals, workflow videos or a complete Runware documentary.</p>
 <a class="open" href="/visuals/" id="quickStart" style="margin-top:22px">Start with a script</a></section>
 </div>
 <section aria-label="Craftush tools" class="carousel" id="tools">
@@ -232,6 +233,10 @@
 <a aria-label="Open Idea to Video" class="open" href="/comfy/">Open tool</a>
 <span class="soon" hidden=""><i></i>Not set up yet</span>
 </div>
+</div></article>
+<article class="slide" data-id="documentary" style="--n:3"><div class="card">
+<div aria-hidden="true" class="art doc-art"><div class="doc-film"><div class="doc-sun"></div><div class="doc-mountain"></div><span class="doc-play">▶</span><span class="doc-time">02:36</span></div><div class="doc-strip"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+<div class="info"><span class="tag">04 · Runware documentary</span><h2 class="title">Documentary Studio</h2><p class="desc">Create a cinematic Hinglish documentary with Runware. Preview scenes, add music and save the final video.</p><a aria-label="Open Documentary Studio" class="open" href="/documentary/">Open tool</a><span class="soon" hidden><i></i>Not set up yet</span></div>
 </div></article>
 </div>
 
