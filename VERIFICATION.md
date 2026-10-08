@@ -1,3 +1,21 @@
+# Merged v17 production release checks
+
+`npm test`: **98 passed, 0 failed** on 2026-10-08. This includes all 16 existing ChatGPT bridge and MCP protocol checks plus the 11 supplied v17 narration-flow regressions. `npm run build` passed with the exact pinned documentary engine checksums and generated ChatGPT instructions.
+
+All files in `api/` and `netlify/`, the ChatGPT frontend, Documentary Studio, package dependencies, lockfile and Vercel configuration remain identical to the previous production commit `44eaec3203ce3cae1c3876e7112c886c66ca0ae7`. Runware settings, credential selection, model routing and team access rules are preserved. The ZIP update changes Stunning Visuals narration sync and image/export identity tracking. No paid provider generation was performed.
+
+The supplied archive verification follows.
+
+# Craftush v17 verification
+
+`npm test`: **82 passed, 0 failed**. Eleven new regressions exercise automatic upload-to-sync, failure/retry, SRT/worker replacement races, audio decode replacement races, subtitles selected during decoding, language changes, scene/image identity across saved prompts and exports, quality-review winner links, stale generated images, incomplete image batches, and listening through long scenes.
+
+A full DOM check loads every Stunning Visuals page script with actual HTML elements. It checks automatic upload/decode/sync, image changes at the playhead, compact matched cards, expanded recovery placement, final confirmation and matching XML filenames. The check reports zero page script errors. Audio decoding and worker transcription use controlled fixtures in this check; real-model transcription and native Premiere import were not exercised. Browser layout inspection was unavailable because the browser download was blocked in this environment.
+
+All existing alignment and transition regressions continue to pass, including repeated phrases, Hindi/Hinglish, unequal speaking speeds, long pauses, absent/extra narration, invalid starts and original PCM sample preservation. No paid Runware generation was made for this fix.
+
+The previous v16 verification is retained below as historical evidence for Documentary Studio.
+
 # Craftush v16 verification
 
 ## Automated regressions

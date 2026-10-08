@@ -356,7 +356,7 @@
 button{min-height:44px}.field{min-width:0}.field select,.field input,.field textarea{max-width:100%}.bar .status{flex-basis:100%}
 .skip-link{position:absolute;left:16px;top:-90px;z-index:1000;background:var(--lime);color:#071106;padding:12px 18px;border-radius:10px}.skip-link:focus{top:12px}
 @media(max-width:700px){.hero{padding-top:22px}.orb-wrap{display:none}.hero{grid-template-columns:1fr}.workflow-head{padding:14px;gap:12px}.workflow-head progress{width:65px}.step{padding:22px 18px}.bar{align-items:stretch}.split-mode{flex:1 1 100%;min-width:0}.fields{grid-template-columns:1fr}input,select,textarea{font-size:16px}.step-foot{gap:12px;flex-wrap:wrap}.step-foot button{max-width:100%}}
-.voice-controls{margin:18px 0}.voice-controls .field{min-width:180px;flex:1}.narration-preview{display:grid;grid-template-columns:180px 1fr;gap:18px;align-items:center;margin:18px 0}.narration-preview img{width:100%;max-height:220px;object-fit:contain;border-radius:12px;background:#151923}.narration-preview audio{width:100%}.alignment-list{padding:0;list-style:none;display:grid;gap:12px}.alignment-row{display:grid;grid-template-columns:76px 1fr 240px;gap:16px;padding:16px;border:1px solid var(--line);border-radius:14px}.alignment-row.needs-review{border-color:#c88e31;background:rgba(221,166,55,.06)}.alignment-row>img{width:76px;max-height:120px;object-fit:contain;border-radius:8px}.alignment-row p{margin:7px 0}.alignment-row small{display:block;color:var(--muted);line-height:1.5}.alignment-row .timing-reason{margin-top:6px}.alignment-start label{display:block}.alignment-start input[type=text]{margin:5px 0}.alignment-start .bar{gap:6px;margin:9px 0}.alignment-start button{padding:8px 10px;font-size:.78rem}.alignment-number{font-weight:700;color:var(--muted)}.confirm-timing{margin:18px 0;padding:15px;border:1px solid var(--line);border-radius:12px}.confirm-timing input{flex-shrink:0}@media(max-width:750px){.alignment-row{grid-template-columns:55px 1fr}.alignment-row>img{width:55px}.alignment-start{grid-column:1/-1}.narration-preview{grid-template-columns:90px 1fr}}
+.image-link{font-size:.78rem;color:var(--lime);margin-left:8px}.alignment-start details summary{cursor:pointer;color:var(--muted);font-size:.8rem;padding:8px 0}.alignment-start>strong{font-family:var(--mono);font-size:.82rem}.voice-controls{margin:18px 0}.voice-controls .field{min-width:180px;flex:1}.narration-preview{display:grid;grid-template-columns:180px 1fr;gap:18px;align-items:center;margin:18px 0}.narration-preview img{width:100%;max-height:220px;object-fit:contain;border-radius:12px;background:#151923}.narration-preview audio{width:100%}.alignment-list{padding:0;list-style:none;display:grid;gap:12px}.alignment-row{display:grid;grid-template-columns:76px 1fr 240px;gap:16px;padding:16px;border:1px solid var(--line);border-radius:14px}.alignment-row.needs-review{border-color:#c88e31;background:rgba(221,166,55,.06)}.alignment-row>img{width:76px;max-height:120px;object-fit:contain;border-radius:8px}.alignment-row p{margin:7px 0}.alignment-row small{display:block;color:var(--muted);line-height:1.5}.alignment-row .timing-reason{margin-top:6px}.alignment-start label{display:block}.alignment-start input[type=text]{margin:5px 0}.alignment-start .bar{gap:6px;margin:9px 0}.alignment-start button{padding:8px 10px;font-size:.78rem}.alignment-number{font-weight:700;color:var(--muted)}.confirm-timing{margin:18px 0;padding:15px;border:1px solid var(--line);border-radius:12px}.confirm-timing input{flex-shrink:0}@media(max-width:750px){.alignment-row{grid-template-columns:55px 1fr}.alignment-row>img{width:55px}.alignment-start{grid-column:1/-1}.narration-preview{grid-template-columns:90px 1fr}}
 </style>
 </head>
 <body><a class="skip-link" href="#studioMain">Skip to the workflow</a>
@@ -584,10 +584,23 @@ button{min-height:44px}.field{min-width:0}.field select,.field input,.field text
 </section>
 <!-- STEP 4 -->
 <section aria-labelledby="h4" class="step" id="st4">
-<span class="step-tag">Step 04 · Export</span>
+<span class="step-tag">Step 04 · Sync &amp; download</span>
 <h2 id="h4">Export to <span class="dim">Premiere Pro.</span></h2>
-<p class="lede">Add the exact narration used for this video. Match its spoken words to your scenes, listen to the starts, then export the images and audio together.</p><p aria-live="polite" class="guide" id="step4Guide">Add the exact narration audio or its SRT to align the scenes.</p>
-<label class="drop" id="drop">
+<p class="lede">Add your final audio. We automatically match each spoken line to its image. Preview once, then download everything for Premiere.</p><p aria-live="polite" class="guide" id="step4Guide">1. Add audio &nbsp; → &nbsp; 2. Preview your synced images &nbsp; → &nbsp; 3. Download one package</p>
+<label class="drop" id="voDrop">
+<input accept="video/*,audio/*,.mp4,.mov,.m4a,.mp3,.wav" id="voFile" type="file"/>
+<svg aria-hidden="true" height="40" viewbox="0 0 34 40" width="34"><path d="M3 4a3 3 0 0 1 3-3h15l10 10v25a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" fill="#FFF6D6" stroke="#F5B400" stroke-width="1.8"></path><path d="M21 1v10h10" fill="none" stroke="#F5B400" stroke-width="1.8"></path><path d="M9 30v-6M13 32v-10M17 29v-4M21 33v-12M25 30v-6" stroke="#A67800" stroke-linecap="round" stroke-width="1.8"></path></svg>
+<div>
+<strong id="voTitle">Add your final audio or HeyGen video</strong>
+<span id="voSub">Choose a file or drop it here. Sync starts automatically, using the words you actually recorded.</span>
+</div>
+</label>
+<div class="bar voice-controls">
+<label class="field">Narration language <select id="voiceLanguage"><option value="hindi">Hindi / Hinglish</option><option value="english">English</option><option value="auto">Detect language</option></select></label>
+<button class="primary" disabled="" id="alignNarration" type="button">Retry sync</button><button disabled="" id="cancelAlignment" type="button">Stop alignment</button>
+</div>
+<p aria-live="polite" class="meta" id="alignmentStatus">Sync starts after you add audio. Keep this tab open while it matches your narration.</p>
+<details class="advanced" id="syncRecovery"><summary>Use subtitle timings or fix sync</summary><p class="note">If automatic sync cannot finish, upload an SRT exported from this exact audio, or set starts while listening in the timeline settings below.</p><label class="drop" id="drop">
 <input accept=".srt,text/plain" id="srtFile" type="file"/>
 <svg aria-hidden="true" height="40" viewbox="0 0 34 40" width="34"><path d="M3 4a3 3 0 0 1 3-3h15l10 10v25a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" fill="#FFF6D6" stroke="#F5B400" stroke-width="1.8"></path><path d="M21 1v10h10" fill="none" stroke="#F5B400" stroke-width="1.8"></path><path d="M9 22h16M9 27h12M9 32h14" stroke="#A67800" stroke-linecap="round" stroke-width="1.8"></path></svg>
 <div>
@@ -595,22 +608,10 @@ button{min-height:44px}.field{min-width:0}.field select,.field input,.field text
 <span id="dropSub">Exported from Premiere, CapCut, Descript, or any caption tool</span>
 </div>
 </label>
-<label class="drop" id="voDrop">
-<input accept="video/*,audio/*,.mp4,.mov,.m4a,.mp3,.wav" id="voFile" type="file"/>
-<svg aria-hidden="true" height="40" viewbox="0 0 34 40" width="34"><path d="M3 4a3 3 0 0 1 3-3h15l10 10v25a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" fill="#FFF6D6" stroke="#F5B400" stroke-width="1.8"></path><path d="M21 1v10h10" fill="none" stroke="#F5B400" stroke-width="1.8"></path><path d="M9 30v-6M13 32v-10M17 29v-4M21 33v-12M25 30v-6" stroke="#A67800" stroke-linecap="round" stroke-width="1.8"></path></svg>
-<div>
-<strong id="voTitle">Add the final narration audio (or HeyGen video)</strong>
-<span id="voSub">Stays on this device. Spoken-word alignment locates each scene in the audio. The exported package includes this narration at 0:00.</span>
-</div>
-</label>
-<div class="bar voice-controls">
-<label class="field">Narration language <select id="voiceLanguage"><option value="hindi">Hindi / Hinglish</option><option value="english">English</option><option value="auto">Detect language</option></select></label>
-<button class="primary" disabled="" id="alignNarration" type="button">Align spoken words</button><button disabled="" id="cancelAlignment" type="button">Stop alignment</button>
-</div>
-<p aria-live="polite" class="meta" id="alignmentStatus">No extra API key needed. The first alignment downloads a large speech model; longer recordings take more time. An SRT from this exact audio is also supported.</p>
+</details>
 <div class="narration-preview"><img alt="Current narration image" hidden="" id="narrationImage"/><div><audio controls="" id="narrationAudio" preload="metadata"></audio><p class="meta" id="audioPlayhead">Playhead 0:00.000</p><p class="meta" id="narrationImageCaption">Add narration to hear each image in context.</p></div></div>
-<div class="sub" hidden="" id="alignmentReview"><h3>Check image and narration timing</h3><p class="meta" id="timingSummary"></p><p class="note">Listen at each scene start. For a highlighted scene, correct its start or use the audio playhead, then check Start checked. Times use the beginning of the uploaded audio.</p><ol class="alignment-list" id="alignmentRows"></ol><label class="check confirm-timing"><input disabled="" id="confirmTiming" type="checkbox"/> I have checked the scene starts against this narration and confirmed the timing.</label></div>
-<div class="fields">
+<div class="sub" hidden="" id="alignmentReview"><h3>Your lines + images</h3><p class="meta" id="timingSummary"></p><p class="note">Play your narration and watch the images change. Only highlighted starts need a correction; use Listen to check a line.</p><ol class="alignment-list" id="alignmentRows"></ol><label class="check confirm-timing"><input disabled="" id="confirmTiming" type="checkbox"/> Preview checked — images follow the correct spoken lines.</label></div>
+<details class="advanced"><summary>Optional: transition style</summary><div class="fields">
 <label class="field">Motion transitions <small>Varied camera moves, chosen for the scene and centered on your narration</small>
 <select id="trans">
 <option selected="" value="auto">Auto: Cinematic transitions (28 styles)</option>
@@ -631,11 +632,11 @@ button{min-height:44px}.field{min-width:0}.field select,.field input,.field text
 
 
 
-</div><details class="advanced" id="exportAdvanced"><summary>More timeline and export settings</summary><div class="fields"><label class="field">Match images to
+</div></details><details class="advanced" id="exportAdvanced"><summary>More timeline and export settings</summary><div class="fields"><label class="field">Match images to
         <select id="mode">
 <option value="words">Match script to SRT words</option>
 <option value="cues">One image per matching subtitle line</option>
-<option value="audio">Recognized spoken words (no SRT)</option>
+<option selected="" value="audio">Automatic: spoken words from your audio</option>
 <option value="manual">Set starts manually while listening</option>
 </select>
 </label><label class="field">Subtitle offset, seconds <small>Use only if the SRT has a known offset. Existing times are never stretched.</small><input id="syncOffset" type="number" value="0" step="0.001"/></label><label class="field">Frame rate
@@ -668,16 +669,17 @@ button{min-height:44px}.field{min-width:0}.field select,.field input,.field text
 <input id="folder" placeholder="C:\Users\you\Videos\project\images" type="text"/>
 </label><label class="check"><input id="zero" type="checkbox"/> Show the first image during any opening silence</label><label class="check"><input checked="" id="fill" type="checkbox"/> Scale images to fill the frame</label></div></details>
 <div class="bar">
-<button class="primary" disabled="" id="xmlBtn">
+<button class="primary" disabled="" id="zipBtn2">
+<svg aria-hidden="true" height="16" viewbox="0 0 24 24" width="16"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 20h16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg> Download Premiere package (.zip)</button>
+<span class="meta" id="tlMeta"></span>
+</div>
+<details class="advanced"><summary>Separate downloads</summary><div class="bar"><button disabled="" id="xmlBtn">
 <svg aria-hidden="true" height="16" viewbox="0 0 24 24" width="16"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 20h16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
         Download Premiere XML
       </button>
-<button disabled="" id="zipBtn2">
-<svg aria-hidden="true" height="16" viewbox="0 0 24 24" width="16"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 20h16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg> Download images (.zip)</button>
-<span class="meta" id="tlMeta"></span>
-</div>
+<button id="imagesOnlyBtn" type="button" disabled="">Download images only (.zip)</button></div></details>
 <p aria-live="polite" class="status" id="s4"></p>
-<div class="sub" id="transitionPanel">
+<details class="advanced"><summary>Optional: preview transitions</summary><div class="sub" id="transitionPanel">
 <div class="sub-head">
 <div><h3>Transition preview</h3><p>See the camera moves on your images before exporting. Shuffle for another mix.</p></div>
 <div class="sub-actions">
@@ -696,6 +698,7 @@ button{min-height:44px}.field{min-width:0}.field select,.field input,.field text
 <p aria-live="polite" class="meta" id="transitionPreviewStatus"></p>
 </div>
 </div>
+</details>
 <div class="timeline" hidden="" id="timeline">
 <div class="track" id="track"></div>
 <div class="ruler" id="ruler"></div>
@@ -744,7 +747,7 @@ button{min-height:44px}.field{min-width:0}.field select,.field input,.field text
 </dialog>
 <script src="transitions.js?v=15"></script>
 <script src="narration-alignment.js?v=15"></script>
-<script src="narration-sync.js?v=15"></script>
+<script src="narration-sync.js?v=17"></script>
 <script src="premiere-auto.js?v=15"></script>
 <script src="transition-preview.js?v=15"></script>
 <script>
@@ -1512,7 +1515,8 @@ $('#promptBtn').addEventListener('click', async () => {
 });
 
 function promptProjectData(){
-  return { title: $('#videoTitle').value, bible: $('#bible').value, script: $('#script').value, transitionSeed: state.transitionSeed, transitionSettings: { mode: $('#trans').value, energy: $('#transitionEnergy').value }, items: state.items.map(it => ({ text: it.text, prompt: it.prompt, scene: it.scene || null, promptReview: it.promptReview || null })) };
+  ensureSceneIds();
+  return { version: 17, title: $('#videoTitle').value, bible: $('#bible').value, script: $('#script').value, transitionSeed: state.transitionSeed, transitionSettings: { mode: $('#trans').value, energy: $('#transitionEnergy').value }, items: state.items.map((it,i) => ({ id: it.id, imageFile: fname(i), imageSourceURL: it.imageSourceURL || null, text: it.text, prompt: it.prompt, scene: it.scene || null, promptReview: it.promptReview || null })) };
 }
 $('#exportBtn').addEventListener('click', () => {
   const data = promptProjectData();
@@ -1527,7 +1531,8 @@ $('#importFile').addEventListener('change', async e => {
     if (data.title) $('#videoTitle').value = data.title;
     if (data.bible) $('#bible').value = data.bible;
     if (data.script) { $('#script').value = data.script; $('#script').dispatchEvent(new Event('input')); }
-    state.items = data.items.map(it => ({ text: String(it.text || ''), prompt: String(it.prompt || ''), scene: it.scene && typeof it.scene === 'object' ? it.scene : null, promptReview: it.promptReview || null, status: 'idle', b64: null, url: null, err: '' }));
+    state.items.forEach(it => it.url && URL.revokeObjectURL(it.url));
+    state.items = data.items.map(it => ({ id: typeof it.id === 'string' ? it.id : uuid(), imageSourceURL: safeImageSourceURL(it.imageSourceURL), text: String(it.text || ''), prompt: String(it.prompt || ''), scene: it.scene && typeof it.scene === 'object' ? it.scene : null, promptReview: it.promptReview || null, status: 'idle', b64: null, url: null, err: '' }));
     if (Number.isInteger(data.transitionSeed)) state.transitionSeed = data.transitionSeed;
     if (data.transitionSettings){
       if (['auto', 'gentle', 'reference', '0.5', '1', '0'].includes(data.transitionSettings.mode)) $('#trans').value = data.transitionSettings.mode;
@@ -1732,9 +1737,13 @@ async function runware(prompt){
   }
   if (!d) throw new Error('Runware returned no image');
   const cost = typeof d.cost === 'number' ? d.cost : null;
-  if (d.imageBase64Data) return { b64: d.imageBase64Data, cost };
-  const img = await fetch(d.imageURL); return { b64: await blobToB64(await img.blob()), cost };
+  const imageSourceURL = safeImageSourceURL(d.imageURL);
+  if (d.imageBase64Data) return { b64: d.imageBase64Data, cost, imageSourceURL };
+  const img = await fetch(d.imageURL);
+  if (!img.ok) throw new Error('The generated image could not be downloaded. Try this image again.');
+  return { b64: await blobToB64(await img.blob()), cost, imageSourceURL };
 }
+function safeImageSourceURL(value){try{const url=new URL(value);return url.protocol==='https:'?url.href:null;}catch{return null;}}
 function costKey(){ return [imageModel(), imgSize().join('x'), $('#steps').value].join('|'); }
 $('#imgModel').addEventListener('change', () => { $('#look').disabled = imageModel() !== 'runware:101@1'; });
 function money(v){ return '$' + (v > 0 && v < 0.01 ? v.toFixed(4) : v.toFixed(3)); }
@@ -1756,21 +1765,27 @@ function updateCost(){
 
 async function generateOne(i){
   const it = state.items[i]; if (!it) return;
+  const ticket=it.generationTicket=(it.generationTicket||0)+1,originalText=it.text;
+  const current=()=>state.items[i]===it&&it.generationTicket===ticket&&it.text===originalText;
   it.status = 'loading'; it.err = ''; updateCell(i);
   try {
     if (!it.prompt.trim()) throw new Error('Write a scene prompt before generating this image. No generic topic image was substituted.');
     const base = it.prompt;
-    let { b64, cost } = await runware(boostPrompt(base, it.text));
+    let result = await runware(boostPrompt(base, it.text));
+    if(!current())return;
+    let { b64, cost } = result;
     // Visual Director quality check: may regenerate and returns the image to keep.
-    if (typeof qcAfterGenerate === 'function') b64 = (await qcAfterGenerate(i, { b64, cost })).b64;
+    if (typeof qcAfterGenerate === 'function'){ const selected = await qcAfterGenerate(i, result); b64 = selected.b64; result = selected; }
+    if(!current())return;
     if (cost !== null){
       state.cost.images += cost;
       const k = state.cost.per[costKey()] || (state.cost.per[costKey()] = { sum: 0, n: 0 });
       k.sum += cost; k.n++;
     }
     if (it.url) URL.revokeObjectURL(it.url);
-    it.b64 = b64; it.url = URL.createObjectURL(b64ToBlob(b64)); it.status = 'done';
+    it.b64 = b64; it.imageSourceURL = result.imageSourceURL || null; it.url = URL.createObjectURL(b64ToBlob(b64)); it.status = 'done';
   } catch (e) {
+    if(!current())return;
     if (e.auth){ it.status = 'idle'; state.cancel = true; state.authStop = true; setStatus('#s3', e.message + ' Then press Generate again.', 'err'); }
     else { it.status = 'error'; it.err = e.message; }
   }
@@ -1835,18 +1850,21 @@ $('#genBtn').addEventListener('click', async () => {
 });
 $('#stopBtn').addEventListener('click', () => { state.cancel = true; $('#stopBtn').disabled = true; setStatus('#s3', 'Stopping after the images already in progress…'); });
 
-async function downloadZip(sid){
+async function downloadZip(sid, imagesOnly=false){
   if (typeof JSZip === 'undefined'){ setStatus(sid, 'The zip library didn\'t load. Check your connection and reload the page.', 'err'); return; }
   $('#zipBtn2').disabled = true; setStatus(sid, 'Packing the zip…');
   try {
     const zip = new JSZip(), log = [], imageCount = state.items.filter(it => it.b64).length;
-    const hasTimeline = hasExportTiming(), signature = exportSignature();
+    if(!imagesOnly&&hasExportTiming()&&imageCount&&imageCount<state.items.length){setStatus(sid,`Generate the ${state.items.length-imageCount} missing images before downloading the complete package. Separate XML and image downloads remain available.`,'err');return;}
+    ensureSceneIds();
+    const hasTimeline = !imagesOnly && hasExportTiming(), signature = exportSignature();
     state.items.forEach((it, i) => {
       if (it.b64) zip.file(fname(i), it.b64, { base64: true });
       log.push(`${fname(i)}\nSentence: ${it.text}\nPrompt: ${it.prompt}\n`);
     });
     zip.file('prompts.txt', log.join('\n'));
     zip.file('prompts.json', JSON.stringify(promptProjectData(), null, 2));
+    zip.file('image-links.json', JSON.stringify({ version: 17, images: state.items.map((it,i) => ({ sceneId: it.id, line: it.text, image: fname(i), sourceURL: it.imageSourceURL || null, included: !!it.b64 })) }, null, 2));
     if (hasTimeline){
       zip.file('timeline.xml', buildXML());
       zip.file('timing.json', JSON.stringify(narrationTimingData(), null, 2));
@@ -1865,9 +1883,10 @@ async function downloadZip(sid){
   finally { updateButtons(); }
 }
 function exportSignature(){
-  return JSON.stringify([state.timeline, state.transitionSeed, state.timingConfirmed, state.vo?.identity, ...['#trans','#transitionEnergy','#fps','#motion','#zoomAmt','#fill','#folder','#seqName','#aspect','#imgModel','#quality'].map(id => [$(id).value, $(id).checked])]);
+  return JSON.stringify([state.items.map(it=>[it.id,it.text,it.url]),state.timeline, state.transitionSeed, state.timingConfirmed, state.vo?.identity, ...['#trans','#transitionEnergy','#fps','#motion','#zoomAmt','#fill','#folder','#seqName','#aspect','#imgModel','#quality'].map(id => [$(id).value, $(id).checked])]);
 }
 $('#zipBtn2').addEventListener('click', () => downloadZip('#s4'));
+$('#imagesOnlyBtn').addEventListener('click', () => downloadZip('#s4', true));
 
 function cellHTML(it, i){
   const [w, h] = imgSize();
@@ -1942,12 +1961,13 @@ let subtitleTicket = 0;
 async function loadSRT(file){
   if (!file) return;
   const ticket = ++subtitleTicket;
+  stopNarrationWorker();syncStatus('subtitles','Reading subtitle timings…');$('#mode').value='words';
   state.cues = []; state.narrationKey = null; refreshTimeline();
   let cues;
   try { cues = parseSRT(await file.text()); if(ticket !== subtitleTicket) return; CraftushAlignment.fromCues(cues); }
-  catch(error){ if(ticket === subtitleTicket) setStatus('#s4', 'Could not use these subtitles. ' + error.message, 'err'); return; }
-  if (!cues.length){ setStatus('#s4', 'No subtitle timings found in that file. Make sure it\'s an .srt file.', 'err'); return; }
-  state.cues = cues;
+  catch(error){ if(ticket === subtitleTicket){syncStatus('error','Could not use these subtitles. '+error.message);refreshTimeline();} return; }
+  if (!cues.length){ syncStatus('error','No subtitle timings found. Choose an .srt file from this narration.');refreshTimeline();return; }
+  state.cues = cues;syncStatus('matched','Subtitle timings loaded. Preview each line beside its image.');
   $('#mode').value = 'words';
   $('#dropTitle').textContent = file.name;
   $('#dropSub').textContent = `${cues.length} subtitle lines, ${fmtClock(cues[cues.length - 1].end)} long. Choose another file to replace it.`;
@@ -1958,7 +1978,8 @@ const drop = $('#drop');
 ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
 ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
 drop.addEventListener('drop', e => loadSRT(e.dataTransfer.files[0]));
-['#mode', '#fps', '#zero'].forEach(s => $(s).addEventListener('change', refreshTimeline));
+['#fps', '#zero'].forEach(s => $(s).addEventListener('change', refreshTimeline));
+$('#mode').addEventListener('change',()=>{stopNarrationWorker();if($('#mode').value==='audio'&&state.vo&&!state.vo.words)transcribeNarration();else refreshTimeline();});
 
 initNarrationSync();
 
@@ -2172,12 +2193,16 @@ function updateButtons(){
   $('#genBtn').disabled = !n || !missing || state.running;
   $('#genBtn .lbl').textContent = !n ? 'Generate images' : missing === n ? `Generate ${n} images` : missing ? `Generate ${missing} remaining` : 'All images ready';
   $('#stopBtn').disabled = !state.running || state.cancel;
-  $('#zipBtn2').disabled = (!hasImg && !hasExportTiming()) || state.running;
+  $('#zipBtn2').disabled = !hasExportTiming() || (hasImg && missing>0) || state.running;
+  $('#imagesOnlyBtn').disabled = !hasImg || state.running;
   $('#xmlBtn').disabled = !hasExportTiming();
   $('#alignNarration').disabled = !n || !state.vo?.samples || state.voiceLoading || state.transcribing;
   $('#cancelAlignment').disabled = !state.transcribing;
+  $('#voFile').disabled = state.voiceLoading;
   $('#voiceLanguage').disabled = state.voiceLoading || state.transcribing;
-  $('#zipBtn2').textContent = hasExportTiming() ? (hasImg ? (state.vo ? 'Download images + audio + XML (.zip)' : 'Download images + XML (.zip)') : (state.vo ? 'Download timeline + audio (.zip)' : 'Download timeline (.zip)')) : 'Download images (.zip)';
+  $('#zipBtn2').textContent = hasExportTiming() ? (hasImg ? (state.vo ? 'Download images + audio + XML (.zip)' : 'Download images + XML (.zip)') : (state.vo ? 'Download timeline + audio (.zip)' : 'Download timeline (.zip)')) : state.transcribing ? 'Syncing your narration…' : 'Download Premiere package (.zip)';
+  $('#alignNarration').hidden = state.transcribing || (!state.vo && state.syncPhase !== 'error');
+  $('#cancelAlignment').hidden = !state.transcribing;
   updateWorkflowHelp();
   updateTransitionControls();
   markSteps();
@@ -2191,8 +2216,8 @@ function updateWorkflowHelp(){
   $('#workflowHint').textContent = hasExportTiming() && images < n ? 'Timing ready · Download the corrected timeline package and use your existing numbered JPGs.' : !n ? 'Step 1 of 4 · Paste your script and create scenes.' : prompts < n ?
     `Step 2 of 4 · ${n} scenes ready. Write or load their image prompts.` : images < n ?
     `Step 3 of 4 · ${images} of ${n} images ready. Generate or retry the remaining images.` : !state.timeline.length ?
-    'Step 4 of 4 · Images ready. Add the final narration and align its words.' : !hasExportTiming() ?
-    'Step 4 of 4 · Listen to the scene starts and confirm narration timing.' : !state.xmlDone ?
+    (state.transcribing ? 'Step 4 of 4 · Automatically syncing your narration…' : 'Step 4 of 4 · Add your final audio. Sync starts automatically.') : !hasExportTiming() ?
+    'Step 4 of 4 · Preview your images and check any highlighted starts.' : !state.xmlDone ?
     'Step 4 of 4 · Preview your transitions and download the images + XML package.' : 'Ready · Your Premiere timeline has been exported.';
   $('#step2Guide').hidden = n > 0;
   $('#step3Guide').hidden = n > 0 && prompts === n;
@@ -2244,6 +2269,7 @@ function markSteps(){
 }
 let prevDone = [];
 function showStep(k, scroll = true){
+  if(k===3&&state.vo?.samples&&!state.vo.words&&!state.transcribing&&state.syncPhase==='reading')transcribeNarration();
   document.querySelectorAll('.step').forEach((s, j) => { s.hidden = j !== k; });
   document.querySelectorAll('.chip').forEach((c, j) => {
     c.classList.toggle('viewing', j === k);
