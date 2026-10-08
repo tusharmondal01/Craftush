@@ -68,14 +68,14 @@
     const words=[]; let previous=-Infinity;
     for(const c of chunks){
       const [start,end]=c.timestamp || [c.start,c.end];
-      if(!finite(start)||!finite(end)||start<0||end<=start||start<previous-.04||(finite(duration)&&end>duration+.2)) throw new Error('Speech recognition returned incomplete or invalid word timestamps. Load an SRT or set the affected starts while listening.');
+      if(!finite(start)||!finite(end)||start<0||end<start||(end===start&&c.timingUncertain!==true)||start<previous-.04||(finite(duration)&&end>duration+.2)) throw new Error('Speech recognition returned incomplete or invalid word timestamps. Load an SRT or set the affected starts while listening.');
       previous=start;
       const ts=tokenize(c.text);
-      ts.forEach((t,j)=>words.push({...t,start:start+(end-start)*j/ts.length,end:start+(end-start)*(j+1)/ts.length,exact:ts.length===1,cue:null,source:'audio'}));
+      ts.forEach((t,j)=>words.push({...t,start:start+(end-start)*j/ts.length,end:start+(end-start)*(j+1)/ts.length,exact:ts.length===1&&c.timingUncertain!==true,timingUncertain:c.timingUncertain===true,cue:null,source:'audio'}));
     }
     return words;
   }
-  function align(items,words,{duration,offset=0,onePerCue=false,cues=[]}={}){
+  function align(items,words,{duration,offset=0,onePerCue=false,cues=[],issues=[]}={}){
     if(!items.length) throw new Error('Create scenes first.');
     if(!words.length) throw new Error('The transcript contains no spoken words.');
     if(!finite(offset)) throw new Error('The subtitle offset must be a number of seconds.');
@@ -110,8 +110,9 @@
       if(!hits.length) reasons.push('No spoken-word match');
       if(coverage<.82||content.length&&meaningful<.7) reasons.push('Transcript differs from this scene');
       if(!first) reasons.push('First word is missing');
-      else if(!words[first.index].exact) reasons.push('Scene begins inside an SRT cue; start is interpolated');
+      else if(!words[first.index].exact) reasons.push(words[first.index].source==='srt'?'Scene begins inside an SRT cue; start is interpolated':words[first.index].timingUncertain?'Speech recognition returned an uncertain start; check while listening':'Scene begins inside a speech-recognition span; start is interpolated');
       else if(first.score<.94) reasons.push('First spoken word is a phonetic match; check its start');
+      if(finite(start)&&issues.some(issue=>finite(issue.start)&&finite(issue.end)&&start>=issue.start&&start<issue.end))reasons.push('Some spoken-word timings near this line were unavailable; check its start');
       if(first&&words[first.index].source==='audio'&&words[first.index].end-words[first.index].start>1.2)reasons.push('First word timestamp is unusually long; check the start');
       if(content.length&&contentHits.length<Math.min(2,content.length)) reasons.push('Not enough meaningful words matched');
       if(onePerCue){

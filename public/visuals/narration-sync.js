@@ -61,20 +61,21 @@ function transcribeNarration(){
   vo.words=null;state.narrationKey=null;$('#mode').value='audio';state.transcribing=true;state.timingConfirmed=false;$('#confirmTiming').checked=false;
   syncStatus('syncing','Syncing automatically. The first use downloads a speech model; keep this tab open.');refreshTimeline();armNarrationWatchdog(ticket);
   try{
-    narrationWorker=new Worker('voice-worker.mjs?v=17',{type:'module'});
+    narrationWorker=new Worker('voice-worker.mjs?v=18',{type:'module'});
     narrationWorker.onmessage=({data})=>{
       if(ticket!==narrationTicket||state.vo!==vo)return;
       armNarrationWatchdog(ticket);
       if(data.type==='progress'){
         syncStatus('syncing',data.status==='progress'?`Preparing automatic sync · ${Math.round(data.progress||0)}% of ${String(data.file||'model').split('/').pop()}`:'Preparing automatic sync on this device…');
       }else if(data.type==='listening'||data.type==='chunk'){
-        syncStatus('syncing','Matching your spoken narration'+(data.count?` · ${data.count}${data.total?' of '+data.total:''} sections processed`:'')+'…');
+        syncStatus('syncing',data.phase==='recovering'?`Recovering speech timings · section ${data.count} of ${data.total}…`:'Matching your spoken narration'+(data.count?` · ${data.count}${data.total?' of '+data.total:''} sections processed`:'')+'…');
       }else if(data.type==='complete'){
         try{
-          vo.words=CraftushAlignment.fromWords(data.chunks,vo.duration);vo.transcript=String(data.text||'');
+          vo.words=CraftushAlignment.fromWords(data.chunks,vo.duration);vo.transcript=String(data.text||'');vo.syncIssues=Array.isArray(data.issues)?data.issues:[];
           if(!vo.words.length)throw new Error('No words were recognized.');
           $('#mode').value='audio';state.narrationKey=null;
-          syncStatus('matched',`Matched ${vo.words.length} spoken words. Preview the images below.`);
+          const uncertain=vo.words.filter(word=>word.timingUncertain).length;
+          syncStatus('matched',`Matched ${vo.words.length} spoken words.${uncertain||vo.syncIssues.length?' Some timings need a listening check below.':''} Preview the images below.`);
           $('#syncRecovery').open=false;
         }catch(error){syncStatus('error','Automatic sync could not find usable word timings. Retry sync or add an SRT below. '+error.message);$('#syncRecovery').open=true;vo.words=null;}
         stopNarrationWorker();refreshTimeline();
@@ -99,7 +100,7 @@ function computeStarts(){
   }
   if(mode==='audio'){
     if(!state.vo||!state.vo.words)return null;
-    return CraftushAlignment.align(state.items,state.vo.words,{duration,offset:0});
+    return CraftushAlignment.align(state.items,state.vo.words,{duration,offset:0,issues:state.vo.syncIssues||[]});
   }
   if(!state.cues.length)return null;
   const words=CraftushAlignment.fromCues(state.cues);

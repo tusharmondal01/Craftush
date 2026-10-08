@@ -1,3 +1,11 @@
+# Narration timestamp recovery update
+
+Prepared on 2026-10-08 against production commit `f0cdffb4678c6837d9b680d19a66ab4d204e8338` and approved for publication by the user. `npm test`: **108 passed, 0 failed**. `npm run build` passed. Ten new regressions cover incomplete word timestamps, bounded recovery, punctuation, overlap boundaries, repeated Hindi/English words, missing starts, review-gated export and original narration preservation.
+
+Real inference with the pinned q8 speech model succeeded on an 11-second official speech fixture and three variants covering truncation, silence, pauses and repeated passages across windows (up to 36 seconds). The actual-page DOM upload/review/export check reported zero page errors; decoding and worker transport were controlled. The user's exact HeyGen recording, browser WASM execution and native Premiere import remain unverified. See `AUDIO-SYNC-FIX.md` for behavior, test scope and limits.
+
+The existing backend, API credentials, Runware routing, ChatGPT integration, other panels and deployment settings remain unchanged. The release checks below are historical evidence for the existing production version.
+
 # Merged v17 production release checks
 
 `npm test`: **98 passed, 0 failed** on 2026-10-08. This includes all 16 existing ChatGPT bridge and MCP protocol checks plus the 11 supplied v17 narration-flow regressions. `npm run build` passed with the exact pinned documentary engine checksums and generated ChatGPT instructions.

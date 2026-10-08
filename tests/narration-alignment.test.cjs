@@ -121,7 +121,7 @@ test('speech window stitching preserves repeated phrases at different audio posi
 
 test('speech window failures do not manufacture incomplete word timestamps',async()=>{
   const {transcribeWindows}=await import('../public/visuals/transcription-windows.mjs');
-  for(const timestamp of [[0,null],[4,3],[0,30]])await assert.rejects(()=>transcribeWindows(async()=>({chunks:[{text:'word',timestamp}]}),new Float32Array(16000),'english'),/incomplete word timestamp/);
+  for(const timestamp of [[null,null],[4,3],[9,12]])await assert.rejects(()=>transcribeWindows(async()=>({chunks:[{text:'word',timestamp}]}),new Float32Array(16000),'english'),/No usable spoken-word timestamps/);
 });
 
 test('speech windows reject invalid input and preserve automatic language detection',async()=>{
