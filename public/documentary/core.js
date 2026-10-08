@@ -64,6 +64,7 @@ export function restoreProject(input) {
     throw new Error('Choose a Documentary Studio project JSON containing all 13 scenes.');
   }
   const p = newProject(input.id);
+  if (input.generationSource === 'chatgpt') p.generationSource = 'chatgpt';
   p.title = String(input.title || '').slice(0, 120); p.idea = String(input.idea || '').slice(0, 20000);
   p.created = String(input.created || p.created); p.updated = String(input.updated || p.updated);
   p.master.text = String(input.master?.text || '').slice(0, 200000); p.master.task = cleanTask(input.master?.task);

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Generate through your Runware connection in ChatGPT, then preview and assemble your documentary in Craftush.">
+  <title>Generate in ChatGPT · Craftush</title>
+  <link rel="stylesheet" href="/documentary/studio.css"><link rel="stylesheet" href="./connect.css">
+  <script type="module" src="./connect.js"></script>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"></div>
+  <header class="topbar"><a class="brand" href="/">✦ Craftush <span class="brand-section">/ ChatGPT</span></a><nav aria-label="Studio navigation"><a href="/documentary/">Documentary Studio</a><a href="#setup">Connect ChatGPT</a></nav></header>
+  <main class="shell">
+    <section class="intro"><div><span class="eyebrow">Your Runware connection in ChatGPT</span><h1>Your story.<br><span>Started in ChatGPT.</span></h1><p>Use Runware through ChatGPT. Preview and assemble the results here.</p></div><div class="format"><span>9:16</span><b>720p</b><small>13 scenes · 12 seconds each<br>2 min 36 sec target</small></div></section>
+    <div class="connection panel"><span id="connectionStatus" class="connection-status" role="status">Checking connection…</span><label id="teamCodeWrap" hidden>Team access code <input id="teamCode" type="password" autocomplete="off" maxlength="64"></label><span class="help">Runware stores your encrypted key. ChatGPT holds the connection token.</span></div>
+    <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+    <div class="workspace">
+      <section class="editor">
+        <section class="panel" id="createPanel">
+          <div class="section-head"><div><span class="eyebrow">01 / Connect a project</span><h2>What are we exploring?</h2></div></div>
+          <label for="projectTitle">Project title <span class="optional">optional</span></label><input id="projectTitle" maxlength="120" placeholder="A name for your documentary">
+          <label for="idea">Documentary idea</label><textarea id="idea" rows="6" maxlength="20000" placeholder="Describe the topic, angle and facts you want the documentary to cover."></textarea>
+          <div class="actions"><button id="createConnection" class="primary" type="button">Connect this project ↗</button></div><p class="help">Creating a connection is free. Generation starts only when you request it in ChatGPT and uses Runware credits.</p>
+        </section>
+        <section class="panel" id="projectPanel" hidden>
+          <div class="section-head"><div><span class="eyebrow">02 / Send to ChatGPT</span><h2 id="connectedTitle">Connected project</h2></div><span class="badge" id="expiry"></span></div>
+          <p class="help">In a private ChatGPT Work conversation, select both Craftush and Runware, then paste this command. It includes a temporary code for this project.</p>
+          <label class="sr-only" for="command">ChatGPT project command</label><textarea id="command" rows="6" readonly spellcheck="false"></textarea>
+          <div class="actions"><button id="copyCommand" class="primary" type="button">Copy ChatGPT command</button><button id="refresh" class="secondary" type="button">Refresh results</button></div>
+          <p class="help">If the chat pauses, say “Continue this project.” Submitted tasks keep their original IDs. This page refreshes while it is open.</p>
+          <div class="section-head"><div><span class="eyebrow">03 / Review your results</span><h2>Scenes, in order</h2></div><span class="badge" id="readyCount">0 / 13</span></div>
+          <div id="sceneGrid" class="scene-grid" aria-label="13 documentary scenes"></div>
+          <div class="story-block"><h3 id="sceneTitle">Scene 01</h3><p id="narration" class="narration" lang="hi"></p><details class="settings-details"><summary>Scene direction</summary><pre id="scenePrompt"></pre></details></div>
+          <div class="actions"><button id="openStudio" class="primary" type="button" disabled>Open preview & save ↗</button><button id="saveProject" class="secondary" type="button" disabled>Save project JSON</button><button id="endConnection" class="text-button" type="button">End connection</button></div>
+          <p class="help">Open Documentary Studio when all scenes are ready to add music, assemble and save your MP4. Download media promptly; provider links can expire.</p>
+        </section>
+        <section class="panel" id="setup">
+          <div class="section-head"><div><span class="eyebrow">One-time setup</span><h2>Connect Runware and Craftush</h2></div><span class="badge">Two connections</span></div>
+          <p class="help">In ChatGPT, open <strong>Plugins → Add → Add custom MCP server</strong>. Create these two personal connections, then install each plugin. Your workspace must allow custom connections.</p>
+          <div class="setup-item"><div><strong>1. Runware</strong><p class="help">Server: <code>https://mcp.runware.ai</code><br>Authentication: OAuth. Enter the Runware API key only on Runware’s secure connection page.</p></div><button class="secondary" data-value="https://mcp.runware.ai" type="button">Copy Runware URL</button></div>
+          <div class="setup-item"><div><strong>2. Craftush</strong><p class="help">Server: <code>https://craftush-v13-live.vercel.app/api/chatgpt-mcp</code><br>Authentication: No authentication. Each project uses its own temporary connection code.</p></div><button class="secondary" data-value="https://craftush-v13-live.vercel.app/api/chatgpt-mcp" type="button">Copy Craftush URL</button></div>
+          <div class="setup-item"><div><strong>Workflow instructions</strong><p class="help">Craftush supplies these to ChatGPT. You can also paste them into a conversation if needed.</p></div><button class="secondary" data-copy="workflow-instructions.txt" type="button">Copy workflow</button><a href="./workflow-instructions.txt" download>Download</a></div>
+          <p class="help">Do not put the Runware key in instructions, knowledge files or chat messages. ChatGPT runs generation during the conversation. If it pauses, continue with the same project command; submitted tasks keep their IDs.</p>
+          <details class="settings-details"><summary>Preserved workflow</summary><p class="help">Claude Fable 5 writes the master plan. Claude Sonnet 4.6 directs each scene using the complete plan. PixVerse V6 generates thirteen 12-second videos at 720 × 1280 with native audio. Craftush joins them in numeric order and keeps the original narration.</p></details>
+        </section>
+      </section>
+      <aside class="preview panel"><div class="preview-head"><span class="eyebrow">Scene preview</span><span class="badge">9:16</span></div><div class="player-wrap"><video id="previewVideo" controls playsinline preload="metadata" hidden></video><div id="previewEmpty" class="player-empty"><div class="preview-icon">▶</div><strong>Your results appear here.</strong><span>Connect a project, then generate<br>through ChatGPT and Runware.</span></div></div><div class="preview-footer"><strong id="previewTitle">Scene 01</strong><span>12 seconds · 720p</span></div><div class="run-summary"><div><span>Scenes ready</span><b id="summaryScenes">0 / 13</b></div><div><span>Reported Runware cost</span><b id="summaryCost">$0.00</b></div></div><div id="queueStatus" class="queue-status" role="status">Ready to connect.</div></aside>
+    </div>
+    <footer class="footer"><span>Craftush × ChatGPT</span><span>Generate in chat. Finish in the studio.</span></footer>
+  </main>
+</body>
+</html>

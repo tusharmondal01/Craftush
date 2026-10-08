@@ -103,6 +103,9 @@ function render() {
   $('musicDb').textContent = `${project.music.musicVolumeDb} dB`; $('narrationDb').textContent = `${project.music.narrationVolumeDb} dB`;
   $('removeMusic').hidden = !musicBlob; $('musicPreview').hidden = !musicBlob;
   $('finalMeta').hidden = !project.final || !finalBlob;
+  if (project.generationSource === 'chatgpt') {
+    for (const id of ['generateAll', 'generatePlan', 'retryMaster', 'generateScenes', 'resume', 'retryFailed', 'generateSelected', 'retryDirection']) $(id).disabled = true;
+  }
   if (project.final && finalBlob) $('finalMeta').textContent = `${time(project.final.duration)} · 720 × 1280 · ${size(finalBlob.size)} · ${project.final.engine}`;
   renderStory(); void updatePreview();
 }
@@ -128,11 +131,13 @@ async function checkConnection() {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.errors?.[0]?.message || 'The documentary backend is not available. Deploy the complete ZIP, including its API routes.');
     connection = data; $('teamCodeWrap').hidden = !data.codeRequired; $('setupLink').hidden = data.configured;
-    const message = !data.enabled ? 'Documentary Studio is disabled in admin.' : data.configured ? 'Runware key connected' : 'Runware key needs setup in admin';
-    $('connectionStatus').innerHTML = '<i></i>' + esc(message); $('connectionStatus').className = 'connection-status ' + (data.configured && data.enabled ? 'ready' : 'error');
+    const message = !data.enabled ? 'Documentary Studio is disabled in admin.' : project.generationSource === 'chatgpt' ? 'Generated through ChatGPT · preview & save ready' : data.configured ? 'Runware key connected' : 'Runware key needs setup in admin';
+    if (project.generationSource === 'chatgpt') $('setupLink').hidden = true;
+    $('connectionStatus').innerHTML = '<i></i>' + esc(message); $('connectionStatus').className = 'connection-status ' + ((data.configured || project.generationSource === 'chatgpt') && data.enabled ? 'ready' : 'error');
   } catch (e) { connection = null; $('connectionStatus').innerHTML = '<i></i>Connection unavailable'; $('connectionStatus').className = 'connection-status error'; notice(e.message, 'error'); }
 }
 function ensureConnection() {
+  if (project.generationSource === 'chatgpt') throw new Error('Continue generation in ChatGPT with the Craftush and Runware connections, then refresh results at Generate in ChatGPT.');
   if (!connection?.configured) throw new Error('Open Admin and save your Runware API key, then check the connection again.');
   if (!connection.enabled) throw new Error('Enable Documentary Studio in Admin → Dashboard cards.');
   if (connection.codeRequired && !$('teamCode').value.trim()) throw new Error('Enter your team access code before generating.');
@@ -371,11 +376,11 @@ $('projectFile').addEventListener('change', () => guarded(async () => {
   const file = $('projectFile').files[0]; if (!file) return; if (file.size > 3 * 1024 * 1024) throw new Error('This project file is too large.');
   const imported = restoreProject(JSON.parse(await file.text())); await store.put('archive-' + project.id, structuredClone(project)); project = imported;
   $('idea').value = project.idea; $('projectTitle').value = project.title; $('ideaCount').textContent = `${project.idea.length.toLocaleString()} / 20,000`; syncMusicInputs(); await loadMusic(); await reconcileMedia();
-  await persist(); $('projectFile').value = ''; setStage(project.master.text ? 'scenes' : 'idea'); queueStatus(anyPaused() ? 'Restored project. Resume retrieves the existing jobs.' : 'Project opened.'); notice('Project opened. On a different device, upload your saved scene MP4s if the Runware URLs have expired.');
+  await persist(); await checkConnection(); $('projectFile').value = ''; setStage(project.master.text ? 'scenes' : 'idea'); queueStatus(anyPaused() ? 'Restored project. Resume retrieves the existing jobs.' : 'Project opened.'); notice('Project opened. On a different device, upload your saved scene MP4s if the Runware URLs have expired.');
 }));
 $('newProject').addEventListener('click', () => guarded(async () => {
   if ((project.idea || project.master.text || project.scenes.some(ready)) && !confirm('Start a new project? The current draft will be kept on this device; save its project JSON to reopen it.')) return;
-  await store.put('archive-' + project.id, structuredClone(project)); project = newProject(); $('idea').value = ''; $('projectTitle').value = ''; $('ideaCount').textContent = '0 / 20,000'; selected = 0; finalBlob = null; await loadMusic(); syncMusicInputs(); await persist(); setStage('idea'); notice(''); queueStatus('Ready when you are.');
+  await store.put('archive-' + project.id, structuredClone(project)); project = newProject(); $('idea').value = ''; $('projectTitle').value = ''; $('ideaCount').textContent = '0 / 20,000'; selected = 0; finalBlob = null; await loadMusic(); syncMusicInputs(); await persist(); await checkConnection(); setStage('idea'); notice(''); queueStatus('Ready when you are.');
 }));
 window.addEventListener('beforeunload', e => { if (busy || assembling) { e.preventDefault(); e.returnValue = ''; } });
 async function init() {

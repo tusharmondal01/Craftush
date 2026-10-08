@@ -3,12 +3,14 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
     "@netlify/blobs": "^11.1.1",
-    "@vercel/blob": "^2.8.0"
+    "@vercel/blob": "^2.8.0",
+    "zod": "3.25.76"
   },
   "scripts": {
     "test": "node --test tests/*.test.cjs tests/*.test.mjs",
-    "build": "node scripts/prepare-documentary-engine.mjs"
+    "build": "node scripts/prepare-documentary-engine.mjs && node scripts/prepare-chatgpt-integration.mjs"
   },
   "devDependencies": {
     "@ffmpeg/core": "0.12.10"
