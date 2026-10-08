@@ -160,7 +160,7 @@ test('the combined download includes images, reloadable prompts, XML and the mat
   page.JSZip=class{file(name,data,options){files.set(name,{data,options});}async generateAsync(){return new Blob(['zip']);}};
   page.captureDownload=(blob,name)=>{downloaded=name;};run('downloadBlob=captureDownload');
   await run('downloadZip("#s4")');
-  assert.equal(downloaded,'images.zip');
+  assert.equal(downloaded,'premiere-project.zip');
   for(const name of ['001.jpg','002.jpg','003.jpg','004.jpg','prompts.txt','prompts.json','timeline.xml','transitions.json']) assert(files.has(name),name);
   assert.equal(JSON.parse(files.get('prompts.json').data).items.length,4);
   assert.equal(JSON.parse(files.get('transitions.json').data).cuts.length,3);

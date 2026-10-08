@@ -17,9 +17,9 @@ function ensureNarrationState(){
   if(state.narrationKey!==key){state.narrationKey=key;resetNarrationReview();}
 }
 function hasExportTiming(){return state.timeline.length===state.items.length&&state.items.length>0&&state.timingConfirmed&&!state.timingNeedsReview&&!state.voiceLoading&&!state.transcribing&&!state.timingErrors?.length;}
-function stopNarrationWorker(){
+function stopNarrationWorker({keepModel=false}={}){
   clearTimeout(narrationWatchdog);narrationWatchdog=null;
-  narrationTicket++;if(narrationWorker){narrationWorker.terminate();narrationWorker=null;}state.transcribing=false;
+  narrationTicket++;if(narrationWorker&&!keepModel){narrationWorker.terminate();narrationWorker=null;}state.transcribing=false;
 }
 async function analyseVoice(file){
   const Ctx=window.AudioContext||window.webkitAudioContext;
@@ -39,7 +39,7 @@ async function analyseVoice(file){
 }
 async function loadVoice(file){
   if(!file)return;
-  stopNarrationWorker();const ticket=++voiceLoadTicket;
+  stopNarrationWorker({keepModel:!state.transcribing});const ticket=++voiceLoadTicket;
   ++subtitleTicket;state.cues=[];$('#srtFile').value='';$('#dropTitle').textContent='Use an SRT from this narration';$('#dropSub').textContent='Optional: replaces automatic word recognition with your subtitle timings.';
   $('#mode').value='audio';syncStatus('reading','Reading your narration. Images will sync automatically.');
   narrationPreviewLimit=null;$('#narrationImage').hidden=true;
@@ -57,13 +57,13 @@ async function loadVoice(file){
 }
 function transcribeNarration(){
   if(!state.vo?.samples||state.transcribing||!state.items.length)return;
-  stopNarrationWorker();const ticket=narrationTicket,vo=state.vo;
+  stopNarrationWorker({keepModel:true});const ticket=narrationTicket,vo=state.vo;
   vo.words=null;state.narrationKey=null;$('#mode').value='audio';state.transcribing=true;state.timingConfirmed=false;$('#confirmTiming').checked=false;
   syncStatus('syncing','Syncing automatically. The first use downloads a speech model; keep this tab open.');refreshTimeline();armNarrationWatchdog(ticket);
   try{
-    narrationWorker=new Worker('voice-worker.mjs?v=18',{type:'module'});
+    narrationWorker=narrationWorker||new Worker('voice-worker.mjs?v=19',{type:'module'});
     narrationWorker.onmessage=({data})=>{
-      if(ticket!==narrationTicket||state.vo!==vo)return;
+      if(ticket!==narrationTicket||state.vo!==vo||(data.ticket!==undefined&&data.ticket!==ticket))return;
       armNarrationWatchdog(ticket);
       if(data.type==='progress'){
         syncStatus('syncing',data.status==='progress'?`Preparing automatic sync · ${Math.round(data.progress||0)}% of ${String(data.file||'model').split('/').pop()}`:'Preparing automatic sync on this device…');
@@ -78,7 +78,7 @@ function transcribeNarration(){
           syncStatus('matched',`Matched ${vo.words.length} spoken words.${uncertain||vo.syncIssues.length?' Some timings need a listening check below.':''} Preview the images below.`);
           $('#syncRecovery').open=false;
         }catch(error){syncStatus('error','Automatic sync could not find usable word timings. Retry sync or add an SRT below. '+error.message);$('#syncRecovery').open=true;vo.words=null;}
-        stopNarrationWorker();refreshTimeline();
+        stopNarrationWorker({keepModel:true});refreshTimeline();
       }else if(data.type==='error'){
         syncFailure('Automatic sync could not finish. Retry sync, or add an SRT from this exact narration below. '+String(data.message||''));
       }
@@ -87,7 +87,7 @@ function transcribeNarration(){
       if(ticket!==narrationTicket)return;
       syncFailure('Your browser could not load automatic sync. Retry with a working internet connection, or add an SRT from this narration below.');
     };
-    const samples=vo.samples.slice();narrationWorker.postMessage({type:'transcribe',audio:samples,language:$('#voiceLanguage').value},[samples.buffer]);
+    const samples=vo.samples.slice();narrationWorker.postMessage({type:'transcribe',ticket,audio:samples,language:$('#voiceLanguage').value},[samples.buffer]);
   }catch(error){syncFailure('Automatic sync could not start. Retry sync or use an SRT below. '+error.message);}
 }
 function computeStarts(){
@@ -178,7 +178,7 @@ function initNarrationSync(){
   ['dragleave','drop'].forEach(ev=>area.addEventListener(ev,e=>{e.preventDefault();area.classList.remove('over');}));area.addEventListener('drop',e=>loadVoice(e.dataTransfer.files[0]));
   $('#alignNarration').addEventListener('click',transcribeNarration);
   $('#cancelAlignment').addEventListener('click',()=>{stopNarrationWorker();syncStatus('stopped','Sync paused. Choose Retry sync to continue, or add an SRT below.');refreshTimeline();});
-  $('#voiceLanguage').addEventListener('change',()=>{stopNarrationWorker();if(state.vo)state.vo.words=null;state.narrationKey=null;if(state.vo&&state.items.length)transcribeNarration();else refreshTimeline();});
+  $('#voiceLanguage').addEventListener('change',()=>{stopNarrationWorker({keepModel:!state.transcribing});if(state.vo)state.vo.words=null;state.narrationKey=null;if(state.vo&&state.items.length)transcribeNarration();else refreshTimeline();});
   $('#syncOffset').addEventListener('change',refreshTimeline);
   $('#alignmentRows').addEventListener('change',e=>{
     const i=Number(e.target.dataset.cut??e.target.dataset.review);if(!Number.isInteger(i))return;

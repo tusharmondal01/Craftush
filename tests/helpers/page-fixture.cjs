@@ -12,10 +12,10 @@ function previewFixture({confirm=true}={}){
   }
   Object.assign(el('#aspect'),{value:'768x1344',selectedOptions:[{value:'768x1344',dataset:{gpt:'1024x1536',hi:'1088x1920',seq:'1080x1920'},textContent:'9:16 vertical'}]});
   for(const [id,value] of Object.entries({'#imgModel':'openai:gpt-image@2','#quality':'high','#fps':'30','#trans':'auto','#transitionEnergy':'high','#motion':'alt','#zoomAmt':'.06','#mode':'cues'})) el(id).value=value;
-  el('#zero').checked=false;el('#confirmTiming').checked=false;el('#syncOffset').value='0';
+  el('#zero').checked=false;el('#confirmTiming').checked=false;el('#useExistingImages').checked=false;el('#syncOffset').value='0';
   let raf=0;
   const page=vm.createContext({document:{querySelector:el,querySelectorAll:()=>[],addEventListener(){},createElement(){return el('canvas'+Math.random());}},localStorage:{getItem(){return null;},setItem(){}},console,crypto:crypto.webcrypto,URL,Blob,setTimeout,clearTimeout,requestAnimationFrame(){return ++raf;},cancelAnimationFrame(){},navigator:{},matchMedia(){return {matches:true};},Image:class{set src(url){this.url=url;queueMicrotask(()=>this.onload());}}});
-  for(const file of ['transitions.js','narration-alignment.js','narration-sync.js','premiere-auto.js','transition-preview.js']) vm.runInContext(fs.readFileSync(path.join(base,file),'utf8'),page);
+  for(const file of ['transitions.js','narration-alignment.js','narration-sync.js','export-guide.js','premiere-auto.js','transition-preview.js']) vm.runInContext(fs.readFileSync(path.join(base,file),'utf8'),page);
   const html=fs.readFileSync(path.join(base,'index.html'),'utf8');
   const main=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(m=>m[1]).find(s=>s.includes('const state ='));
   vm.runInContext(main.slice(0,main.indexOf('updateButtons();\nshowStep(0, false);')),page);

@@ -244,7 +244,9 @@ test('cancelled transcription and stale worker callbacks cannot replace new narr
 test('saved scenes can export corrected audio and XML without regenerating their existing images',async()=>{
   const {page,run,el}=previewFixture(),files=new Map();let name;
   run('state.items.forEach(it=>{it.b64=null;it.url=null});state.vo={duration:20,sampleRate:48000,channels:1,identity:["audio"],blob:new Blob(["existing audio"])};refreshTimeline();state.timingConfirmed=true;updateButtons()');
-  assert.equal(el('#zipBtn2').disabled,false);assert.equal(el('#zipBtn2').textContent,'Download timeline + audio (.zip)');
+  assert.equal(el('#zipBtn2').disabled,true);assert.equal(el('#xmlBtn').disabled,false);
+  el('#useExistingImages').checked=true;run('updateButtons()');
+  assert.equal(el('#zipBtn2').disabled,false);assert.equal(el('#zipBtn2').textContent,'Download timeline + audio ZIP');
   page.JSZip=class{file(key,data){files.set(key,data);}async generateAsync(){return new Blob(['zip']);}};
   page.captureName=(blob,n)=>{name=n};run('downloadBlob=captureName');await run('downloadZip("#s4")');
   assert.equal(name,'timeline-audio.zip');assert(!files.has('001.jpg'));assert(files.has('narration.wav'));assert(files.has('timeline.xml'));

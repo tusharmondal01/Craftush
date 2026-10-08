@@ -31,8 +31,9 @@ export async function transcribeWindows(transcriber,audio,language,{sampleRate=1
   for(let core=0;core<audio.length;core+=step){
     const end=Math.min(audio.length,core+step),from=Math.max(0,core-context),to=Math.min(audio.length,end+context),offset=from/sampleRate;
     const samples=audio.subarray(from,to),length=samples.length/sampleRate,coreStart=core/sampleRate,coreEnd=end/sampleRate;
-    const result=await transcriber(samples,options);
-    let selected=inspect(result,offset,length,coreStart,coreEnd);
+    let selected,initialFailure=false;
+    try{selected=inspect(await transcriber(samples,options),offset,length,coreStart,coreEnd);}
+    catch{initialFailure=true;selected={words:[],issues:[{start:coreStart,end:coreEnd,kind:'recognition-failed'}],uncertain:0,signature:''};}
     if(selected.uncertain||selected.issues.length){
       onChunk({phase:'recovering',count:count+1,total});
       // A bounded second pass with trailing silence can finish a cut-off final word.
@@ -43,7 +44,7 @@ export async function transcribeWindows(transcriber,audio,language,{sampleRate=1
         try{
           const retry=inspect(await transcriber(padded,options),offset,length,coreStart,coreEnd);
           // Do not substitute a different transcript or silently drop a difficult phrase.
-          if(retry.signature===selected.signature&&retry.issues.length+retry.uncertain<selected.issues.length+selected.uncertain){selected=retry;recovered++;}
+          if((initialFailure&&retry.words.length)||(retry.signature===selected.signature&&retry.issues.length+retry.uncertain<selected.issues.length+selected.uncertain)){selected=retry;recovered++;}
         }catch{ /* Keep the first pass and its explicit review flags if recovery fails. */ }
       }
     }
