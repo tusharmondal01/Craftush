@@ -41,6 +41,7 @@ function fixture() {
 function endpoint(name, store, fetch = async () => { throw new Error('Runware must not be called'); }) {
   const context = vm.createContext({ Request, Response, crypto: { randomUUID: () => '11111111-1111-4111-8111-111111111111' },
     setTimeout: fn => fn(), AbortSignal, fetch, withStorageErrors,
+    limitRunwareTasks: async () => null,
     openStore: () => store, readSettings: store => store.get('settings', { type: 'json' }), readUsage: store => store.get('usage', { type: 'json' }),
     activeKey: settings => settings.runwareKey || '', env: name => name === 'ADMIN_PASSWORD' ? 'fixture-admin-password' : '',
     safeEqual: (a, b) => a === b, json: (data, status = 200) => new Response(JSON.stringify(data), { status }),
@@ -49,7 +50,7 @@ function endpoint(name, store, fetch = async () => { throw new Error('Runware mu
     cleanMessage: value => String(value || ''), VERSION: 'fixture', MODEL_ID: /^[\w.-]+:[\w.-]+@[\w.-]+$/, RUNWARE_URL: 'https://api.runware.ai/v1',
   });
   const raw = fs.readFileSync(new URL(`../netlify/edge-functions/${name}.js`, import.meta.url), 'utf8')
-    .replace(/^import[\s\S]*?from\s+["'][^"']+["'];\n/m, '')
+    .replace(/^import[\s\S]*?from\s+["'][^"']+["'];\n/gm, '')
     .replace('export default async (req) =>', 'globalThis.rawHandler = async (req) =>').replace('export const config =', 'const config =');
   const wrapper = fs.readFileSync(new URL(`../api/${name}.js`, import.meta.url), 'utf8')
     .replace(/^import .*;\n/gm, '').replace(/export const (\w+) =/g, 'globalThis.$1 =');
@@ -215,3 +216,4 @@ test('the MCP workflow tool reports the denied connection as an error with the s
   assert.equal(body.result.structuredContent.connection.errors[0].code, 'STORAGE_ACCESS_DENIED');
   assert.equal(f.writes.length, 0);
 });
+

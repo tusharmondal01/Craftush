@@ -1,6 +1,7 @@
 // Relay: the browser sends image/prompt tasks here, the server adds the secret
 // Runware key and forwards them. The key never reaches anyone's browser.
 import { openStore, json, fail, safeEqual, readSettings, readUsage, activeKey, RUNWARE_URL, VERSION, textModel, textBackup, textModels, textList, cleanMessage, MODEL_ID, BUILTIN_TEXT_MODELS } from "../lib/shared.js";
+import { limitRunwareTasks } from '../lib/runtime-context.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // Errors that mean "try the next text model": outages, and a model ID Runware doesn't accept.
@@ -84,6 +85,8 @@ export default async (req) => {
     return { ...rest, model, deliveryMethod: "sync", settings: settingsForModel(s), ...(strictModel ? { _strict: true } : {}) };
   });
 
+  const blocked = await limitRunwareTasks(clean);
+  if (blocked) return blocked;
   let result, usedModel = null;
   if (clean.every((t) => t.taskType === "textInference")) {
     // Text: if the main model has an outage, retry once, then switch to the backup model.
@@ -142,3 +145,4 @@ export default async (req) => {
 };
 
 export const config = { path: "/api/runware" };
+

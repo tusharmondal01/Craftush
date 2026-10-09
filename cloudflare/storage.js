@@ -1,3 +1,5 @@
+import { initializeRateLimits, consumeQuota } from './rate-limit.js';
+
 // Private SQLite-backed Durable Object; only its Worker binding can access it.
 // Chunks stay below SQLite's 2 MB row limit, including multibyte scripts.
 export const CHUNK_BYTES = 512 * 1024;
@@ -11,9 +13,18 @@ export class CraftushStorage {
     this.sql = ctx.storage.sql;
     this.sql.exec('CREATE TABLE IF NOT EXISTS records (key TEXT PRIMARY KEY, parts INTEGER NOT NULL, bytes INTEGER NOT NULL)');
     this.sql.exec('CREATE TABLE IF NOT EXISTS chunks (key TEXT NOT NULL, part INTEGER NOT NULL, value BLOB NOT NULL, PRIMARY KEY (key, part))');
+    initializeRateLimits(this.sql);
   }
 
   async fetch(request) {
+    if (new URL(request.url).pathname === '/rate-limit') {
+      if (request.method !== 'POST') return new Response(null, { status: 405 });
+      const raw = await request.text();
+      if (raw.length > 8192) return new Response('Invalid quota request', { status: 400 });
+      try {
+        return Response.json(consumeQuota(this.storage, JSON.parse(raw).rules), { headers: { 'cache-control': 'no-store' } });
+      } catch { return new Response('Quota check failed', { status: 503 }); }
+    }
     const key = new URL(request.url).searchParams.get('key');
     if (!key || encoder.encode(key).length > 512) return new Response('Invalid record key', { status: 400 });
     if (request.method === 'GET') {

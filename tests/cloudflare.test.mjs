@@ -9,6 +9,7 @@ import worker from '../cloudflare/worker.js';
 import { CraftushStorage, cloudflareStore, CHUNK_BYTES } from '../cloudflare/storage.js';
 import { normalizeBackendURL, pagesRuntime } from '../scripts/pages-runtime.mjs';
 import { buildPages } from '../scripts/build-github-pages.mjs';
+import { publicRateLimits } from '../cloudflare/rate-limit.js';
 
 const SITE = 'https://tusharmondal01.github.io';
 const BACKEND = 'https://fixture-api.example';
@@ -50,7 +51,7 @@ test('Cloudflare health reads real private storage and public metadata never ret
   try {
     const response = await worker.fetch(request('/api/health'), environment(f));
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { ok: true, version: '17', storage: 'connected', adminConfigured: true, runwareConfigured: true });
+    assert.deepEqual(await response.json(), { ok: true, version: '17', storage: 'connected', adminConfigured: true, runwareConfigured: true, rateLimiting: publicRateLimits({}) });
     assert.equal(response.headers.get('access-control-allow-origin'), SITE);
     assert.equal(response.headers.get('cache-control'), 'no-store');
     const metadata = await worker.fetch(request('/api/documentary'), environment(f));

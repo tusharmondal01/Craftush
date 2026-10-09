@@ -72,3 +72,67 @@ test('compiled v17 Worker runs with actual Cloudflare SQLite storage and preserv
     });
   } finally { await runtime.dispose(); }
 });
+
+test('compiled Worker enforces burst and sign-in limits in actual SQLite Durable Objects', { timeout: 45000 }, async t => {
+  const origin = 'https://tusharmondal01.github.io';
+  const providerCalls = [];
+  const runtime = new Miniflare(convertV4MiniflareOptions({
+    modules: true,
+    scriptPath: fileURLToPath(new URL('../dist-worker/worker.js', import.meta.url)),
+    compatibilityDate: '2026-10-09', compatibilityFlags: ['nodejs_compat'],
+    durableObjects: { CRAFTUSH_DATA: { className: 'CraftushStorage', useSQLite: true } },
+    bindings: { ADMIN_PASSWORD: 'quota-fixture-admin', RUNWARE_API_KEY: 'quota-fixture-provider',
+      ALLOWED_ORIGINS: origin, RATE_LIMIT_AI_MINUTE: '2', RATE_LIMIT_AI_HOUR: '4',
+      RATE_LIMIT_LOOKUP_MINUTE: '2', RATE_LIMIT_ADMIN_ATTEMPTS: '2' },
+    outboundService: async request => {
+      assert.equal(new URL(request.url).hostname, 'api.runware.ai');
+      const tasks = await request.json();
+      providerCalls.push(tasks);
+      return Response.json({ data: tasks.filter(task => task.taskType !== 'authentication').map(task => ({
+        taskType: task.taskType, taskUUID: task.taskUUID, text: 'A scene-specific fixture prompt.', cost: 0,
+      })) });
+    },
+  }));
+  const call = (path, body, headers = {}) => runtime.dispatchFetch('https://worker.example' + path, {
+    method: body === undefined ? 'GET' : 'POST', headers: { origin, 'content-type': 'application/json', ...headers },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+  try {
+    await t.test('concurrent generation is atomic and rejected calls do not reach the provider', async () => {
+      const responses = await Promise.all(Array.from({ length: 12 }, () => call('/api/runware', [{
+        taskType: 'textInference', taskUUID: crypto.randomUUID(), model: 'anthropic:claude@sonnet-4.6',
+        messages: [{ role: 'user', content: 'Describe this scene.' }], settings: { maxTokens: 200 },
+      }])));
+      assert.equal(responses.filter(response => response.status === 200).length, 2);
+      const blocked = responses.filter(response => response.status === 429);
+      assert.equal(blocked.length, 10); assert.equal(providerCalls.length, 2);
+      for (const response of blocked) {
+        assert.match(response.headers.get('retry-after'), /^[1-9]\d*$/);
+        assert.equal(response.headers.get('access-control-allow-origin'), origin);
+        assert.match(response.headers.get('access-control-expose-headers'), /Retry-After/);
+        const value = await response.json();
+        assert.equal(value.errors[0].code, 'RATE_LIMITED');
+        assert.equal(value.retryAfter, Number(response.headers.get('retry-after')));
+      }
+    });
+    await t.test('polling has its own allowance after generation fills up', async () => {
+      const task = () => [{ taskType: 'getResponse', taskUUID: crypto.randomUUID() }];
+      assert.equal((await call('/api/runware', task())).status, 200);
+      assert.equal((await call('/api/runware', task())).status, 200);
+      assert.equal((await call('/api/runware', task())).status, 429);
+      assert.equal(providerCalls.length, 4);
+      const health = await call('/api/health');
+      assert.equal(health.status, 200);
+      assert.equal((await health.json()).rateLimiting.generationPerMinute, 2);
+    });
+    await t.test('failed sign-in throttling preserves legitimate admin access', async () => {
+      assert.equal((await call('/api/admin', { action: 'get' })).status, 401);
+      assert.equal((await call('/api/admin', { action: 'get' })).status, 401);
+      const blocked = await call('/api/admin', { action: 'get' });
+      assert.equal(blocked.status, 429);
+      assert.equal((await blocked.json()).errors[0].code, 'RATE_LIMITED');
+      const admin = await call('/api/admin', { action: 'get' }, { 'x-admin-password': 'quota-fixture-admin' });
+      assert.equal(admin.status, 200); assert.equal(providerCalls.length, 4);
+    });
+  } finally { await runtime.dispose(); }
+});

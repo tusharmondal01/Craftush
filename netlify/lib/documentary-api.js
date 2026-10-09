@@ -42,7 +42,7 @@ export function sanitizeReply(data, secret = '') {
 
 // Dependency injection keeps authorization, resumable tasks and provider errors testable.
 export function createDocumentaryHandler(deps) {
-  const { openStore, readSettings, activeKey, teamCodeOk, dashboardView, json, fail, fetch: request, runwareURL } = deps;
+  const { openStore, readSettings, activeKey, teamCodeOk, dashboardView, json, fail, fetch: request, runwareURL, limitRunwareTasks = async () => null } = deps;
   return async req => {
     let receipt, receiptKey, store, secret;
     try {
@@ -78,9 +78,15 @@ export function createDocumentaryHandler(deps) {
           if (receipt.result) return json(receipt.result);
           task = { taskType: 'getResponse', taskUUID: body.taskUUID };
         } else {
+          const blocked = await limitRunwareTasks([task]);
+          if (blocked) return blocked;
           receipt = { id: body.taskUUID, fingerprint, kind: body.action, created: new Date().toISOString(), status: 'submitted' };
           await store.setJSON(receiptKey, receipt);
         }
+      }
+      if (task.taskType === 'getResponse') {
+        const blocked = await limitRunwareTasks([task]);
+        if (blocked) return blocked;
       }
       const upstream = await request(runwareURL, { method: 'POST', signal: AbortSignal.timeout(48000), headers: { 'content-type': 'application/json' },
         body: JSON.stringify([{ taskType: 'authentication', apiKey: secret }, task]) });

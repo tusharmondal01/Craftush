@@ -11,7 +11,7 @@ The source stays in `tusharmondal01/Craftush`.
 2. Import **tusharmondal01/Craftush** from GitHub. Select only this repository
    when connecting the Cloudflare GitHub app.
 3. Select branch **fix/v17-cloudflare-backend** and name the Worker
-   **craftush-v17-api**. Keep the project root at the repository root.
+   **craftush**. Keep the project root at the repository root.
 4. Use build command **npm run build:cloudflare** and deploy command
    **npm run deploy:cloudflare**.
 5. In the Worker's **Settings → Variables and Secrets**, add **ADMIN_PASSWORD**
@@ -63,6 +63,36 @@ GitHub address. ChatGPT setup displays the deployed Cloudflare MCP endpoint.
   and the current pinned GitHub Pages release are not changed by preparation.
 
 ## Verification
+
+### Rate limits
+
+The Cloudflare backend uses atomic SQLite counters in its existing private
+Durable Object binding. Counters are isolated per network address, identified
+with a server-keyed HMAC rather than a stored plaintext IP or credential.
+People on the same network share an allowance.
+
+| Operation | Default allowance | Runtime variable |
+| --- | --- | --- |
+| Generated results, including image batches and text tasks | 120 per 60-second window | RATE_LIMIT_AI_MINUTE |
+| Generated results across all paid routes | 1,200 per 3,600-second window | RATE_LIMIT_AI_HOUR |
+| Result polling and model searches | 300 per 60-second window | RATE_LIMIT_LOOKUP_MINUTE |
+| Failed admin password attempts | 10 per 600-second window | RATE_LIMIT_ADMIN_ATTEMPTS |
+
+Positive integer runtime variables can override these defaults. No new
+binding or secret is required. Valid admin requests continue to work when the
+failed-password allowance is exhausted. Local editing and exports make no
+limited generation request.
+
+Rejected requests return HTTP 429, Retry-After, a retryAfter value and a
+readable wait message. A batch bigger than the entire allowance returns a
+reduce-batch error. Generation is checked after authorization and before
+calling Runware; a rejected documentary request creates no submitted receipt
+and can safely retry its original UUID. Polling has a separate allowance and
+cached completed documentary results do not consume generation quota.
+If quota storage fails, the provider is not called.
+
+The public health response reports the effective rate limits. The Pages
+release verifier requires rate limiting before publishing this update.
 
 `npm test` checks the original v17 behavior plus the backend and connected Pages
 runtime. `npm run test:cloudflare` bundles the actual Worker and runs it in

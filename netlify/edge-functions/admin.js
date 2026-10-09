@@ -4,6 +4,7 @@ import {
   openStore, json, fail, safeEqual, env, readSettings, readUsage, activeKey, checkKey,
   VERSION, DEFAULT_CARDS, dashboardView, analyzeWorkflow, RUNWARE_URL, DEFAULT_TEXT_MODEL, textModel, DEFAULT_TEXT_BACKUP, textBackup, cleanMessage, textList, MODEL_ID,
 } from "../lib/shared.js";
+import { limitRunwareTasks } from '../lib/runtime-context.js';
 
 const MAX_UPLOAD = 8 * 1024 * 1024; // 8 MB
 
@@ -115,6 +116,8 @@ export default async (req) => {
       if (!key) return fail("Save a Runware key first.", 400);
       const q = { taskType: "modelSearch", taskUUID: crypto.randomUUID(), visibility: "public", limit: Math.max(1, Math.min(50, Number(body.limit) || 30)), offset: Math.max(0, Number(body.offset) || 0) };
       for (const k of ["search", "category", "type", "architecture", "featured"]) if (body[k] !== undefined && body[k] !== "") q[k] = body[k];
+      const blocked = await limitRunwareTasks([q]);
+      if (blocked) return blocked;
       try {
         const res = await fetch(RUNWARE_URL, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify([{ taskType: "authentication", apiKey: key }, q]) });
         const data = await res.json().catch(() => ({}));
@@ -132,6 +135,8 @@ export default async (req) => {
       if (!key) return fail("Save a Runware key first.", 400);
       const wanted = String(body.model || "").trim() || textModel(settings);
       if (!MODEL_ID.test(wanted)) return fail(`"${wanted}" isn't a Runware model ID. Text model IDs look like provider:model@version, for example anthropic:claude@sonnet-4.6.`, 400);
+      const blocked = await limitRunwareTasks([{ taskType: 'textInference' }]);
+      if (blocked) return blocked;
       // Runware spells versions either way (sonnet-5.5 / sonnet-5-5), so a rejected ID is retried with the other spelling.
       const at = wanted.indexOf("@"), ver = wanted.slice(at + 1);
       const alts = [wanted, wanted.slice(0, at + 1) + ver.replace(/(\d)\.(\d)/g, "$1-$2"), wanted.slice(0, at + 1) + ver.replace(/(\d)-(\d)/g, "$1.$2")];

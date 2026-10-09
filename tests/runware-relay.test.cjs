@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { webcrypto } = require('node:crypto');
-const source = fs.readFileSync(path.join(__dirname, '../netlify/edge-functions/runware.js'), 'utf8').replace(/^import .*;\n/m, '').replace('export default async (req) =>', 'globalThis.handler = async (req) =>').replace('export const config =', 'const config =');
+const source = fs.readFileSync(path.join(__dirname, '../netlify/edge-functions/runware.js'), 'utf8').replace(/^import .*;\n/gm, '').replace('export default async (req) =>', 'globalThis.handler = async (req) =>').replace('export const config =', 'const config =');
 const SONNET = 'anthropic:claude@sonnet-4.6';
 const GEMINI = 'google:gemini@3.5-flash';
 const UUID = '11111111-1111-4111-8111-111111111111';
@@ -16,6 +16,7 @@ function fixture({ settings = {}, key = 'mock-secret', reply } = {}) {
   const context = vm.createContext({ Request, Response, AbortSignal, crypto: webcrypto, console,
     setTimeout: fn => { fn(); return 0; },
     openStore: () => store, readSettings: async () => settings, activeKey: () => key,
+    limitRunwareTasks: async () => null,
     json: (o, status = 200) => new Response(JSON.stringify(o), { status }),
     fail: (message, status) => new Response(JSON.stringify({ errors: [{ message }] }), { status }),
     safeEqual: (a, b) => a === b, readUsage: async () => usage,
@@ -98,3 +99,4 @@ test('browser relay removes temperature before sending to older backends', async
   assert.equal(body[0].settings.maxTokens, 3000); assert.equal(task.settings.temperature, 0.4);
   assert.equal(c.TEXT_MODEL, SONNET);
 });
+

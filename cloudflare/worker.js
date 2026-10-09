@@ -6,9 +6,10 @@ import documentary from '../netlify/edge-functions/documentary.js';
 import media from '../netlify/edge-functions/documentary-media.js';
 import bridge from '../netlify/edge-functions/chatgpt-bridge.js';
 import { createChatGPTMCP } from '../netlify/lib/chatgpt-mcp.js';
-import { activeKey, env, json, openStore, readSettings } from '../netlify/lib/shared.js';
+import { activeKey, env, json, openStore, readSettings, safeEqual } from '../netlify/lib/shared.js';
 import { withRuntime } from '../netlify/lib/runtime-context.js';
 import { cloudflareStore } from './storage.js';
+import { publicRateLimits, requestRateLimiter } from './rate-limit.js';
 export { CraftushStorage } from './storage.js';
 
 const mcp = createChatGPTMCP(bridge, {
@@ -42,7 +43,7 @@ function headersFor(response, origin) {
     headers.append('Vary', 'Origin');
     headers.set('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
     headers.set('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Password, X-Team-Code, Accept, MCP-Protocol-Version, MCP-Session-Id, Last-Event-ID');
-    headers.set('Access-Control-Expose-Headers', 'X-Media-Total, X-Media-Next, MCP-Session-Id');
+    headers.set('Access-Control-Expose-Headers', 'X-Media-Total, X-Media-Next, MCP-Session-Id, Retry-After');
     headers.set('Access-Control-Max-Age', '600');
   }
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
@@ -62,6 +63,7 @@ export default {
     if (request.method === 'OPTIONS') return headersFor(new Response(null, { status: 204 }), origin);
     try {
       const store = cloudflareStore(environment.CRAFTUSH_DATA);
+      const limiter = requestRateLimiter(request, environment);
       return await withRuntime(environment, store, async () => {
         let response;
         if (path === '/api/health') {
@@ -70,11 +72,18 @@ export default {
             const settings = await readSettings(openStore());
             const adminConfigured = !!env('ADMIN_PASSWORD');
             response = json({ ok: adminConfigured, version: '17', storage: 'connected', adminConfigured,
-              runwareConfigured: !!activeKey(settings) }, adminConfigured ? 200 : 503);
+              runwareConfigured: !!activeKey(settings), rateLimiting: publicRateLimits(environment) }, adminConfigured ? 200 : 503);
           }
-        } else response = await handler(request);
+        } else {
+          if (path === '/api/admin' && request.method === 'POST' && env('ADMIN_PASSWORD') &&
+              !safeEqual(request.headers.get('x-admin-password') || '', env('ADMIN_PASSWORD'))) {
+            const blocked = await limiter.admin();
+            if (blocked) return headersFor(blocked, origin);
+          }
+          response = await handler(request);
+        }
         return headersFor(response, origin);
-      });
+      }, { limitRunware: tasks => limiter.runware(tasks) });
     } catch {
       // Do not expose exception text, provider credentials or private values.
       return headersFor(error('BACKEND_STORAGE_UNAVAILABLE', 'Cloudflare private storage is unavailable. Check the CRAFTUSH_DATA binding and retry.', 503), origin);
