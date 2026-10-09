@@ -1,4 +1,5 @@
 node_modules/
 .vercel/
 .netlify/
+dist-pages/
 /public/documentary/vendor/core/dist/esm/ffmpeg-core.wasm
