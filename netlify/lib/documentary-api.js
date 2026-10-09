@@ -50,7 +50,7 @@ export function createDocumentaryHandler(deps) {
       const settings = await readSettings(store);
       secret = activeKey(settings);
       const enabled = dashboardView(settings).cards.documentary.enabled !== false;
-      if (req.method === 'GET') return json({ configured: !!secret, codeRequired: !!settings.teamCode, enabled, workflow: publicWorkflow(), version: '16' });
+      if (req.method === 'GET') return json({ configured: !!secret, codeRequired: !!settings.teamCode, enabled, workflow: publicWorkflow(), version: '17' });
       if (req.method !== 'POST') return fail('Method not allowed', 405);
       if (!(await teamCodeOk(req, settings))) return fail('Wrong team access code. Ask your admin for the current code.', 401);
       if (!enabled) return fail('Documentary Studio is turned off by the admin.', 403);
@@ -103,3 +103,4 @@ export function createDocumentaryHandler(deps) {
     }
   };
 }
+

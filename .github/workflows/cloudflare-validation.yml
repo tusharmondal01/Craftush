@@ -1,0 +1,32 @@
+name: Verify v17 Cloudflare backend
+
+on:
+  push:
+    branches: [fix/v17-cloudflare-backend]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - run: npm test
+      - run: npm run test:cloudflare
+      - run: node scripts/build-github-pages.mjs
+        env:
+          PAGES_BASE_PATH: /Craftush
+      # This workflow verifies a release. Production stays on its pinned
+      # frontend until a real Cloudflare backend has passed its health check.

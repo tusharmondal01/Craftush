@@ -3,3 +3,11 @@ node_modules/
 .netlify/
 dist-pages/
 /public/documentary/vendor/core/dist/esm/ffmpeg-core.wasm
+.wrangler/
+dist-worker/
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+!.dev.vars.example
+

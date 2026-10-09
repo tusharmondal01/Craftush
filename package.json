@@ -10,9 +10,13 @@
   },
   "scripts": {
     "test": "node --test tests/*.test.cjs tests/*.test.mjs",
-    "build": "node scripts/prepare-documentary-engine.mjs && node scripts/prepare-chatgpt-integration.mjs"
+    "build": "node scripts/prepare-documentary-engine.mjs && node scripts/prepare-chatgpt-integration.mjs",
+    "build:cloudflare": "wrangler deploy --dry-run --outdir dist-worker",
+    "deploy:cloudflare": "wrangler deploy",
+    "test:cloudflare": "npm run build:cloudflare && node --test tests/cloudflare-runtime.integration.mjs"
   },
   "devDependencies": {
-    "@ffmpeg/core": "0.12.10"
+    "@ffmpeg/core": "0.12.10",
+    "wrangler": "4.149.0"
   }
 }

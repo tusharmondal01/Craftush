@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "craftush-v17-api",
+  "main": "cloudflare/worker.js",
+  "compatibility_date": "2026-10-09",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "vars": {
+    "ALLOWED_ORIGINS": "https://tusharmondal01.github.io",
+    "PUBLIC_SITE_URL": "https://tusharmondal01.github.io/Craftush"
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "CRAFTUSH_DATA", "class_name": "CraftushStorage" }]
+  },
+  "migrations": [{ "tag": "v17-storage-1", "new_sqlite_classes": ["CraftushStorage"] }],
+  "alias": {
+    "@netlify/blobs": "./cloudflare/legacy-storage-disabled.js",
+    "@vercel/blob": "./cloudflare/legacy-storage-disabled.js"
+  },
+  "observability": { "enabled": false }
+}

@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "git": { "deploymentEnabled": { "github-pages-v17": false } },
+  "git": { "deploymentEnabled": false },
   "buildCommand": "npm run build",
   "outputDirectory": "public",
   "cleanUrls": false,
@@ -92,3 +92,4 @@
     }
   ]
 }
+

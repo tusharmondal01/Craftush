@@ -36,7 +36,7 @@ const reply = (value, isError = false) => ({ content: [{ type: 'text', text: JSO
 
 // Stateless MCP transport: every HTTP request receives its own server. Only
 // project-scoped capability codes reach the bridge; provider auth is rejected.
-export function createChatGPTMCP(bridge) {
+export function createChatGPTMCP(bridge, { projectPage } = {}) {
   return async req => {
     if (req.headers.has('authorization')) return Response.json({ error: 'Craftush uses No authentication. Never send the Runware credential or OAuth token here.' }, { status: 400 });
     const origin = req.headers.get('origin');
@@ -57,7 +57,8 @@ export function createChatGPTMCP(bridge) {
         if (Object.keys(args).length) return reply({ error: 'This tool takes no arguments or credentials.' }, true);
         const metadata = await bridge(new Request(new URL('/api/chatgpt-bridge', req.url)));
         return reply({ instructions: CHATGPT_WORKFLOW, connection: await metadata.json(),
-          projectPage: 'https://craftush-v13-live.vercel.app/chatgpt/', runwareServer: 'https://mcp.runware.ai' }, !metadata.ok);
+          projectPage: typeof projectPage === 'function' ? projectPage() : projectPage || new URL('/chatgpt/', req.url).href,
+          runwareServer: 'https://mcp.runware.ai' }, !metadata.ok);
       }
       if (call.params.name !== 'craftush_project') return reply({ error: 'Unknown Craftush tool.' }, true);
       if (!['read', 'prepare', 'record'].includes(args.action)) return reply({ error: 'Use read, prepare or record. Create and end connections on the Craftush website.' }, true);
@@ -75,3 +76,4 @@ export function createChatGPTMCP(bridge) {
     } finally { await server.close(); }
   };
 }
+

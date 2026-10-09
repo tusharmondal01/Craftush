@@ -1,5 +1,11 @@
 # Craftush v17
 
+The **fix/v17-cloudflare-backend** release connects the GitHub Pages frontend to
+a private Cloudflare backend for admin and Runware. Follow [CLOUDFLARE.md](CLOUDFLARE.md)
+for browser-only setup. GitHub Actions verifies the backend and existing v17
+features before release; the live frontend is promoted after a real backend
+passes its health and CORS checks.
+
 Four dashboard tools using your Runware account, with a private admin backend. This release fixes and simplifies **Stunning Visuals** narration syncing. Upload the final audio, preview automatically matched lines and images, then download one Premiere package. Documentary Studio remains available with video previews, concatenation, background music and final MP4 download. The existing Netlify v12 site is separate and must remain untouched.
 
 ## Private storage recovery
@@ -134,3 +140,4 @@ For Thumbnail Generator, upload the single HTML tool through `/admin`; it is ser
 Run `npm ci` followed by `npm test` from the repository root. The merged suite has **98 tests**: the original 71 checks, 11 narration-flow and mapping regressions, and 16 ChatGPT bridge/MCP checks. Documentary checks cover the exact supplied prompts, model settings, master-plan validation, access control, task UUID recovery, provider-response privacy, project import/export, audio-preserving FFmpeg commands and bounded media downloads. Existing checks cover the full-stop splitter, model parameters/relay handling, all 28 styles across vertical/horizontal/square frames, fractional interpolation/crop coverage, preview controls, shuffle timing stability, complete ZIP exports, retry behavior, script-draft privacy and narration alignment. Narration regressions cover variable speaking speed, pauses, repeated phrases, missing/extra passages, Hindi/Hinglish, numbers, SRT cue uncertainty, subtitle replacement races, manual review, cancellation, frame rounding, PCM sample preservation and audio inclusion across all export modes.
 
 Additional local checks exercised full-script context, relevance rewrites/failures, quality-check selection, model routing, async polling, relay authentication/secret handling, private storage behavior and DOM assets with mocked AI responses. All **50 XML cases** parse with valid clip handles, transition boundaries and keyframe ranges. Native Premiere import/render and real-model generations are separate checks; automated local success does not establish those outcomes.
+

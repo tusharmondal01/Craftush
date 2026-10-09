@@ -1,0 +1,4 @@
+# Enter real values only in Cloudflare Settings > Variables and Secrets.
+# This file lists required names and must never contain live credentials.
+ADMIN_PASSWORD=
+RUNWARE_API_KEY=

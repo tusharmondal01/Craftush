@@ -1,9 +1,10 @@
 // Shared helpers for the Craftush edge functions.
 import { getStore } from "@netlify/blobs";
 import { privateBlobStore } from "./blob-store.js";
+import { runtimeContext } from "./runtime-context.js";
 
 // Shown on the admin page so you can confirm which backend version is live.
-export const VERSION = "16";
+export const VERSION = "17";
 
 // Text model used for smart script splitting (confirmed in Runware's official SDK examples).
 export const DEFAULT_TEXT_MODEL = "deepseek:v4@flash";
@@ -31,6 +32,8 @@ export const RUNWARE_URL = "https://api.runware.ai/v1";
 // Netlify uses Netlify Blobs. Other hosts can use Upstash Redis over its REST API.
 // Vercel also supports an isolated private Blob store connected with the CRAFTUSH prefix.
 export const openStore = () => {
+  const bound = runtimeContext.getStore()?.store;
+  if (bound) return bound;
   const url = env("UPSTASH_REDIS_REST_URL") || env("KV_REST_API_URL");
   const token = env("UPSTASH_REDIS_REST_TOKEN") || env("KV_REST_API_TOKEN");
   if (url && token) return redisStore(url.replace(/\/+$/, ""), token);
@@ -95,6 +98,8 @@ export function safeEqual(a, b) {
 }
 
 export const env = (name) => {
+  const bound = runtimeContext.getStore()?.environment;
+  if (bound) return typeof bound[name] === 'string' ? bound[name] : '';
   try { if (typeof Netlify !== "undefined") return Netlify.env.get(name) || ""; } catch { /* not on Netlify */ }
   try { return (typeof process !== "undefined" && process.env && process.env[name]) || ""; } catch { return ""; }
 };
@@ -179,3 +184,4 @@ export async function teamCodeOk(req, settings) {
   const code = settings.teamCode || "";
   return !code || safeEqual(req.headers.get("x-team-code") || "", code);
 }
+
