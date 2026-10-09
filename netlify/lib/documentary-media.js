@@ -1,4 +1,5 @@
 // Range-limited media fallback: avoids cross-origin download and function body limits.
+import { storageErrorResponse } from './storage-errors.js';
 export const MEDIA_CHUNK_BYTES = 2 * 1024 * 1024;
 export const MEDIA_MAX_BYTES = 160 * 1024 * 1024;
 
@@ -46,6 +47,6 @@ export function createMediaHandler(deps) {
       for (const piece of pieces) { merged.set(piece, pos); pos += piece.length; }
       return new Response(merged, { status: 200, headers: { 'content-type': 'video/mp4', 'cache-control': 'no-store',
         'x-media-total': String(contentRange ? +contentRange[3] : bytes), 'x-media-next': String(start + bytes) } });
-    } catch { return fail('The scene could not be downloaded. Retry or upload the scene MP4.', 502); }
+    } catch (error) { return storageErrorResponse(error) || fail('The scene could not be downloaded. Retry or upload the scene MP4.', 502); }
   };
 }

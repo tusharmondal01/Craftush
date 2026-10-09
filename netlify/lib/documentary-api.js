@@ -1,4 +1,5 @@
 import { WORKFLOW } from './documentary-workflow.js';
+import { storageErrorResponse } from './storage-errors.js';
 import { parseMaster, validatePrompt, UUID } from '../../public/documentary/core.js';
 
 export function buildDocumentaryTask(body) {
@@ -95,6 +96,8 @@ export function createDocumentaryHandler(deps) {
       }
       return json(result, upstream.ok ? 200 : upstream.status);
     } catch (e) {
+      const storageFailure = storageErrorResponse(e);
+      if (storageFailure) return storageFailure;
       // Keep a submitted receipt on transport failure; only polling can establish its outcome.
       return fail(e?.name === 'TimeoutError' || e?.name === 'AbortError' ? 'Runware has not acknowledged the task yet. Resume to check the same task; it will not be submitted twice.' : 'The documentary service could not complete the request. Check access and resume the existing task.', 502);
     }

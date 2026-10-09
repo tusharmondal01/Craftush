@@ -2,6 +2,12 @@
 
 Four dashboard tools using your Runware account, with a private admin backend. This release fixes and simplifies **Stunning Visuals** narration syncing. Upload the final audio, preview automatically matched lines and images, then download one Premiere package. Documentary Studio remains available with video previews, concatenation, background music and final MP4 download. The existing Netlify v12 site is separate and must remain untouched.
 
+## Private storage recovery
+
+The v17 storage repair shares concurrent reads and briefly caches settings (30 seconds) and usage totals (5 seconds) within each server instance. Successful admin writes update that instance immediately; other instances refresh settings within 30 seconds. Task receipts and ChatGPT projects always use fresh reads, preserving resume behavior.
+
+If Vercel denies private storage access, the API returns HTTP 503 with `STORAGE_ACCESS_DENIED` instead of an unreadable HTTP 500 or a generic generation failure. It does not treat denied settings as empty settings, expose provider credentials, or change existing task IDs. A provider usage block still requires the owner to restore storage access through the Vercel account or wait for its usage window to reset. Redeployment alone cannot lift that block.
+
 ## Documentary Studio (included since v16)
 
 Open `/documentary/` from the fourth dashboard card. It uses the existing admin Runware key and team access code. The supplied v18 master and scene system prompts are preserved byte for byte: Claude Fable 5 writes the complete plan, Claude Sonnet 4.6 directs each scene from that complete plan, and PixVerse V6 generates thirteen 12-second 720 × 1280 videos with native audio. ComfyUI and a desktop video editor are not required for this tool.

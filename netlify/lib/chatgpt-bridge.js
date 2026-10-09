@@ -1,4 +1,5 @@
 import { buildDocumentaryTask, publicWorkflow } from './documentary-api.js';
+import { storageErrorResponse } from './storage-errors.js';
 import { newProject, restoreProject, parseMaster, validatePrompt, UUID } from '../../public/documentary/core.js';
 
 const TOKEN = /^[0-9a-f]{64}$/;
@@ -155,6 +156,8 @@ export function createChatGPTBridge(deps) {
       }
       return fail('Unknown project action.', 400);
     } catch (e) {
+      const storageFailure = storageErrorResponse(e);
+      if (storageFailure) return storageFailure;
       return fail(e?.message && /credential|master script|scene prompt|expected video prompt|at most 5000|invalid JSON/i.test(e.message)
         ? e.message : 'The project connection could not complete this request. Keep the existing task UUID and try reading the project again.', 400);
     }

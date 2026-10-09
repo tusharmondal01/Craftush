@@ -1,6 +1,9 @@
 // Vercel function for /api/runware. It reuses the Netlify handler in netlify/edge-functions/runware.js,
 // so both hosts run exactly the same code.
-import handler from "../netlify/edge-functions/runware.js";
+import rawHandler from "../netlify/edge-functions/runware.js";
+
+import { withStorageErrors } from "../netlify/lib/storage-errors.js";
+const handler = withStorageErrors(rawHandler);
 
 export const GET = handler;
 export const POST = handler;
