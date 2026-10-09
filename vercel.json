@@ -17,7 +17,12 @@
   "headers": [
     {
       "source": "/chatgpt/(.*)",
-      "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, must-revalidate"
+        }
+      ]
     },
     {
       "source": "/visuals",
@@ -89,5 +94,11 @@
         }
       ]
     }
-  ]
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "main": false,
+      "github-pages-v17": false
+    }
+  }
 }
