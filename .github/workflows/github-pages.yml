@@ -34,11 +34,11 @@ jobs:
       - run: npm test
       - run: node scripts/verify-cloudflare-backend.mjs
         env:
-          PAGES_API_BASE: ${{ vars.PAGES_API_BASE }}
+          PAGES_API_BASE: ${{ vars.PAGES_API_BASE || 'https://craftush.tushar-mondal.workers.dev' }}
       - run: node scripts/build-github-pages.mjs
         env:
           PAGES_BASE_PATH: /Craftush
-          PAGES_API_BASE: ${{ vars.PAGES_API_BASE }}
+          PAGES_API_BASE: ${{ vars.PAGES_API_BASE || 'https://craftush.tushar-mondal.workers.dev' }}
       - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
         with:
           path: dist-pages
