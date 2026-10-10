@@ -39,7 +39,7 @@
 .mote-video{bottom:15%;left:-3%;--float:-7px}
 .mote-documentary{bottom:6%;right:0;--float:6px}
 .hero-caption{position:absolute;bottom:2px;left:0;right:0;text-align:center;color:#a4b89d;font:500 9px var(--mono);letter-spacing:.2em}
-.card{min-height:470px}
+.card{min-height:470px;grid-template-rows:210px minmax(0,1fr)}
 .art{height:210px}
 .thumb-art{background:radial-gradient(ellipse at 50% 95%,#b5ff591a,transparent 65%),#0b150c}
 .thumb-stage{position:absolute;inset:0;width:min(380px,100%);margin:auto}
@@ -116,8 +116,8 @@
   @keyframes moteFloat{50%{translate:0 var(--float)}}
   @keyframes heroArrive{from{opacity:0;transform:translateY(24px) scale(.94);filter:blur(5px)}to{opacity:1;transform:none;filter:none}}
   @keyframes thumbnailFront{0%,100%{transform:translate(-50%,-44%) rotate(-3deg)}30%,65%{transform:translate(-50%,-47%) rotate(0deg)}}
-  @keyframes thumbnailBack{0%,100%{transform:translate(-68%,-53%) rotate(-13deg)}30%,65%{transform:translate(-72%,-59%) rotate(-17deg)}}
-  @keyframes thumbnailMid{0%,100%{transform:translate(-32%,-53%) rotate(11deg)}30%,65%{transform:translate(-28%,-57%) rotate(15deg)}}
+  @keyframes thumbnailBack{0%,100%{transform:translate(-68%,-53%) rotate(-13deg)}30%,65%{transform:translate(-72%,-50%) rotate(-17deg)}}
+  @keyframes thumbnailMid{0%,100%{transform:translate(-32%,-53%) rotate(11deg)}30%,65%{transform:translate(-28%,-50%) rotate(15deg)}}
   @keyframes gemTurn{0%,100%{transform:rotate(-9deg) scale(.95)}35%,65%{transform:rotate(12deg) scale(1.04)}}
   @keyframes selectionReveal{0%,10%,90%,100%{opacity:0}25%,75%{opacity:1}}
   @keyframes cursorDesign{0%,100%{transform:translate(42px,20px);opacity:0}20%{transform:translate(-63px,-32px);opacity:1}35%,55%{transform:translate(-72px,-44px);opacity:1}78%{transform:translate(0,0);opacity:1}90%{opacity:0}}
@@ -138,7 +138,7 @@
   .hero-system{inset:0 2% 30px}
   .orbit-plane{width:245px;height:245px}.orbit-three{width:210px;height:210px}
   .track{grid-template-columns:1fr}
-  .card{grid-template-columns:.9fr 1fr;min-height:270px}
+  .card{grid-template-columns:.9fr 1fr;grid-template-rows:minmax(0,1fr);min-height:270px}
   .art{height:auto;min-height:245px;border-right:1px solid var(--line);border-bottom:0}
   .thumb-card{top:48%}
   .thumb-palette{bottom:22px}
@@ -149,7 +149,7 @@
   .intro p{font-size:.94rem;max-width:43ch}
   .hero-art{height:275px;width:min(100%,380px);margin:8px auto 0}
   .hero-system{inset:0 3% 26px}
-  .card{grid-template-columns:1fr;min-height:0}
+  .card{grid-template-columns:1fr;grid-template-rows:210px minmax(0,1fr);min-height:0}
   .art{height:210px;min-height:0;border-right:0;border-bottom:1px solid var(--line)}
   .thumb-palette{bottom:13px}
   .track{gap:18px}
@@ -162,6 +162,7 @@
   .motion-toggle span{display:none}
   .hero-art{height:260px}
   .hero-mote{width:118px;min-height:43px}
+  .mote-visuals{top:13%}
   .intro h1{letter-spacing:-.045em}
   .footer-credit{padding:30px 20px 24px}
   .footer-credit p{font-size:.81rem}
