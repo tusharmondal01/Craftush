@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-          ref: b7acddb41ddcce283226e76697c5ce1a77546d55
+          ref: 284c9d2138b6ac7dd0f51f35ca3106dfbf30c4e4
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
