@@ -45,7 +45,7 @@ export async function buildPages({ source = join(root, 'public'), destination = 
   await writeFile(join(destination, '.nojekyll'), '');
   await mkdir(join(destination, 'thumbnail'), { recursive: true });
   const thumbnailScript = backendURL ? '<script>location.replace(' + JSON.stringify(backendURL + '/thumbnail') + ');</script>' : '';
-  const thumbnailIcons = '<link rel="icon" type="image/svg+xml" sizes="any" href="' + basePath + '/favicon.svg?v=20261010"><link rel="mask-icon" href="' + basePath + '/safari-pinned-tab.svg?v=20261010" color="#00ed85">';
+  const thumbnailIcons = '<link rel="icon" type="image/svg+xml" sizes="any" href="' + basePath + '/favicon.svg?v=20261010-padding2"><link rel="mask-icon" href="' + basePath + '/safari-pinned-tab.svg?v=20261010-padding2" color="#00ed85">';
   await writeFile(join(destination, 'thumbnail/index.html'), '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Thumbnail Generator · Craftush</title>' + thumbnailIcons + '<script src="' + basePath + '/github-pages-runtime.js"></script>' + thumbnailScript + '</head><body style="background:#10251a;color:#f2f5ef;font:18px/1.7 system-ui"><main style="max-width:680px;margin:80px auto;padding:24px"><h1>Thumbnail Generator</h1><p>' + (backendURL ? 'Opening your thumbnail generator…' : 'This tool uses a generator uploaded in admin. A connected backend is required to load it.') + '</p><a style="color:#a8dfaa" href="' + basePath + '/">Return to Craftush</a></main></body></html>');
   await writeFile(join(destination, 'hosting.json'), JSON.stringify({ version: '17', host: 'GitHub Pages', backendConnected: !!backendURL, backendURL, basePath }, null, 2));
 }
