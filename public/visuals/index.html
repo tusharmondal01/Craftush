@@ -360,6 +360,7 @@ button{min-height:44px}.field{min-width:0}.field select,.field input,.field text
 @media(max-width:700px){.hero{padding-top:22px}.orb-wrap{display:none}.hero{grid-template-columns:1fr}.workflow-head{padding:14px;gap:12px}.workflow-head progress{width:65px}.step{padding:22px 18px}.bar{align-items:stretch}.split-mode{flex:1 1 100%;min-width:0}.fields{grid-template-columns:1fr}input,select,textarea{font-size:16px}.step-foot{gap:12px;flex-wrap:wrap}.step-foot button{max-width:100%}}
 .image-link{font-size:.78rem;color:var(--lime);margin-left:8px}.alignment-start details summary{cursor:pointer;color:var(--muted);font-size:.8rem;padding:8px 0}.alignment-start>strong{font-family:var(--mono);font-size:.82rem}.voice-controls{margin:18px 0}.voice-controls .field{min-width:180px;flex:1}.narration-preview{display:grid;grid-template-columns:180px 1fr;gap:18px;align-items:center;margin:18px 0}.narration-preview img{width:100%;max-height:220px;object-fit:contain;border-radius:12px;background:#151923}.narration-preview audio{width:100%}.alignment-list{padding:0;list-style:none;display:grid;gap:12px}.alignment-row{display:grid;grid-template-columns:76px 1fr 240px;gap:16px;padding:16px;border:1px solid var(--line);border-radius:14px}.alignment-row.needs-review{border-color:#c88e31;background:rgba(221,166,55,.06)}.alignment-row>img{width:76px;max-height:120px;object-fit:contain;border-radius:8px}.alignment-row p{margin:7px 0}.alignment-row small{display:block;color:var(--muted);line-height:1.5}.alignment-row .timing-reason{margin-top:6px}.alignment-start label{display:block}.alignment-start input[type=text]{margin:5px 0}.alignment-start .bar{gap:6px;margin:9px 0}.alignment-start button{padding:8px 10px;font-size:.78rem}.alignment-number{font-weight:700;color:var(--muted)}.confirm-timing{margin:18px 0;padding:15px;border:1px solid var(--line);border-radius:12px}.confirm-timing input{flex-shrink:0}@media(max-width:750px){.alignment-row{grid-template-columns:55px 1fr}.alignment-row>img{width:55px}.alignment-start{grid-column:1/-1}.narration-preview{grid-template-columns:90px 1fr}}
 </style>
+<link rel="stylesheet" href="/tool-theme.css?v=20261011-1">
 </head>
 <body><a class="skip-link" href="#studioMain">Skip to the workflow</a>
 <div aria-hidden="true" class="bg"><i class="beam"></i></div>
@@ -2375,7 +2376,7 @@ $('#teamCode').addEventListener('change', () => { if (server.configured && !$('#
       const Y = y * cb - Z * sb; Z = y * sb + Z * cb;
       const p = 2.6 / (2.6 - Z), d = Math.max(0, Math.min(1, (Z + 1.2) / 2.4));
       const a = 0.16 + d * 0.8, s = (0.7 + d * 1.8) * (q > 0.97 ? 2.2 : 1);
-      ctx.fillStyle = q > 0.9 ? 'rgba(210,255,160,' + a + ')' : 'rgba(' + (50 + d * 80 | 0) + ',' + (190 + d * 65 | 0) + ',' + (35 + d * 25 | 0) + ',' + a + ')';
+      ctx.fillStyle = q > 0.9 ? 'rgba(184,88,64,' + a + ')' : 'rgba(' + (162 + d * 38 | 0) + ',' + (70 + d * 35 | 0) + ',' + (50 + d * 28 | 0) + ',' + a + ')';
       ctx.fillRect(cx + X * R * p, cy + Y * R * p, s, s);
     }
     ctx.globalCompositeOperation = 'source-over';
