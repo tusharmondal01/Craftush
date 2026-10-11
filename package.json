@@ -17,6 +17,7 @@
   },
   "devDependencies": {
     "@ffmpeg/core": "0.12.10",
+    "linkedom": "0.18.12",
     "wrangler": "4.149.0"
   }
 }

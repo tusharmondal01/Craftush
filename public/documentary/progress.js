@@ -1,5 +1,5 @@
 // Progress reflects returned, validated work. Time estimates never fill a bar.
-const pending = new Set(['submitted', 'processing', 'uncertain', 'paused']);
+const pending = new Set(['queued', 'submitted', 'processing', 'uncertain', 'paused']);
 const defaults = { master: [180, 480], director: [45, 180], video: [90, 360] };
 const timingKey = 'craftush-documentary-timing-v1';
 const hasVideo = scene => !!(scene.mediaKey || scene.videoURL);
@@ -137,3 +137,4 @@ export function createProgressUI(doc, readState, storage = null) {
     try { storage?.setItem(timingKey, JSON.stringify(history)); } catch { /* no storage permission needed */ }
   }, destroy() { if (timer) clearInterval(timer); timer = null; doc.removeEventListener('visibilitychange', onVisibility); } };
 }
+

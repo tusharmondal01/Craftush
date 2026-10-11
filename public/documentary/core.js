@@ -3,7 +3,7 @@ export const SCENE_COUNT = 13;
 export const SCENE_SECONDS = 12;
 export const MASTER_KEYS = ['glossary', 'subject_sheet', 'continuity_sheet', ...Array.from({ length: SCENE_COUNT }, (_, i) => `scene${i + 1}`)];
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-export const ACTIVE_STATES = new Set(['submitted', 'processing', 'uncertain', 'paused']);
+export const ACTIVE_STATES = new Set(['queued', 'submitted', 'processing', 'uncertain', 'paused']);
 
 export function parseMaster(text) {
   if (typeof text !== 'string' || !text.trim() || text.length > 200000) throw new Error('The master script is empty or too large.');
@@ -69,7 +69,7 @@ export function restoreProject(input) {
   p.title = String(input.title || '').slice(0, 120); p.idea = String(input.idea || '').slice(0, 20000);
   p.created = String(input.created || p.created); p.updated = String(input.updated || p.updated);
   p.master.text = String(input.master?.text || '').slice(0, 200000); p.master.task = cleanTask(input.master?.task);
-  p.master.idea = String(input.master?.idea ?? p.idea).slice(0, 20000); p.master.failedText = String(input.master?.failedText || '').slice(0, 200000);
+  p.master.idea = String(input.master?.idea || p.idea).slice(0, 20000); p.master.failedText = String(input.master?.failedText || '').slice(0, 200000);
   if (p.master.text) parseMaster(p.master.text);
   const seen = new Set();
   p.scenes = input.scenes.map(s => {
@@ -129,3 +129,4 @@ export function compatibleMedia(infos) {
   const signature = ({ video: v, audio: a }) => JSON.stringify([v.codec_name, v.profile, v.level, v.width, v.height, v.pix_fmt, v.r_frame_rate, v.time_base, a.codec_name, a.sample_rate, a.channels, a.channel_layout, a.time_base]);
   return infos.length > 0 && infos.every(i => i.video.width === 720 && i.video.height === 1280 && i.video.codec_name === 'h264' && i.audio.codec_name === 'aac' && signature(i) === signature(infos[0]));
 }
+

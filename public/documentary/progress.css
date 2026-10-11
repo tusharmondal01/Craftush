@@ -71,3 +71,10 @@
 @media(max-width:1100px){.generation-heading h3{font-size:17px}.generation-steps{gap:8px}.generation-steps li{font-size:10px}.generation-clock{padding:8px;font-size:9px}}
 @media(max-width:540px){.step small{font-size:8px;margin:5px 0 0}.generation-progress,.progress-dashboard{padding:17px}.generation-heading{gap:10px;flex-wrap:wrap}.generation-heading h3{font-size:16px}.motion-beacon{width:35px;height:35px;border-radius:10px}.generation-clock{margin:2px 0 0 45px}.generation-steps{grid-template-columns:1fr;gap:10px}.generation-copy{font-size:11px}.completion-ring{width:58px;height:58px}.completion-ring b{font-size:15px}.generation-counts{gap:6px}.generation-counts>div{padding:10px 8px}.generation-counts span{font-size:9px}.generation-counts b{font-size:11px}.scene-tile{min-height:122px}.scene-activity-detail{font-size:8px}.scene-working-dots{bottom:10px}.progress-foot{font-size:9px}}
 @media(prefers-reduced-motion:reduce){.motion-beacon i,.scene-working-dots i,.generation-track.indeterminate>span,.story-skeleton>span,.tile-progress.indeterminate,.preview-loading-orbit,.preview-loading-orbit:after{animation:none!important;transform:none!important}.generation-track.indeterminate>span,.scene-tile .tile-progress.indeterminate{width:100%;opacity:.5}.generation-track>span{transition:none}}
+
+/* Workflow controls use the shared cream-and-coral palette. */
+.idea-edit-hint{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:14px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--panel);color:var(--muted);font-size:12px}
+button.workflow-stop{display:inline-flex;align-items:center;justify-content:center;gap:8px;color:var(--lime);border-color:var(--lime);background:var(--panel)}
+button.workflow-stop::before{content:"";width:8px;height:8px;border-radius:2px;background:currentColor;flex:none}
+button.workflow-stop:hover:not(:disabled){color:var(--lime-2,var(--lime));background:var(--bg-2,var(--panel));border-color:currentColor}
+@media(max-width:540px){.idea-edit-hint{align-items:flex-start;flex-direction:column}.idea-edit-hint .workflow-stop{width:100%}}

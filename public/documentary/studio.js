@@ -1,7 +1,7 @@
-import { newProject, restoreProject, parseMaster, validatePrompt, sceneNarration, projectCost, filename, cleanMusic, ACTIVE_STATES } from './core.js?v=20261011-progress1';
+import { newProject, restoreProject, parseMaster, validatePrompt, sceneNarration, projectCost, filename, cleanMusic, ACTIVE_STATES } from './core.js?v=20261011-controls2';
 import { DocumentaryStore } from './storage.js';
 import { assembleDocumentary } from './assemble.js';
-import { createProgressUI } from './progress.js?v=20261011-progress1';
+import { createProgressUI } from './progress.js?v=20261011-controls2';
 
 const $ = id => document.getElementById(id);
 const store = new DocumentaryStore(), memoryMedia = new Map(), mediaURLs = new Map();
@@ -9,6 +9,7 @@ let project = newProject(), connection = null, selected = 0, stage = 'idea', bus
 let queueController = null, assemblyController = null, saveTimer, previewSequence = 0, persistNoticeShown = false;
 let musicBlob = null, musicURL = '', musicFileName = '', finalBlob = null;
 const abort = () => new DOMException('Queue paused.', 'AbortError');
+function checkStopped(signal) { if (signal?.aborted) throw abort(); }
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const size = b => `${(b / 1048576).toFixed(1)} MB`;
 const time = seconds => { const n = Math.round(seconds); return `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`; };
@@ -98,12 +99,18 @@ function render() {
   $('downloadMaster').disabled = !project.master.text; $('downloadPrompt').disabled = !s.prompt; $('downloadScene').disabled = !ready(s);
   $('retryMaster').disabled = locked || anyPaused(); $('saveMaster').disabled = locked || anyPaused();
   $('retryDirection').disabled = locked || !project.master.text || pendingScene; $('savePrompt').disabled = locked || pendingScene;
-  $('projectTitle').disabled = locked; $('idea').disabled = locked || pendingMaster; $('concurrency').disabled = locked;
+  $('projectTitle').disabled = locked; $('idea').disabled = locked; $('concurrency').disabled = locked;
+  $('ideaEditHint').hidden = !locked;
   $('masterText').disabled = locked; $('scenePrompt').disabled = locked; $('sceneFile').disabled = locked; $('projectFile').disabled = locked;
   $('masterText').disabled = locked || anyPaused(); $('scenePrompt').disabled = locked || pendingScene; $('sceneFile').disabled = locked || pendingScene;
   for (const id of ['musicFile', 'musicVolume', 'narrationVolume', 'fadeIn', 'fadeOut', 'musicStart', 'loopMusic', 'removeMusic']) $(id).disabled = assembling;
   $('assemble').disabled = complete !== 13 || locked; $('downloadFinal').disabled = !finalBlob || assembling;
-  $('pause').hidden = !busy; $('assemblyProgress').hidden = !assembling;
+  const stopping = !!(queueController?.signal.aborted || assemblyController?.signal.aborted);
+  document.querySelectorAll('[data-stop-workflow]').forEach(button => {
+    button.hidden = !locked; button.disabled = stopping;
+    button.textContent = stopping ? 'Stopping…' : 'Stop workflow';
+  });
+  $('assemblyProgress').hidden = !assembling;
   $('musicDb').textContent = `${project.music.musicVolumeDb} dB`; $('narrationDb').textContent = `${project.music.narrationVolumeDb} dB`;
   $('removeMusic').hidden = !musicBlob; $('musicPreview').hidden = !musicBlob;
   $('finalMeta').hidden = !project.final || !finalBlob;
@@ -148,10 +155,12 @@ function ensureConnection() {
 }
 class ServiceError extends Error { constructor(message, status = 0) { super(message); this.status = status; this.uncertain = status === 0 || status >= 500; } }
 async function api(body, signal) {
+  checkStopped(signal);
   let response;
   try { response = await fetch('/api/documentary', { method: 'POST', headers: { 'content-type': 'application/json', 'x-team-code': $('teamCode').value.trim() }, body: JSON.stringify(body), signal }); }
   catch (e) { if (signal?.aborted) throw abort(); throw new ServiceError('The connection was interrupted. Resume to check this existing task.'); }
   const result = await response.json().catch(() => ({}));
+  checkStopped(signal);
   if (!response.ok) throw new ServiceError(result.errors?.[0]?.message || `The service returned HTTP ${response.status}.`, response.status);
   return result;
 }
@@ -166,10 +175,13 @@ function taskOutput(result, task, kind) {
   return null;
 }
 async function executeTask(task, body, kind, isNew, signal) {
-  const started = Date.now(); let pauseMs = 1800, transportFailures = 0;
+  const started = Date.now(); let pauseMs = 1800, transportFailures = 0, dispatched = false;
   try {
+    checkStopped(signal);
     if (isNew) {
       task.status = 'submitted'; await persist({ required: true }); render();
+      checkStopped(signal);
+      dispatched = true;
       const result = await api({ ...body, taskUUID: task.id }, signal);
       const output = taskOutput(result, task, kind); if (output) return completeTask(task, output, kind, (Date.now() - started) / 1000);
     }
@@ -190,7 +202,7 @@ async function executeTask(task, body, kind, isNew, signal) {
     }
     throw new ServiceError('This task is still pending. Resume to retrieve its result without resubmitting it.', 504);
   } catch (e) {
-    task.status = signal?.aborted ? 'paused' : e.uncertain ? 'uncertain' : 'error'; task.error = e.message; await persist(); render(); throw e;
+    task.status = signal?.aborted ? isNew && !dispatched ? 'queued' : 'paused' : e.uncertain ? 'uncertain' : 'error'; task.error = e.message; await persist(); render(); throw e;
   }
 }
 async function completeTask(task, output, kind, elapsedSeconds = null) {
@@ -201,22 +213,25 @@ async function completeTask(task, output, kind, elapsedSeconds = null) {
 }
 function freshTask() { return { id: crypto.randomUUID(), status: 'submitted', started: new Date().toISOString(), progress: 0, error: '' }; }
 async function ensureMaster(signal) {
+  checkStopped(signal);
+  if ((project.master.text || project.master.task) && project.master.idea.trim() !== project.idea.trim()) throw new Error('Your idea has changed. Return to Idea and create a new story plan before continuing. Your previous jobs stay saved.');
   if (project.master.text) {
-    if (project.master.idea !== project.idea) throw new Error('Your idea has changed. Generate a new story plan before creating scenes for the new topic.');
     return parseMaster(project.master.text);
   }
-  const isNew = !project.master.task;
+  const isNew = !project.master.task || project.master.task.status === 'queued';
   if (project.master.task?.status === 'error') throw new Error('The master director needs a retry. Use Generate a new plan in Story plan.');
+  if (isNew) project.master.idea = project.idea;
   project.master.task ||= freshTask(); queueStatus('Writing the complete story with Claude Fable 5…'); setStage('story');
   const output = await executeTask(project.master.task, { action: 'master', idea: project.idea }, 'master', isNew, signal);
   let plan;
   try { plan = parseMaster(output.text); } catch (e) { project.master.task.status = 'error'; project.master.task.error = e.message; project.master.failedText = output.text; await persist(); throw e; }
-  project.master.text = output.text; project.master.idea = project.idea; project.master.failedText = ''; invalidateFinal(); await persist(); render(); return plan;
+  project.master.text = output.text; project.master.failedText = ''; invalidateFinal(); await persist(); render(); return plan;
 }
 async function ensureDirection(s, signal) {
+  checkStopped(signal);
   if (s.prompt) return validatePrompt(s.prompt);
   if (s.directorTask?.status === 'error') throw new Error(`Scene ${s.index}: its prompt needs a retry.`);
-  const isNew = !s.directorTask; s.directorTask ||= freshTask();
+  const isNew = !s.directorTask || s.directorTask.status === 'queued'; s.directorTask ||= freshTask();
   queueStatus(`Directing scene ${String(s.index).padStart(2, '0')} with Claude Sonnet 4.6…`);
   const output = await executeTask(s.directorTask, { action: 'director', master: project.master.text, scene: s.index }, 'director', isNew, signal);
   try { validatePrompt(output.text); } catch (e) { s.directorTask.status = 'error'; s.directorTask.error = e.message; s.failedPrompt = output.text; await persist(); throw e; }
@@ -243,15 +258,17 @@ async function downloadRemote(url, signal) {
   return new Blob(pieces, { type: 'video/mp4' });
 }
 async function sceneBlob(s, signal) {
+  checkStopped(signal);
   let blob = await getMedia(s.mediaKey); if (blob) return blob;
   if (!s.videoURL) throw new Error(`Scene ${s.index} has no video file. Generate it or upload its MP4.`);
   blob = await downloadRemote(s.videoURL, signal); s.mediaKey ||= s.videoTask?.id || crypto.randomUUID();
   await cacheMedia(s.mediaKey, blob); await persist(); return blob;
 }
 async function ensureVideo(s, signal) {
+  checkStopped(signal);
   if (ready(s)) return;
   if (s.videoTask?.status === 'error') throw new Error(`Scene ${s.index}: its video needs a retry.`);
-  const isNew = !s.videoTask; s.videoTask ||= freshTask();
+  const isNew = !s.videoTask || s.videoTask.status === 'queued'; s.videoTask ||= freshTask();
   queueStatus(`Generating scene ${String(s.index).padStart(2, '0')} with PixVerse V6…`);
   const output = await executeTask(s.videoTask, { action: 'video', prompt: s.prompt }, 'video', isNew, signal);
   s.videoURL = output.videoURL; s.mediaKey = ''; invalidateFinal(); await persist(); render();
@@ -276,21 +293,27 @@ async function run(mode, indices = project.scenes.map((_, i) => i)) {
   if (busy || assembling) return;
   try { ensureConnection(); } catch (e) { notice(e.message, 'error'); return; }
   const work = async lock => {
-    if (!lock && navigator.locks) { notice('A generation queue is already running in another Craftush tab. Pause that queue first.', 'warn'); return; }
+    if (!lock && navigator.locks) { notice('A generation queue is already running in another Craftush tab. Stop that workflow first.', 'warn'); return; }
     busy = true; queueController = new AbortController(); const signal = queueController.signal; notice(''); render();
     try {
       project.title = $('projectTitle').value.trim(); project.idea = $('idea').value.trim();
       if (!project.idea && !project.master.text) throw new Error('Enter your documentary idea first.');
       await persist({ required: true });
       await ensureMaster(signal);
+      checkStopped(signal);
       if (mode === 'plan') { queueStatus('The complete story plan is ready to review.'); notice('Story plan ready. Review it or generate all scenes.'); return; }
       setStage('scenes'); const problems = await workScenes(indices, signal);
       const complete = project.scenes.filter(ready).length; queueStatus(`${complete} of 13 scenes ready${problems.length ? '. Review the scenes marked Needs retry.' : '.'}`);
       if (complete === 13) { notice('All 13 scenes are ready. Add optional music and assemble your final video.'); setStage('export'); }
-    } catch (e) { if (signal.aborted) { queueStatus('Queue paused. Submitted Runware jobs continue; Resume checks those same jobs.'); notice('Queue paused. Resume retrieves existing jobs before starting remaining scenes.'); } else { notice(e.message, 'error'); queueStatus('Review the error, then resume or retry the affected stage.'); } }
+    } catch (e) { if (signal.aborted) { queueStatus('Workflow stopped. Already submitted Runware jobs may finish; Resume checks the same jobs.'); notice('Workflow stopped. Your progress is saved. Resume existing jobs, or return to Idea to edit your topic.'); } else { notice(e.message, 'error'); queueStatus('Review the error, then resume or retry the affected stage.'); } }
     finally { busy = false; queueController = null; await persist(); render(); }
   };
   if (navigator.locks) await navigator.locks.request('craftush-documentary-generation', { ifAvailable: true }, work); else await work(true);
+}
+function stopWorkflow() {
+  if (!busy && !assembling) return;
+  queueController?.abort(); assemblyController?.abort();
+  queueStatus('Stopping the workflow…'); render();
 }
 function archiveScene(s, { prompt = false } = {}) {
   if (ready(s) || s.prompt) { s.history.push({ prompt: s.prompt, videoURL: s.videoURL, mediaKey: s.mediaKey, date: new Date().toISOString() }); s.history = s.history.slice(-10); }
@@ -304,8 +327,9 @@ function download(blob, name) {
 }
 function saveProject() { download(new Blob([JSON.stringify(restoreProject(project), null, 2)], { type: 'application/json' }), filename(project.title, '-project.json')); }
 async function startFromIdea(mode) {
+  if (busy || assembling) return;
   ensureConnection();
-  if (project.master.text && project.master.idea !== $('idea').value.trim()) {
+  if ((project.master.text || project.master.task) && project.master.idea.trim() !== $('idea').value.trim()) {
     if (!confirm('Use this new idea to create a new story plan and reset the current scenes? Save the current project first if needed.')) return;
     await store.put('archive-' + project.id, structuredClone(project)); project.master = { text: '', task: null, idea: '', failedText: '' }; project.scenes.forEach(s => archiveScene(s, { prompt: true }));
   }
@@ -319,11 +343,13 @@ async function assemble() {
   notice(''); render(); $('previewVideo').pause(); queueStatus('Preparing the final documentary…');
   try {
     const clips = [];
-    for (const s of project.scenes) { $('assemblyLabel').textContent = `Preparing scene ${s.index} of 13…`; $('assemblyBar').value = s.index / 13 * 20; clips.push(await sceneBlob(s, signal)); }
+    for (const s of project.scenes) { checkStopped(signal); $('assemblyLabel').textContent = `Preparing scene ${s.index} of 13…`; $('assemblyBar').value = s.index / 13 * 20; clips.push(await sceneBlob(s, signal)); }
+    checkStopped(signal);
     const result = await assembleDocumentary(clips, { musicBlob, music: project.music, signal, onProgress: ({ stage, part, progress }) => {
       $('assemblyLabel').textContent = stage + (stage === 'Checking scene files' || stage === 'Matching scene formats' ? ` · ${part} / 13` : '');
       $('assemblyBar').value = stage === 'Checking scene files' ? 20 + progress * 15 : stage === 'Matching scene formats' ? 35 + (part - 1 + progress) / 13 * 35 : stage === 'Joining all 13 scenes' ? 70 + progress * 15 : stage === 'Mixing background music' || stage === 'Adjusting narration volume' ? 85 + progress * 14 : stage === 'Final video ready' ? 100 : 20;
     } });
+    checkStopped(signal);
     const key = crypto.randomUUID(); await cacheMedia(key, result.blob); finalBlob = result.blob;
     project.final = { mediaKey: key, fileName: filename(project.title, '.mp4'), duration: result.duration, size: result.blob.size, engine: result.engine };
     await persist(); notice('Your final documentary is ready to preview and download.'); queueStatus('Final video ready.');
@@ -350,7 +376,7 @@ $('checkConnection').addEventListener('click', checkConnection);
 $('teamCode').addEventListener('change', () => { try { sessionStorage.setItem('craftush-documentary-code', $('teamCode').value.trim()); } catch { /* private browser */ } });
 for (const id of ['idea', 'projectTitle']) $(id).addEventListener('input', () => { project.idea = $('idea').value; project.title = $('projectTitle').value; $('ideaCount').textContent = `${project.idea.length.toLocaleString()} / 20,000`; persistSoon(); });
 $('generateAll').addEventListener('click', () => guarded(() => startFromIdea('all'))); $('generatePlan').addEventListener('click', () => guarded(() => startFromIdea('plan'))); $('generateScenes').addEventListener('click', () => run('all')); $('resume').addEventListener('click', () => run('all'));
-$('pause').addEventListener('click', () => queueController?.abort());
+document.querySelectorAll('[data-stop-workflow]').forEach(button => button.addEventListener('click', stopWorkflow));
 $('retryFailed').addEventListener('click', () => guarded(async () => { ensureConnection(); const indices = []; project.scenes.forEach((s, i) => { if (s.directorTask?.status === 'error' || s.videoTask?.status === 'error') { resetFailures(s); indices.push(i); } }); if (!indices.length) notice('There are no failed scenes to retry.'); else await run('all', indices); }));
 $('sceneGrid').addEventListener('click', e => { const button = e.target.closest('[data-scene]'); if (button) { selected = Number(button.dataset.scene); render(); } });
 $('generateSelected').addEventListener('click', () => guarded(async () => { ensureConnection(); const s = project.scenes[selected]; if (ready(s)) archiveScene(s); resetFailures(s); await run('selected', [selected]); }));
@@ -398,3 +424,4 @@ async function init() {
   await checkConnection(); render();
 }
 await init();
+

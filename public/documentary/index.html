@@ -7,9 +7,9 @@
 <link rel="icon" type="image/svg+xml" sizes="any" href="/favicon.svg?v=20261010-padding2">
 <link rel="mask-icon" href="/safari-pinned-tab.svg?v=20261010-padding2" color="#00ed85">
   <link rel="stylesheet" href="./studio.css">
-  <script type="module" src="./studio.js?v=20261011-progress1"></script>
+  <script type="module" src="./studio.js?v=20261011-controls2"></script>
 <link rel="stylesheet" href="/tool-theme.css?v=20261011-1">
-  <link rel="stylesheet" href="./progress.css?v=20261011-progress1">
+  <link rel="stylesheet" href="./progress.css?v=20261011-controls2">
 </head>
 <body>
   <div class="ambient" aria-hidden="true"></div>
@@ -42,8 +42,9 @@
           <label for="projectTitle">Project title <span class="optional">optional</span></label><input id="projectTitle" maxlength="120" placeholder="A name for your documentary" autocomplete="off">
           <label for="idea">Documentary idea</label><textarea id="idea" rows="7" maxlength="20000" placeholder="Describe your topic, the angle you want to explore, and any facts the documentary should cover."></textarea>
           <div class="field-foot"><span>A cinematic Hinglish story, with narration and natural sound.</span><span id="ideaCount">0 / 20,000</span></div>
+          <div class="idea-edit-hint" id="ideaEditHint" hidden><span>Stop the workflow to edit your idea. Your progress stays saved.</span><button class="secondary workflow-stop" data-stop-workflow type="button" hidden>Stop workflow</button></div>
           <div class="actions"><button id="generateAll" class="primary" type="button">Generate full documentary <span>↗</span></button><button id="generatePlan" class="secondary" type="button">Create story plan only</button></div>
-          <p class="help">Generation uses your Runware credits. You can pause the queue, review scenes, and retry individual results.</p>
+          <p class="help">Generation uses your Runware credits. Stop pauses new requests and saves your progress. Already submitted jobs may still finish. Resume checks those same jobs.</p>
           <details class="settings-details"><summary>Workflow settings</summary><dl class="workflow-settings"><div><dt>Master director</dt><dd>Claude Fable 5 · high thinking</dd></div><div><dt>Scene direction</dt><dd>Claude Sonnet 4.6 · high thinking</dd></div><div><dt>Video</dt><dd>PixVerse V6 · native audio · multi-shot</dd></div><div><dt>Format</dt><dd>720 × 1280 · 12 seconds · seed 42</dd></div></dl><label for="concurrency">Scenes processed at once</label><select id="concurrency"><option value="3">3 scenes</option><option value="1">1 scene</option><option value="5">5 scenes</option><option value="13">13 scenes</option></select><p class="help">Each scene reads the same complete story plan. This control changes queue speed, not the workflow prompts.</p></details>
         </section>
         <section class="panel stage" id="stage-story" hidden>
@@ -56,7 +57,7 @@
             <ol class="generation-steps" aria-label="Story planning steps"><li id="storyRequestStep" data-state="waiting"><span>1</span>Send idea</li><li id="storyWriteStep" data-state="waiting"><span>2</span>Write complete plan</li><li id="storyReadyStep" data-state="waiting"><span>3</span>Ready to review</li></ol>
             <div class="generation-estimate"><span class="estimate-icon" aria-hidden="true">◷</span><div><strong id="storyEstimate">Start with your documentary idea</strong><small id="storyEstimateSource"></small></div></div>
             <div id="storySkeleton" class="story-skeleton" aria-hidden="true" hidden><span></span><span></span><span></span></div>
-            <div class="progress-navigation"><span id="progressNavigationHint">You can explore the workspace while generation runs.</span><button id="progressExploreScenes" class="text-button" data-go="scenes" type="button">View scene queue →</button><button id="progressToScenes" class="text-button" data-go="scenes" type="button" hidden>Continue to scenes →</button></div>
+            <div class="progress-navigation"><span id="progressNavigationHint">You can explore the workspace while generation runs.</span><button id="progressExploreScenes" class="text-button" data-go="scenes" type="button">View scene queue →</button><button id="progressToScenes" class="text-button" data-go="scenes" type="button" hidden>Continue to scenes →</button><button class="secondary workflow-stop" data-stop-workflow type="button" hidden>Stop workflow</button></div>
           </section>
           <div class="story-summary" id="storySummary"><p class="empty-copy">Create a story plan to see it here.</p></div>
           <details class="settings-details"><summary>View or edit master JSON</summary><label class="sr-only" for="masterText">Master script JSON</label><textarea id="masterText" rows="14" spellcheck="false" placeholder="Your master script will appear here."></textarea><div class="actions"><button id="saveMaster" class="secondary" type="button">Apply master edits</button><button id="retryMaster" class="text-button" type="button">Generate a new plan</button></div><p class="help">A new or edited plan starts a new set of scenes. Save the current project before replacing it.</p></details>
@@ -69,7 +70,7 @@
             <div id="scenesProgressMeter" class="generation-track" role="progressbar" aria-label="Documentary generation steps completed" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="scenesProgressBar"></span></div>
             <div class="generation-counts"><div><span>Story plan</span><b id="progressStoryCount">Pending</b></div><div><span>Scene directions</span><b id="progressPromptCount">0 / 13</b></div><div><span>Videos ready</span><b id="progressVideoCount">0 / 13</b></div></div>
             <div class="progress-foot"><span id="scenesMilestones">0 / 27 generation steps complete</span><span>Percentage tracks completed steps, not time.</span></div>
-            <div class="progress-navigation"><button class="text-button" data-go="story" type="button">Review story plan ←</button><button id="progressToExport" class="text-button" data-go="export" type="button" hidden>All scenes ready · Preview & save →</button></div>
+            <div class="progress-navigation"><button class="text-button" data-go="story" type="button">Review story plan ←</button><button id="progressToExport" class="text-button" data-go="export" type="button" hidden>All scenes ready · Preview & save →</button><button class="secondary workflow-stop" data-stop-workflow type="button" hidden>Stop workflow</button></div>
           </section>
           <div class="scene-grid" id="sceneGrid" aria-label="13 documentary scenes"></div>
           <section class="panel scene-details">
@@ -98,7 +99,7 @@
         <div class="player-wrap"><video id="previewVideo" controls playsinline preload="metadata" hidden></video><div class="player-empty" id="previewEmpty"><div class="preview-icon" id="previewEmptyIcon">▶</div><div id="previewActivity" class="preview-activity" hidden><span class="preview-loading-orbit" aria-hidden="true"></span><small id="previewActivityTime">0:00 elapsed</small></div><strong id="previewEmptyTitle">Your story starts here.</strong><span id="previewEmptyHint">Select a generated scene or assemble your final video.</span></div></div>
         <div class="preview-footer"><strong id="previewTitle">Scene 01</strong><span id="previewMeta">12 seconds · 720p</span></div>
         <div class="run-summary"><div><span>Scenes ready</span><b id="summaryScenes">0 / 13</b></div><div><span>Reported Runware cost</span><b id="summaryCost">$0.00</b></div></div>
-        <div class="queue-status" id="queueStatus" role="status">Ready when you are.</div><button id="pause" class="secondary wide" type="button" hidden>Pause generation queue</button>
+        <div class="queue-status" id="queueStatus" role="status">Ready when you are.</div><button id="pause" class="secondary wide workflow-stop" data-stop-workflow type="button" hidden>Stop workflow</button>
         <div class="project-actions"><button id="saveProject" class="text-button" type="button">Save project</button><label class="upload-button" for="projectFile">Open project<input id="projectFile" type="file" accept=".json,application/json"></label><button id="newProject" class="text-button" type="button">New project</button></div>
         <p class="help small">Drafts and downloaded scene files are saved on this device. Save project JSON and scene MP4s for a portable backup.</p>
       </aside>
@@ -107,3 +108,4 @@
   </main>
 </body>
 </html>
+
