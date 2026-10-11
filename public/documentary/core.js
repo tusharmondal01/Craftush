@@ -41,7 +41,8 @@ export function newProject(id = crypto.randomUUID()) {
 
 function cleanTask(t) {
   if (!t || !UUID.test(String(t.id || ''))) return null;
-  return { id: t.id, status: String(t.status || 'paused'), started: t.started || '', error: String(t.error || '').slice(0, 500), progress: Math.max(0, Math.min(100, Number(t.progress) || 0)) };
+  return { id: t.id, status: String(t.status || 'paused'), started: t.started || '', error: String(t.error || '').slice(0, 500), progress: Math.max(0, Math.min(100, Number(t.progress) || 0)),
+    ...(Number.isFinite(Date.parse(t.finished)) ? { finished: new Date(t.finished).toISOString() } : {}) };
 }
 
 function safeVideoURL(value) {

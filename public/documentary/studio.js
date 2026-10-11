@@ -1,6 +1,7 @@
-import { newProject, restoreProject, parseMaster, validatePrompt, sceneNarration, projectCost, filename, cleanMusic, ACTIVE_STATES } from './core.js';
+import { newProject, restoreProject, parseMaster, validatePrompt, sceneNarration, projectCost, filename, cleanMusic, ACTIVE_STATES } from './core.js?v=20261011-progress1';
 import { DocumentaryStore } from './storage.js';
 import { assembleDocumentary } from './assemble.js';
+import { createProgressUI } from './progress.js?v=20261011-progress1';
 
 const $ = id => document.getElementById(id);
 const store = new DocumentaryStore(), memoryMedia = new Map(), mediaURLs = new Map();
@@ -11,6 +12,8 @@ const abort = () => new DOMException('Queue paused.', 'AbortError');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const size = b => `${(b / 1048576).toFixed(1)} MB`;
 const time = seconds => { const n = Math.round(seconds); return `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`; };
+let timingStorage = null; try { timingStorage = localStorage; } catch { /* device timing history is optional */ }
+const progressUI = createProgressUI(document, () => ({ project, busy, selected, concurrency: Number($('concurrency').value) || 3 }), timingStorage);
 
 function notice(message, kind = '') { $('notice').textContent = message; $('notice').className = `notice ${kind}`; $('notice').hidden = !message; }
 function queueStatus(message) { $('queueStatus').textContent = message; }
@@ -58,6 +61,7 @@ function sceneState(s) {
 }
 function anyPaused() { return [project.master.task, ...project.scenes.flatMap(s => [s.directorTask, s.videoTask])].some(t => t && ACTIVE_STATES.has(t.status)); }
 function renderStory() {
+  $('storySummary').hidden = !project.master.text && busy && ['submitted', 'processing', 'complete'].includes(project.master.task?.status);
   if (document.activeElement !== $('masterText')) $('masterText').value = project.master.text || project.master.failedText || '';
   $('masterStatus').textContent = project.master.text ? 'Plan ready' : project.master.task ? ({ submitted: 'Writing', processing: 'Writing', uncertain: 'Check pending task', paused: 'Paused', error: 'Needs retry' }[project.master.task.status] || 'Not started') : 'Not started';
   $('masterStatus').classList.toggle('error', project.master.task?.status === 'error');
@@ -74,8 +78,8 @@ function render() {
   $('exportStatus').textContent = project.final ? 'Final video ready' : complete === 13 ? 'Ready to assemble' : 'Waiting for scenes';
   $('exportHint').textContent = complete === 13 ? 'All scenes will be joined in order with their original narration and ambient sound.' : 'Generate or upload every scene before assembling the final video.';
   $('sceneGrid').innerHTML = project.scenes.map((s, i) => {
-    const state = sceneState(s), active = ACTIVE_STATES.has(s.videoTask?.status) || ACTIVE_STATES.has(s.directorTask?.status), progress = Number(s.videoTask?.progress || s.directorTask?.progress || 0);
-    return `<button class="scene-tile ${i === selected ? 'selected' : ''} ${ready(s) ? 'done' : ''} ${state === 'Needs retry' ? 'failed' : ''}" data-scene="${i}" type="button" aria-label="Scene ${s.index}: ${esc(state)}" aria-pressed="${i === selected}"><span class="scene-number">${String(s.index).padStart(2, '0')}</span><small>${ready(s) ? '✓' : '12s'}</small><span class="scene-state">${state}</span>${active ? `<span class="tile-progress" style="width:${progress || 8}%"></span>` : ''}</button>`;
+    const state = sceneState(s);
+    return `<button class="scene-tile ${i === selected ? 'selected' : ''} ${ready(s) ? 'done' : ''} ${state === 'Needs retry' ? 'failed' : ''}" data-scene="${i}" type="button" aria-label="Scene ${s.index}: ${esc(state)}" aria-pressed="${i === selected}"><span class="scene-number">${String(s.index).padStart(2, '0')}</span><small>${ready(s) ? '✓' : '12s'}</small><span class="scene-state">${state}</span><span class="scene-activity-detail"></span><span class="scene-working-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="tile-progress" hidden></span></button>`;
   }).join('');
   $('selectedLabel').textContent = `Scene ${String(selected + 1).padStart(2, '0')} / 13`; $('selectedStatus').textContent = sceneState(s);
   $('selectedStatus').classList.toggle('error', sceneState(s) === 'Needs retry');
@@ -107,7 +111,7 @@ function render() {
     for (const id of ['generateAll', 'generatePlan', 'retryMaster', 'generateScenes', 'resume', 'retryFailed', 'generateSelected', 'retryDirection']) $(id).disabled = true;
   }
   if (project.final && finalBlob) $('finalMeta').textContent = `${time(project.final.duration)} · 720 × 1280 · ${size(finalBlob.size)} · ${project.final.engine}`;
-  renderStory(); void updatePreview();
+  renderStory(); progressUI.update(); void updatePreview();
 }
 async function updatePreview() {
   const seq = ++previewSequence, s = project.scenes[selected], final = stage === 'export' && project.final && finalBlob;
@@ -167,7 +171,7 @@ async function executeTask(task, body, kind, isNew, signal) {
     if (isNew) {
       task.status = 'submitted'; await persist({ required: true }); render();
       const result = await api({ ...body, taskUUID: task.id }, signal);
-      const output = taskOutput(result, task, kind); if (output) return completeTask(task, output, kind);
+      const output = taskOutput(result, task, kind); if (output) return completeTask(task, output, kind, (Date.now() - started) / 1000);
     }
     task.status = 'processing'; render(); await persist();
     while (Date.now() - started < 3600000) {
@@ -175,7 +179,7 @@ async function executeTask(task, body, kind, isNew, signal) {
       try {
         const result = await api({ action: 'poll', taskUUID: task.id }, signal);
         const output = taskOutput(result, task, kind); transportFailures = 0;
-        if (output) return completeTask(task, output, kind);
+        if (output) return completeTask(task, output, kind, isNew ? (Date.now() - started) / 1000 : null);
         task.status = 'processing'; task.error = ''; await persist(); render();
       } catch (e) {
         if (signal?.aborted || !e.uncertain) throw e;
@@ -189,8 +193,9 @@ async function executeTask(task, body, kind, isNew, signal) {
     task.status = signal?.aborted ? 'paused' : e.uncertain ? 'uncertain' : 'error'; task.error = e.message; await persist(); render(); throw e;
   }
 }
-async function completeTask(task, output, kind) {
-  task.status = 'complete'; task.progress = 100; task.error = '';
+async function completeTask(task, output, kind, elapsedSeconds = null) {
+  task.status = 'complete'; task.progress = 100; task.error = ''; task.finished = new Date().toISOString();
+  progressUI.record(kind, elapsedSeconds);
   if (Number.isFinite(output.cost) && output.cost >= 0) project.ledger[task.id] = { kind, cost: output.cost };
   await persist(); render(); return output;
 }

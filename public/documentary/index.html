@@ -7,8 +7,9 @@
 <link rel="icon" type="image/svg+xml" sizes="any" href="/favicon.svg?v=20261010-padding2">
 <link rel="mask-icon" href="/safari-pinned-tab.svg?v=20261010-padding2" color="#00ed85">
   <link rel="stylesheet" href="./studio.css">
-  <script type="module" src="./studio.js"></script>
+  <script type="module" src="./studio.js?v=20261011-progress1"></script>
 <link rel="stylesheet" href="/tool-theme.css?v=20261011-1">
+  <link rel="stylesheet" href="./progress.css?v=20261011-progress1">
 </head>
 <body>
   <div class="ambient" aria-hidden="true"></div>
@@ -30,8 +31,8 @@
     <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
     <nav class="steps" aria-label="Documentary stages">
       <button data-step="idea" class="step active" aria-current="step"><span>01</span> Idea</button>
-      <button data-step="story" class="step"><span>02</span> Story plan</button>
-      <button data-step="scenes" class="step"><span>03</span> Scenes</button>
+      <button data-step="story" class="step"><span>02</span> Story plan<small id="storyNavState">Not started</small></button>
+      <button data-step="scenes" class="step"><span>03</span> Scenes<small id="scenesNavState">0 / 13 ready</small></button>
       <button data-step="export" class="step"><span>04</span> Preview & save</button>
     </nav>
     <div class="workspace">
@@ -48,12 +49,28 @@
         <section class="panel stage" id="stage-story" hidden>
           <div class="section-head"><div><span class="eyebrow">One source of truth</span><h2>The complete story plan</h2></div><span class="badge" id="masterStatus">Not started</span></div>
           <p class="help">The glossary, subjects and continuity sheet keep all 13 scenes connected. Every scene director receives this entire plan.</p>
+          <section id="storyProgress" class="generation-progress" data-state="idle" aria-labelledby="storyProgressTitle">
+            <div class="generation-heading"><span class="motion-beacon" aria-hidden="true"><i></i><i></i><i></i></span><div><span class="eyebrow">Story progress</span><h3 id="storyProgressTitle" role="status">Your story plan tracker</h3></div><span id="storyClock" class="generation-clock" hidden><b id="storyElapsed">0:00</b> elapsed</span></div>
+            <p id="storyProgressCaption" class="generation-copy">Your idea becomes one connected story plan before any scene videos are generated.</p>
+            <div id="storyProgressTrack" class="generation-track indeterminate" role="progressbar" aria-label="Writing the story plan" hidden><span></span></div>
+            <ol class="generation-steps" aria-label="Story planning steps"><li id="storyRequestStep" data-state="waiting"><span>1</span>Send idea</li><li id="storyWriteStep" data-state="waiting"><span>2</span>Write complete plan</li><li id="storyReadyStep" data-state="waiting"><span>3</span>Ready to review</li></ol>
+            <div class="generation-estimate"><span class="estimate-icon" aria-hidden="true">◷</span><div><strong id="storyEstimate">Start with your documentary idea</strong><small id="storyEstimateSource"></small></div></div>
+            <div id="storySkeleton" class="story-skeleton" aria-hidden="true" hidden><span></span><span></span><span></span></div>
+            <div class="progress-navigation"><span id="progressNavigationHint">You can explore the workspace while generation runs.</span><button id="progressExploreScenes" class="text-button" data-go="scenes" type="button">View scene queue →</button><button id="progressToScenes" class="text-button" data-go="scenes" type="button" hidden>Continue to scenes →</button></div>
+          </section>
           <div class="story-summary" id="storySummary"><p class="empty-copy">Create a story plan to see it here.</p></div>
           <details class="settings-details"><summary>View or edit master JSON</summary><label class="sr-only" for="masterText">Master script JSON</label><textarea id="masterText" rows="14" spellcheck="false" placeholder="Your master script will appear here."></textarea><div class="actions"><button id="saveMaster" class="secondary" type="button">Apply master edits</button><button id="retryMaster" class="text-button" type="button">Generate a new plan</button></div><p class="help">A new or edited plan starts a new set of scenes. Save the current project before replacing it.</p></details>
           <div class="actions"><button id="generateScenes" class="primary" type="button">Generate all scenes <span>↗</span></button><button class="secondary" data-go="idea" type="button">Back to idea</button><button id="downloadMaster" class="text-button" type="button">Download master script</button></div>
         </section>
         <section class="stage" id="stage-scenes" hidden>
           <div class="panel scene-heading"><div><span class="eyebrow">Every scene, in order</span><h2>Scene workspace</h2></div><div class="actions"><button id="resume" class="primary" type="button">Generate remaining scenes</button><button id="retryFailed" class="secondary" type="button">Retry failed scenes</button></div></div>
+          <section id="scenesProgress" class="panel progress-dashboard" data-state="idle" aria-labelledby="scenesProgressTitle">
+            <div class="generation-heading"><span class="motion-beacon" aria-hidden="true"><i></i><i></i><i></i></span><div><span class="eyebrow">Live generation progress</span><h3 id="scenesProgressTitle" role="status">Your scene progress</h3><p id="scenesProgressCaption" class="generation-copy">Create the story plan, then generate or upload your scene videos.</p></div><div id="scenesProgressRing" class="completion-ring" aria-hidden="true"><b id="scenesPercent">0%</b></div></div>
+            <div id="scenesProgressMeter" class="generation-track" role="progressbar" aria-label="Documentary generation steps completed" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="scenesProgressBar"></span></div>
+            <div class="generation-counts"><div><span>Story plan</span><b id="progressStoryCount">Pending</b></div><div><span>Scene directions</span><b id="progressPromptCount">0 / 13</b></div><div><span>Videos ready</span><b id="progressVideoCount">0 / 13</b></div></div>
+            <div class="progress-foot"><span id="scenesMilestones">0 / 27 generation steps complete</span><span>Percentage tracks completed steps, not time.</span></div>
+            <div class="progress-navigation"><button class="text-button" data-go="story" type="button">Review story plan ←</button><button id="progressToExport" class="text-button" data-go="export" type="button" hidden>All scenes ready · Preview & save →</button></div>
+          </section>
           <div class="scene-grid" id="sceneGrid" aria-label="13 documentary scenes"></div>
           <section class="panel scene-details">
             <div class="section-head"><div><span class="eyebrow" id="selectedLabel">Scene 01 / 13</span><h2>Scene direction</h2></div><span class="badge" id="selectedStatus">Waiting</span></div>
@@ -78,7 +95,7 @@
       </section>
       <aside class="preview panel">
         <div class="preview-head"><span class="eyebrow" id="previewLabel">Scene preview</span><span class="badge" id="previewTag">9:16</span></div>
-        <div class="player-wrap"><video id="previewVideo" controls playsinline preload="metadata" hidden></video><div class="player-empty" id="previewEmpty"><div class="preview-icon">▶</div><strong>Your story starts here.</strong><span>Select a generated scene<br>or assemble your final video.</span></div></div>
+        <div class="player-wrap"><video id="previewVideo" controls playsinline preload="metadata" hidden></video><div class="player-empty" id="previewEmpty"><div class="preview-icon" id="previewEmptyIcon">▶</div><div id="previewActivity" class="preview-activity" hidden><span class="preview-loading-orbit" aria-hidden="true"></span><small id="previewActivityTime">0:00 elapsed</small></div><strong id="previewEmptyTitle">Your story starts here.</strong><span id="previewEmptyHint">Select a generated scene or assemble your final video.</span></div></div>
         <div class="preview-footer"><strong id="previewTitle">Scene 01</strong><span id="previewMeta">12 seconds · 720p</span></div>
         <div class="run-summary"><div><span>Scenes ready</span><b id="summaryScenes">0 / 13</b></div><div><span>Reported Runware cost</span><b id="summaryCost">$0.00</b></div></div>
         <div class="queue-status" id="queueStatus" role="status">Ready when you are.</div><button id="pause" class="secondary wide" type="button" hidden>Pause generation queue</button>
