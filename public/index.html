@@ -165,10 +165,11 @@
 .doc-art{display:flex;align-items:center;justify-content:center;gap:25px;background:radial-gradient(ellipse at 60% 20%,#31582355,transparent 65%)}.doc-film{position:relative;width:98px;height:148px;border:1px solid #99de7370;border-radius:12px;overflow:hidden;background:linear-gradient(160deg,#2c503a,#152525 50%,#07140c)}.doc-sun{position:absolute;width:52px;height:52px;border-radius:50%;background:#b9d99c;top:25px;right:12px;box-shadow:0 0 30px #aecb7240}.doc-mountain{position:absolute;left:-25px;right:-15px;bottom:-30px;height:110px;transform:rotate(-25deg);background:#123419;border-radius:20px}.doc-play{position:absolute;inset:0;display:grid;place-items:center;color:white;font-size:26px}.doc-time{position:absolute;bottom:8px;left:10px;color:#c7d5c0;font:10px var(--mono)}.doc-strip{display:flex;flex-direction:column;gap:7px}.doc-strip i{display:block;width:125px;height:14px;border:1px solid #81ca5650;background:linear-gradient(90deg,#6ca64244 30%,#263826 30%);border-radius:4px}.doc-strip i:nth-child(2n){width:100px;background:linear-gradient(90deg,#426ea044 65%,#263826 65%)}
 </style>
 <link rel="stylesheet" href="/studio-motion.css?v=20261010-2">
+<link rel="stylesheet" href="/studio-reference.css?v=20261011-1">
 </head>
 <body>
 <a class="skip-link" href="#tools">Skip to tools</a>
-<div aria-hidden="true" class="bg"><i class="beam b1"></i><i class="beam b2"></i></div>
+<div class="studio-shell">
 <div class="wrap">
 <header class="top">
 <a aria-label="Craftush dashboard" class="logo" href="/">
@@ -181,30 +182,18 @@
     </a>
 <nav aria-label="Studio navigation" class="studio-nav"><a href="#tools">Tools</a><a href="/admin">Admin</a><button class="motion-toggle" id="motionToggle" type="button" aria-label="Pause animations" aria-pressed="false"><svg aria-hidden="true" viewBox="0 0 16 16"><path class="motion-pause-glyph" d="M5 4v8M11 4v8"/><path class="motion-play-glyph" d="m5 3 7 5-7 5z"/></svg><span>Motion on</span></button></nav>
 </header>
-<section class="intro">
+<section class="intro" aria-labelledby="studioHeading">
 <div class="intro-copy">
 <span class="eyebrow rv" style="--d:0">Craftush studio</span>
-<h1><span class="rv" style="--d:100">One studio.</span><span class="dim rv hero-word" style="--d:200">Four tools.</span></h1>
-<p class="rv" style="--d:320">Choose a tool below. Create thumbnails, script visuals, workflow videos or a complete Runware documentary.</p>
-<a class="open rv" href="/visuals/" id="quickStart" style="--d:420;margin-top:24px">Start with a script</a>
+<h1 id="studioHeading"><span class="rv" style="--d:100">One studio.</span><span class="dim rv" style="--d:200">Four creative tools.</span></h1>
+<p class="rv" style="--d:320">Create thumbnails, script visuals, workflow videos and documentaries. Choose your tool and bring your story to life.</p>
 </div>
-<div class="hero-art motion-stage" aria-hidden="true">
-<div class="hero-halo"></div>
-<div class="hero-system">
-<div class="orbit-plane orbit-one"><i class="hero-orbit"></i></div>
-<div class="orbit-plane orbit-two"><i class="hero-orbit"></i></div>
-<div class="orbit-plane orbit-three"><i class="hero-orbit"></i></div>
-<div class="hero-core"><img src="/favicon.svg?v=20261010-padding2" alt="" width="88" height="88"><i class="hero-glint"></i></div>
-<div class="hero-mote mote-thumbnail"><svg viewBox="0 0 32 26"><rect x="2" y="3" width="28" height="20" rx="4"/><path d="m5 19 7-7 5 4 5-8 6 11"/><circle cx="10" cy="8" r="2"/></svg><span>Thumbnails</span><i></i></div>
-<div class="hero-mote mote-visuals"><svg viewBox="0 0 32 26"><circle cx="16" cy="13" r="10"/><ellipse cx="16" cy="13" rx="4" ry="10"/><path d="M6 13h20"/></svg><span>Stunning Visuals</span><i></i></div>
-<div class="hero-mote mote-video"><svg viewBox="0 0 32 26"><rect x="2" y="9" width="8" height="8" rx="2"/><rect x="22" y="2" width="8" height="8" rx="2"/><rect x="22" y="17" width="8" height="8" rx="2"/><path d="M10 13h6V6h6M16 13v8h6"/></svg><span>Idea to Video</span><i></i></div>
-<div class="hero-mote mote-documentary"><svg viewBox="0 0 32 26"><rect x="2" y="3" width="28" height="20" rx="4"/><path d="M6 3v20M26 3v20m-12-15 7 5-7 5z"/></svg><span>Documentaries</span><i></i></div>
-</div>
-<span class="hero-caption">IMAGINE IT. MAKE IT.</span>
-</div>
+<div class="hero-ribbon motion-stage" aria-hidden="true"><div class="ribbon-stage"><div class="ribbon-tile" style="--scene-x:0.00000%;--scene-y:0%;--fallback-x:-180px"></div><div class="ribbon-tile" style="--scene-x:33.33333%;--scene-y:0%;--fallback-x:7px"></div><div class="ribbon-tile" style="--scene-x:66.66667%;--scene-y:0%;--fallback-x:194px"></div><div class="ribbon-tile" style="--scene-x:100.00000%;--scene-y:0%;--fallback-x:381px"></div><div class="ribbon-tile" style="--scene-x:0.00000%;--scene-y:100%;--fallback-x:568px"></div><div class="ribbon-tile" style="--scene-x:33.33333%;--scene-y:100%;--fallback-x:755px"></div><div class="ribbon-tile" style="--scene-x:66.66667%;--scene-y:100%;--fallback-x:942px"></div><div class="ribbon-tile" style="--scene-x:100.00000%;--scene-y:100%;--fallback-x:1129px"></div><div class="ribbon-tile" style="--scene-x:0.00000%;--scene-y:0%;--fallback-x:1316px"></div><div class="ribbon-tile" style="--scene-x:33.33333%;--scene-y:0%;--fallback-x:1503px"></div><div class="ribbon-tile" style="--scene-x:66.66667%;--scene-y:0%;--fallback-x:1690px"></div><div class="ribbon-tile" style="--scene-x:100.00000%;--scene-y:0%;--fallback-x:1877px"></div></div></div>
+<div class="hero-action"><a class="open rv" href="/visuals/" id="quickStart" style="--d:420">Start with a script</a><span class="hero-note">IMAGINE IT. MAKE IT.</span></div>
 </section>
 </div>
 <section aria-label="Craftush tools" class="carousel" id="tools">
+<div class="tools-intro"><div><span class="section-kicker">Your creative toolkit</span><h2>Choose a tool. Make it yours.</h2></div><p>Four ways to bring your ideas to life.</p></div>
 <div aria-label="Choose a Craftush tool" class="track" id="track">
 <article class="slide" data-id="thumbnail" style="--n:0"><div class="card">
 <div aria-hidden="true" class="art thumb-art motion-stage">
@@ -284,6 +273,7 @@
 <nav class="footer-nav" aria-label="Footer navigation"><a href="/">Home</a><a href="/thumbnail" data-tool-link="thumbnail">Thumbnails</a><a href="/visuals/" data-tool-link="visuals">Stunning Visuals</a><a href="/comfy/" data-tool-link="comfy">Idea to Video</a><a href="/documentary/" data-tool-link="documentary">Documentary Studio</a><a href="/admin/">Admin</a></nav>
 <p class="footer-copyright">© <span id="creditYear">2026</span> Craftush. All rights reserved.</p>
 </footer>
+</div>
 <script>
 (function(){
   const motionPreference = matchMedia('(prefers-reduced-motion: reduce)');
@@ -373,5 +363,6 @@
 })();
 </script>
 <script src="/studio-motion.js?v=20261010-1" defer></script>
+<script src="/studio-ribbon.js?v=20261011-1" defer></script>
 </body>
 </html>
