@@ -36,12 +36,43 @@ test('a restored pending story keeps its original topic and allows idea editing'
 });
 
 test('declining a replacement preserves the old plan, clips and pending task', async t => {
-  const p = pausedProject(); p.scenes[0].prompt = prompt;
+  const p = pausedProject(); p.scenes[0].prompt = prompt; p.ledger[ID] = { kind: 'video', cost: 12.10 };
   const f = await documentaryFixture({ project: p, confirm: false }); t.after(() => f.close());
   f.input('idea', 'A new idea'); await f.trigger('generatePlan');
   assert.equal(f.calls.length, 0); assert.equal(f.read().master.task.id, TASK);
   assert.equal(f.read().scenes[0].prompt, prompt);
   assert.equal(f.el('idea').disabled, false);
+  assert.equal(f.el('summaryCost').textContent, '$12.10');
+  assert.deepEqual(f.read().ledger, p.ledger);
+});
+
+test('a confirmed new idea starts its own cost total and keeps the previous ledger in the archive', async t => {
+  const p = pausedProject(); p.ledger[ID] = { kind: 'video', cost: 12.10 };
+  const held = deferred();
+  const f = await documentaryFixture({ project: p, reply: () => held.promise }); t.after(() => f.close());
+  assert.equal(f.el('summaryCost').textContent, '$12.10');
+  f.input('idea', 'Little Krishna story');
+  assert.equal(f.el('summaryCost').textContent, '$12.10');
+  const running = f.trigger('generatePlan'); await until(() => f.calls.length === 1);
+  assert.equal(f.el('summaryCost').textContent, '$0.00');
+  assert.deepEqual(f.read().ledger, {});
+  assert.deepEqual(f.records.get('archive-' + ID).ledger, p.ledger);
+  f.stop(); await running;
+  f.reply(body => ({ data: [{ taskUUID: body.taskUUID, text: master('Little Krishna story'), cost: 0.35 }] }));
+  await f.trigger('generatePlan');
+  assert.equal(f.el('summaryCost').textContent, '$0.35');
+  assert.deepEqual(f.read().ledger, { [f.calls[0].taskUUID]: { kind: 'master', cost: 0.35 } });
+  assert.deepEqual(f.records.get('archive-' + ID).ledger, p.ledger);
+  assert.equal(restoreProject(f.records.get('current-project')).ledger[ID], undefined);
+});
+
+test('continuing the same idea keeps its accumulated Runware cost', async t => {
+  const p = projectWithPlan(); p.ledger[ID] = { kind: 'video', cost: 12.10 };
+  const f = await documentaryFixture({ project: p }); t.after(() => f.close());
+  f.input('idea', '  Titanic  '); await f.trigger('generatePlan');
+  assert.equal(f.el('summaryCost').textContent, '$12.10');
+  assert.deepEqual(f.read().ledger, p.ledger); assert.equal(f.calls.length, 0);
+  assert.equal(f.records.has('archive-' + ID), false);
 });
 
 test('Stop during story polling unlocks the idea and Resume polls the original UUID', async t => {

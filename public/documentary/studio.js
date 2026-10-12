@@ -331,7 +331,7 @@ async function startFromIdea(mode) {
   ensureConnection();
   if ((project.master.text || project.master.task) && project.master.idea.trim() !== $('idea').value.trim()) {
     if (!confirm('Use this new idea to create a new story plan and reset the current scenes? Save the current project first if needed.')) return;
-    await store.put('archive-' + project.id, structuredClone(project)); project.master = { text: '', task: null, idea: '', failedText: '' }; project.scenes.forEach(s => archiveScene(s, { prompt: true }));
+    await store.put('archive-' + project.id, structuredClone(project)); project.ledger = {}; project.master = { text: '', task: null, idea: '', failedText: '' }; project.scenes.forEach(s => archiveScene(s, { prompt: true }));
   }
   if (project.master.task?.status === 'error') project.master.task = null;
   await run(mode);
