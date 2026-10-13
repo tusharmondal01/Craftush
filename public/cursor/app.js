@@ -1,5 +1,5 @@
-import {createMobileEditor} from './mobile-editor.js';
-import {cropForCamera} from './camera.js';
+import {createMobileEditor} from './mobile-editor.js?v=20261013-touch1';
+import {cropForCamera} from './camera.js?v=20261013-touch1';
 const $ = (id) => document.getElementById(id);
 const canvas = $('preview');
 const ctx = canvas.getContext('2d', { alpha: false });
@@ -17,7 +17,7 @@ const state = {
   audioContext: null, exportContext: null, extension: false,
   targetTitle: '', targetTabId: null, nonce: '', playing: false, exporting: false,
   demoStart: performance.now(), hasTracking: false, isDemo: false,
-  isImported:false, cameraEvents:[], geometry:null,
+  isImported:false, cameraEvents:[], geometry:null, analyzingTouches:false, touchSamples:[],
 };
 let mobile;
 const clamp = (n, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, n));
@@ -118,13 +118,15 @@ function render(now, schedule=true) {
   ctx.restore();$('zoom-value').textContent=`${z.toFixed(1)}×`;
   if(live) $('duration').textContent=clock(state.elapsed);
   if(state.mode==='recorded') {$('duration').textContent=`${clock(video.currentTime)} / ${clock(state.duration)}`;if(!state.exporting)$('seek').value=state.duration?Math.round(video.currentTime/state.duration*1000):0;}
+  mobile?.updatePlayhead(time);
   if(state.mode==='demoRecording'&&state.elapsed>=8) stopRecording();
   if(schedule)requestAnimationFrame(render);
 }
 function setControls() {
   const live=state.mode==='capture'||state.mode==='demoRecording';const recorded=state.mode==='recorded';
-  const busy=state.mode==='processing'||state.starting||state.exporting;
+  const busy=state.mode==='processing'||state.starting||state.exporting||state.analyzingTouches;
   $('record-btn').disabled=busy;$('demo-btn').disabled=busy;
+  $('mobile-touch-demo-btn').hidden=live||recorded;
   $('record-btn').hidden=live||recorded; $('demo-btn').hidden=live||recorded;
   $('stop-btn').hidden=!live;$('pause-btn').hidden=!live;$('new-btn').hidden=!recorded;
   $('play-btn').disabled=!recorded||busy;$('export-btn').disabled=!recorded||busy;$('seek').disabled=!recorded||busy;
@@ -132,7 +134,7 @@ function setControls() {
   $('play-btn').innerHTML=state.playing?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6v12M16 6v12" stroke="currentColor" stroke-width="3"/></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7Z" fill="currentColor"/></svg>';
   $('play-btn').setAttribute('aria-label',state.playing?'Pause preview':'Play preview');
   $('export-btn').textContent=state.exporting?'Rendering…':'Export video';
-  $('export-quality').disabled=live||state.exporting;$('aspect-ratio').disabled=live||state.exporting;
+  $('export-quality').disabled=live||state.exporting||state.analyzingTouches;$('aspect-ratio').disabled=live||state.exporting||state.analyzingTouches;
   $('source-mode').disabled=live||state.exporting;$('mic-enabled').disabled=live;$('system-audio').disabled=live;
   $('new-btn').disabled=busy;
   for(const id of ['auto-zoom','follow-cursor','show-cursor','zoom-strength','padding','radius'])$(id).disabled=state.exporting;
@@ -224,13 +226,13 @@ async function finishRecording(blob) {
   status('Ready to export');setControls();toast('Your recording is ready. Change the background, framing, or zoom before exporting.');
 }
 async function togglePlayback() {
-  if(state.mode!=='recorded'||state.exporting||state.starting)return;
+  if(state.mode!=='recorded'||state.exporting||state.starting||state.analyzingTouches)return;
   if(state.playing){video.pause();state.playing=false;}else {mobile.clearTransient();if(video.currentTime>=state.duration-.1)video.currentTime=0;await video.play();state.playing=true;}
   setControls();
 }
 video.addEventListener('ended',()=>{state.playing=false;setControls();});
 async function exportVideo() {
-  if(state.mode!=='recorded'||state.exporting||state.starting)return;
+  if(state.mode!=='recorded'||state.exporting||state.starting||state.analyzingTouches)return;
   state.exporting=true;state.playing=false;mobile.clearTransient();video.pause();video.currentTime=0;state.smooth={x:.5,y:.5,zoom:1};state.camera={x:.5,y:.5};setControls();status('Rendering your video · 0%');
   let output,rec,ac,timeout,progress,visibilityHandler;
   try {
@@ -306,7 +308,7 @@ async function importFootage(file,info) {
   state.mode='recorded';$('recording-name').textContent=file.name;$('source-name').textContent='Imported mobile footage';
   $('aspect-ratio').value=info.height>info.width?'9:16':info.width===info.height?'1:1':'16:9';$('padding').value='0';$('radius').value='0';resolution();status('Mobile editor · ready');setControls();
 }
-mobile=createMobileEditor({canvas,video,state,toast,onChange:setControls,onImport:importFootage,onSeek:setControls});
+mobile=createMobileEditor({canvas,video,state,toast,onChange:setControls,onImport:importFootage,onSeek:setControls,onStatus:status});
 resolution();reset();updateTracker();requestAnimationFrame(render);
 // Read-only diagnostics support checking the complete recording and export flow.
 window.cursorStudioDiagnostics=()=>({mode:state.mode,duration:state.duration,samples:state.samples.length,clicks:state.clicks.length,rawBytes:state.rawBlob?.size||0,export:state.lastExport||null,extension:state.extension,imported:state.isImported,camera:mobile.summary()});

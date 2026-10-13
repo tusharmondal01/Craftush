@@ -31,6 +31,10 @@ export function normalizeEvents(events = []) {
       duration: clamp(event.duration ?? .65, .15, 2.5),
       ...normalizePose(event),
       easing: event.easing === 'glide' ? 'glide' : 'smooth',
+      ...(event.curve === 'follow' ? { curve: 'follow' } : {}),
+      ...(event.origin === 'touch' ? { origin: 'touch' } : {}),
+      ...(Number.isFinite(event.gesture) ? { gesture: Math.max(0, event.gesture) } : {}),
+      ...(typeof event.kind === 'string' ? { kind: event.kind.slice(0, 30) } : {}),
       index,
     });
   });
@@ -43,8 +47,34 @@ export function normalizeEvents(events = []) {
   return result;
 }
 
-function evaluate(transition, time, initial) {
+function followPose(events, index, time) {
+  const a = events[index], b = events[index + 1];
+  if (!b || b.curve !== 'follow') return normalizePose(a);
+  const length = b.time - a.time, t = clamp((time - a.time) / length, 0, 1);
+  const result = {};
+  const value = (event, key) => key === 'zoom' ? Math.log(event.zoom) : event[key];
+  const tangent = (position, key) => {
+    const prev = events[position - 1], here = events[position], next = events[position + 1];
+    if (!prev || !next || prev.curve !== 'follow' || next.curve !== 'follow') return 0;
+    const left = (value(here, key) - value(prev, key)) / (here.time - prev.time);
+    const right = (value(next, key) - value(here, key)) / (next.time - here.time);
+    if (!left || !right || left * right <= 0) return 0;
+    const w1 = 2 * (next.time - here.time) + here.time - prev.time;
+    const w2 = next.time - here.time + 2 * (here.time - prev.time);
+    return (w1 + w2) / (w1 / left + w2 / right);
+  };
+  for (const key of ['x', 'y', 'zoom']) {
+    const start = value(a, key), end = value(b, key);
+    const n = (2 * t ** 3 - 3 * t ** 2 + 1) * start + (t ** 3 - 2 * t ** 2 + t) * length * tangent(index, key) + (-2 * t ** 3 + 3 * t ** 2) * end + (t ** 3 - t ** 2) * length * tangent(index + 1, key);
+    const bounded = clamp(n, Math.min(start, end), Math.max(start, end));
+    result[key] = key === 'zoom' ? Math.exp(bounded) : bounded;
+  }
+  return result;
+}
+
+function evaluate(transition, time, initial, events) {
   if (!transition) return { ...initial };
+  if (transition.follow !== undefined) return followPose(events, transition.follow, time);
   const progress = clamp((time - transition.time) / transition.duration, 0, 1);
   if (progress <= 0) return { ...transition.from };
   if (progress >= 1) return { ...transition.to };
@@ -62,17 +92,24 @@ function evaluate(transition, time, initial) {
  * Both easing names use a C2 quintic; event duration controls how gently it glides.
  * A new event starts from the interrupted transition's exact pose at that time.
  */
-export function cameraAt(events, time, initial = { x: .5, y: .5, zoom: 1 }) {
+function sampleCamera(events, time, initial = { x: .5, y: .5, zoom: 1 }) {
   const origin = normalizePose(initial);
   const query = Math.max(0, finite(time, 0));
   let transition = null;
-  for (const event of normalizeEvents(events)) {
+  for (let index = 0; index < events.length; index++) {
+    const event = events[index];
     if (event.time > query) break;
-    const from = evaluate(transition, event.time, origin);
-    transition = { time: event.time, duration: event.duration, from, to: normalizePose(event) };
+    if (event.curve === 'follow') transition = { follow: index };
+    else {
+      const from = evaluate(transition, event.time, origin, events);
+      transition = { time: event.time, duration: event.duration, from, to: normalizePose(event) };
+    }
   }
-  return evaluate(transition, query, origin);
+  return evaluate(transition, query, origin, events);
 }
+
+export function cameraAt(events, time, initial) { return sampleCamera(normalizeEvents(events), time, initial); }
+export function createCameraSampler(events) { const normalized = normalizeEvents(events); return (time, initial) => sampleCamera(normalized, time, initial); }
 
 /** Source cropping and destination framing for drawImage, without distortion.
  * Default cover fills the frame. Set pose.fit='contain' for letterboxing.

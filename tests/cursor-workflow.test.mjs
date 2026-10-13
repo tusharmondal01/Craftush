@@ -72,7 +72,22 @@ test('upload loading and cancellation stay at Start; mobile completion reveals t
     $('mobile-editor').hidden = false; $('capture-settings').hidden = true; $('cursor-settings').hidden = true;
     ready();
     assert.equal(document.body.dataset.cursorStep, 'edit');
-    assert.match($('workflow-hint').textContent, /pause, click a detail and choose Zoom in/);
+    assert.match($('workflow-hint').textContent, /automatic touch following/);
     assert.equal($('mobile-editor').hidden, false); assert.equal($('cursor-settings').hidden, true);
+  } finally { flow.destroy(); }
+});
+
+test('automatic touch scanning locks navigation and export until the imported clip is ready', async () => {
+  const { document, flow, $, ready } = await studio();
+  try {
+    $('mobile-editor').hidden=false;ready();
+    $('mobile-editor').dataset.touchAnalyzing='true';$('upload-btn').disabled=true;$('record-btn').disabled=true;$('export-btn').disabled=true;
+    $('status-text').textContent='Following touches · 40%';flow.sync();
+    assert.equal(document.body.dataset.cursorBusy,'true');
+    assert.equal($('workflow-title').textContent,'Following your touches');
+    assert.equal(flow.goTo('export'),false);assert.equal($('continue-export').disabled,true);
+    $('mobile-editor').dataset.touchAnalyzing='false';$('upload-btn').disabled=false;$('record-btn').disabled=false;$('export-btn').disabled=false;
+    $('status-text').textContent='Touch tracking ready';flow.sync();
+    assert.equal($('continue-export').disabled,false);assert.equal(flow.goTo('export'),true);
   } finally { flow.destroy(); }
 });

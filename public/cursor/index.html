@@ -10,7 +10,8 @@
   <link rel="mask-icon" href="/safari-pinned-tab.svg?v=20261010-padding2" color="#c85443">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="craftush.css?v=20261013-cursor2">
-  <link rel="stylesheet" href="workflow.css?v=20261013-simple1">
+  <link rel="stylesheet" href="workflow.css?v=20261013-touch1">
+  <link rel="stylesheet" href="touch-studio.css?v=20261013-touch1">
 </head>
 <body data-cursor-step="start" data-cursor-ready="false" data-cursor-busy="false">
   <header class="site-header">
@@ -58,6 +59,7 @@
             <button class="button button-upload" id="upload-btn" type="button"><svg class="button-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 13V3m-4 4 4-4 4 4M4 12v5h12v-5" stroke="currentColor" stroke-width="1.5"/></svg>Upload footage</button>
             <input id="video-upload" class="sr-only" type="file" accept="video/*,.mp4,.mov,.webm" aria-label="Upload video footage" tabindex="-1">
             <button class="button button-secondary" id="demo-btn" type="button">Try a demo</button>
+            <button class="button button-secondary" id="mobile-touch-demo-btn" type="button">Try touch tracking</button>
             <button class="button button-secondary" id="pause-btn" type="button" hidden>Pause</button>
             <button class="button button-stop" id="stop-btn" type="button" hidden><span class="stop-symbol" aria-hidden="true"></span>Finish recording</button>
             <button class="button button-secondary" id="new-btn" type="button" hidden><span aria-hidden="true">＋</span>New recording</button>
@@ -79,6 +81,7 @@
           <div class="stage" id="stage">
             <div class="start-welcome"><div class="welcome-frame" aria-hidden="true"><svg viewBox="0 0 80 60" fill="none"><rect x="5" y="5" width="70" height="50" rx="10" stroke="currentColor" stroke-width="2"/><path d="m33 21 17 9-17 9V21Z" fill="currentColor"/></svg></div><p>Make the important bits stand out.</p><span>Drop a video here, or use the buttons above.</span></div>
             <canvas id="preview" width="1280" height="720" tabindex="0" aria-label="Video preview; click to focus, hold drag shortcut to pan">Your browser does not support the video preview.</canvas>
+            <span id="touch-point-marker" class="touch-point-marker" aria-hidden="true" hidden></span>
           </div>
           <div class="stage-caption"><span><span class="mini-dot"></span>LIVE PREVIEW</span><span class="zoom-readout"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5.5 2H2v3.5M10.5 2H14v3.5M14 10.5V14h-3.5M5.5 14H2v-3.5" stroke="currentColor" stroke-width="1.2"/></svg><span id="zoom-value">1.0×</span> zoom</span></div>
           <button id="upload-drop-zone" class="upload-hint" type="button"><svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 12V3m-3 3 3-3 3 3M3 11v4h12v-4" stroke="currentColor" stroke-width="1.3"/></svg>Have a phone walkthrough? Drop a video here or upload footage.</button>
@@ -96,11 +99,17 @@
           <div id="zoom-markers" class="zoom-markers" aria-label="Zoom points in this recording"></div>
         </div>
 
-        <details id="camera-timeline" class="camera-timeline advanced-options" hidden>
-          <summary id="camera-timeline-title">Edit saved camera moves <span>Optional</span></summary>
-          <div id="camera-events" class="camera-events" aria-label="Camera focus points"></div>
-          <p class="camera-empty-note">Play the video and direct the view, or pause to place a move precisely.</p>
-        </details>
+        <div id="touch-analysis-panel" class="touch-analysis-panel" hidden>
+          <div><strong id="touch-analysis-status" role="status">Following your touches…</strong><p id="touch-analysis-estimate">Your camera moves will appear on the timeline.</p><progress id="touch-analysis-progress" max="100" value="0" aria-label="Touch scan progress">0%</progress></div>
+          <button id="stop-touch-analysis" class="button button-secondary" type="button">Stop scan</button>
+        </div>
+
+        <section id="camera-timeline" class="camera-timeline" aria-labelledby="camera-timeline-title" hidden>
+          <div class="motion-timeline-heading"><div><h2 id="camera-timeline-title">Motion timeline</h2><p id="motion-duration">Full clip · Scale and pan</p></div><span id="motion-playhead-time">00:00.00</span></div>
+          <div class="motion-timeline-toolbar"><label for="timeline-zoom">Timeline zoom</label><input id="timeline-zoom" type="range" min="1" max="6" value="1" step=".5"><button id="timeline-fit" class="motion-button" type="button">Fit clip</button><span>Drag a key to change its time.</span></div>
+          <div id="motion-scroll" class="motion-scroll"><div id="motion-tracks" class="motion-tracks" aria-label="Full scale and pan timeline"></div></div>
+          <div id="camera-events" class="camera-events" aria-label="Selected camera move"></div>
+        </section>
 
         <div class="privacy-note"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m8 1.5 5 2V8c0 3-5 6.5-5 6.5S3 11 3 8V3.5l5-2Z" stroke="currentColor" stroke-width="1.15"/><path d="m5.5 7.5 1.7 1.7 3.3-3.4" stroke="currentColor" stroke-width="1.15"/></svg><p>Processed on your device. Your video is never uploaded.</p></div>
         <div class="workflow-editor-nav"><button class="button button-secondary" id="change-source" type="button">Record or upload another</button><button class="button button-primary" id="continue-export" type="button" disabled>Continue to export <span aria-hidden="true">→</span></button></div>
@@ -110,22 +119,28 @@
         <div class="inspector-heading"><span id="settings-title">Make it yours</span><span class="optional-label">Optional</span></div>
 
         <section id="mobile-editor" class="inspector-section mobile-editor" aria-labelledby="mobile-editor-title" hidden>
-          <div class="section-heading"><h2 id="mobile-editor-title">Focus & zoom</h2></div>
-          <p class="mobile-tagline">Pause the video, click a detail, then zoom in.</p>
+          <div class="section-heading"><h2 id="mobile-editor-title">Follow your touches</h2></div>
+          <p class="mobile-tagline">Your touch dots guide the camera. Review the result below.</p>
           <div id="mobile-footage-info" class="footage-info">Upload a video to start.</div>
+          <div class="checkbox-row"><label for="touch-follow-enabled">Automatic touch tracking</label><input id="touch-follow-enabled" type="checkbox" class="toggle" checked></div>
+          <p id="touch-result" class="touch-result" role="status">Touch tracking starts when you upload a video.</p>
+          <p id="mobile-full-screen-hint" class="full-screen-hint"><kbd>F</kbd> Full frame at the playhead</p>
           <div class="range-field mobile-range"><div class="range-label-row"><label for="mobile-zoom">Zoom level</label><output id="mobile-zoom-value" for="mobile-zoom">2.0×</output></div><input id="mobile-zoom" type="range" min="1" max="5" step="0.1" value="2"></div>
           <div class="mobile-view-actions"><button id="mobile-zoom-in" class="motion-button" type="button">Zoom in</button><button id="mobile-zoom-out" class="motion-button" type="button">Zoom out</button><button id="mobile-reset-view" class="motion-button" type="button">Full frame</button></div>
           <button id="mobile-pan-toggle" class="motion-button" type="button" aria-pressed="false">Drag mode</button>
           <div class="camera-edit-actions"><button id="undo-camera" class="motion-button" type="button">Undo</button><button id="clear-camera" class="motion-button" type="button">Clear motion</button></div>
           <p id="mobile-camera-status" class="mobile-camera-status" aria-live="polite">No camera moves yet.</p>
           <details class="advanced-options"><summary>Advanced motion</summary>
+          <div class="touch-review-actions"><button id="rescan-touches" class="motion-button" type="button">Re-scan touches</button><button id="calibrate-touch" class="motion-button" type="button">Set touch dot</button></div>
+          <p class="touch-calibration-help">Missed a dot? Pause where it is visible, choose Set touch dot, then click it in the preview.</p>
+          <div class="checkbox-row"><label for="show-touch-detection">Show detected dot</label><input id="show-touch-detection" type="checkbox" class="toggle"></div>
           <div class="range-field mobile-range"><div class="range-label-row"><label for="transition-duration">Move duration</label><output id="transition-value" for="transition-duration">.8s</output></div><input id="transition-duration" type="range" min="0.2" max="2" step="0.1" value="0.8"></div>
           <label class="field-label motion-easing-label" for="motion-easing">Motion feel</label>
           <div class="select-wrap"><select id="motion-easing"><option value="smooth" selected>Silky smooth</option><option value="glide">Gentle glide</option></select></div>
-          <div class="shortcut-bindings"><div><span>Zoom shortcut</span><button id="zoom-key-bind" class="keybind-button" type="button" aria-label="Change zoom shortcut">Z</button></div><div><span>Drag shortcut</span><button id="drag-key-bind" class="keybind-button" type="button" aria-label="Change drag shortcut">D</button></div></div>
-          <p id="mobile-shortcuts" class="mobile-shortcuts">Z: zoom in/out · Hold D + drag: pan · Click: focus · Space: play</p>
+          <div class="shortcut-bindings"><div><span>Zoom shortcut</span><button id="zoom-key-bind" class="keybind-button" type="button" aria-label="Change zoom shortcut">Z</button></div><div><span>Drag shortcut</span><button id="drag-key-bind" class="keybind-button" type="button" aria-label="Change drag shortcut">D</button></div><div><span>Full-frame shortcut</span><button id="full-key-bind" class="keybind-button" type="button" aria-label="Change full-frame shortcut">F</button></div></div>
+          <p id="mobile-shortcuts" class="mobile-shortcuts">F: full frame · Z: zoom · Hold D + drag: pan · Space: play</p>
           <button id="add-camera-point" class="motion-button add-focus-button" type="button"><span aria-hidden="true">＋</span>Add focus point</button>
-          <p class="mobile-editor-note">Camera moves are saved at the playhead. Your mouse never appears in the export.</p>
+          <p class="mobile-editor-note">Full frame holds until the next detected touch gesture. You can move or edit its key on the timeline. Your mouse is not added to the exported video.</p>
           </details>
         </section>
 
@@ -175,7 +190,7 @@
     <h2 id="help-title">Three steps. One good video.</h2>
     <ol class="help-steps">
       <li><strong>Start.</strong><p>Choose Record screen, or Upload footage for an existing video. Recording options contains microphone and audio settings. Finish recording when your take is ready.</p></li>
-      <li><strong>Edit.</strong><p>Play your video and choose its background or shape. For uploaded footage, pause, click a detail and choose Zoom in. Use Full frame to zoom back out. Advanced options are there when you need them.</p></li>
+      <li><strong>Edit.</strong><p>Uploaded mobile recordings are scanned for visible touch dots. The camera zooms and pans along the detected path. Press F to add a full-frame moment; following resumes at the next touch gesture. The full motion timeline contains scale, horizontal pan and vertical pan. Drag keys to change their timing, or select one to edit its values. Missed dots can be set from Advanced motion.</p></li>
       <li><strong>Export.</strong><p>Choose Continue to export, then Export video. Keep this tab visible until the download completes. Your original audio is preserved.</p></li>
     </ol>
     <div class="help-tip"><strong>Just exploring?</strong> Try a demo to see an eight-second recording with automatic cursor tracking and zooms.</div>
@@ -183,7 +198,7 @@
     <p class="help-privacy">No account needed. Recordings and exports are processed on your device.</p>
   </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="app.js" type="module"></script>
-  <script src="workflow.js?v=20261013-simple1" type="module"></script>
+  <script src="app.js?v=20261013-touch1" type="module"></script>
+  <script src="workflow.js?v=20261013-touch1" type="module"></script>
 </body>
 </html>

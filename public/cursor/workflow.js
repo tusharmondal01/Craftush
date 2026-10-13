@@ -9,8 +9,9 @@ export function createCursorWorkflow(document) {
     const ready = !$('new-btn').hidden;
     const live = !$('stop-btn').hidden;
     const exporting = ready && $('export-btn').disabled && $('export-btn').textContent === 'Rendering…';
-    const waiting = !ready && !live && ($('record-btn').disabled || $('upload-btn').disabled);
-    return { ready, live, exporting, busy: live || waiting || exporting };
+    const analyzing = $('mobile-editor').dataset.touchAnalyzing === 'true';
+    const waiting = !live && !exporting && ($('record-btn').disabled || $('upload-btn').disabled);
+    return { ready, live, exporting, analyzing, busy: live || waiting || exporting || analyzing };
   };
   function goTo(next, focus = false) {
     const state = mode();
@@ -48,11 +49,11 @@ export function createCursorWorkflow(document) {
     const imported = !$('mobile-editor').hidden;
     const titles = {
       start: state.live ? 'Recording in progress' : state.busy ? 'Preparing your video' : state.ready ? 'Choose another video' : 'Start with a video',
-      edit: 'Preview and polish', export: exported ? 'Your video is downloaded' : 'Ready to share'
+      edit: state.analyzing ? 'Following your touches' : 'Preview and polish', export: exported ? 'Your video is downloaded' : 'Ready to share'
     };
     const hints = {
       start: state.live ? 'Pause for a break, or finish recording to continue.' : state.busy ? 'Keep this tab open. Your video will appear here.' : state.ready ? 'Your current edit stays here until you upload another video or start a new recording.' : 'Record your screen or choose a video from your device.',
-      edit: imported ? 'Play your video. To add a zoom, pause, click a detail and choose Zoom in.' : 'Play your recording. Adjust the look if you want, then continue to export.',
+      edit: state.analyzing ? 'The full recording is being checked. Scale and pan keys will appear on the timeline.' : imported ? 'Play your video to review automatic touch following. Use the full-frame shortcut or edit any scale and pan key below.' : 'Play your recording. Adjust the look if you want, then continue to export.',
       export: exported ? 'Your file is in your browser’s downloads. You can return to edit or export again.' : 'Review the preview, then export to save the video on your device.'
     };
     text('workflow-title', titles[step]);
@@ -94,7 +95,7 @@ export function createCursorWorkflow(document) {
   }, true);
   const Observer = document.defaultView.MutationObserver;
   const observer = new Observer(sync);
-  for (const id of ['record-btn', 'upload-btn', 'stop-btn', 'new-btn', 'export-btn', 'mobile-editor']) observer.observe($(id), { attributes: true, attributeFilter: ['hidden', 'disabled'] });
+  for (const id of ['record-btn', 'upload-btn', 'stop-btn', 'new-btn', 'export-btn', 'mobile-editor']) observer.observe($(id), { attributes: true, attributeFilter: ['hidden', 'disabled', 'data-touch-analyzing'] });
   observer.observe($('status-text'), { childList: true, characterData: true, subtree: true });
   sync();
   return { goTo, sync, destroy() { observer.disconnect(); listeners.forEach(remove => remove()); } };
