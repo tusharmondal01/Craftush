@@ -9,9 +9,10 @@
   <link rel="icon" type="image/svg+xml" sizes="any" href="/favicon.svg?v=20261010-padding2">
   <link rel="mask-icon" href="/safari-pinned-tab.svg?v=20261010-padding2" color="#c85443">
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="craftush.css?v=20261013-cursor1">
+  <link rel="stylesheet" href="craftush.css?v=20261013-cursor2">
+  <link rel="stylesheet" href="workflow.css?v=20261013-simple1">
 </head>
-<body>
+<body data-cursor-step="start" data-cursor-ready="false" data-cursor-busy="false">
   <header class="site-header">
     <a class="brand" href="/" aria-label="Craftush dashboard">
       <span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 28 28"><path d="M6 3.5v19l5.5-5.1 4.2 7 4-2.3-4.2-7 7.5-2.1Z" fill="currentColor"/></svg></span>
@@ -28,24 +29,55 @@
   <main>
     <section class="hero" aria-labelledby="hero-title">
       <div class="hero-copy">
-        <p class="eyebrow"><span class="eyebrow-line"></span> A SMALL STUDIO FOR BIG IDEAS</p>
-        <h1 id="hero-title">Your screen.<br><span>A little more cinematic.</span></h1>
+        <p class="eyebrow">CURSOR STUDIO</p>
+        <h1 id="hero-title">Record. Polish. <span>Share.</span></h1>
+        <p class="hero-subtitle">A great recording in three simple steps.</p>
       </div>
       <div class="hero-description">
-        <p>Record your screen.<br>Reframe your mobile footage.<br>Bring the important bits into focus.</p>
-        <a class="text-link" href="#studio">Let’s make something <span aria-hidden="true">↘</span></a>
+        <p>No account needed.<br>Your videos stay on your device.</p>
       </div>
     </section>
 
+    <nav class="workflow-steps" aria-label="Recording workflow">
+      <button id="step-start" type="button" data-step="start" aria-current="step"><span class="step-number">1</span><span>Start<small>Record or upload</small></span></button>
+      <button id="step-edit" type="button" data-step="edit" disabled><span class="step-number">2</span><span>Edit<small>Preview and polish</small></span></button>
+      <button id="step-export" type="button" data-step="export" disabled><span class="step-number">3</span><span>Export<small>Save your video</small></span></button>
+    </nav>
+
     <section id="studio" class="workspace" aria-label="Recording studio">
       <div class="editor">
+        <div class="workflow-heading"><h2 id="workflow-title" tabindex="-1">Start with a video</h2><p id="workflow-hint" role="status">Record your screen or choose a video from your device.</p></div>
         <div class="editor-topbar">
           <div class="recording-heading"><span class="project-icon" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="3" stroke="currentColor" stroke-width="1.4"/><path d="m8 7 5 3-5 3V7Z" fill="currentColor"/></svg></span><span id="recording-name">Untitled recording</span></div>
           <div class="status-pill"><span class="status-dot"></span><span id="status-text">Ready when you are</span></div>
         </div>
 
+        <div class="recording-controls" id="recording-controls">
+          <div class="capture-actions">
+            <button class="button button-primary" id="record-btn" type="button"><span class="record-symbol" aria-hidden="true"></span>Record screen</button>
+            <button class="button button-upload" id="upload-btn" type="button"><svg class="button-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 13V3m-4 4 4-4 4 4M4 12v5h12v-5" stroke="currentColor" stroke-width="1.5"/></svg>Upload footage</button>
+            <input id="video-upload" class="sr-only" type="file" accept="video/*,.mp4,.mov,.webm" aria-label="Upload video footage" tabindex="-1">
+            <button class="button button-secondary" id="demo-btn" type="button">Try a demo</button>
+            <button class="button button-secondary" id="pause-btn" type="button" hidden>Pause</button>
+            <button class="button button-stop" id="stop-btn" type="button" hidden><span class="stop-symbol" aria-hidden="true"></span>Finish recording</button>
+            <button class="button button-secondary" id="new-btn" type="button" hidden><span aria-hidden="true">＋</span>New recording</button>
+          </div>
+          <div class="source-info"><span id="source-name">No source selected</span></div>
+        </div>
+
+        <details class="start-options advanced-options" id="record-options">
+          <summary>Recording options <span>Audio and source</span></summary>
+          <div id="capture-settings" class="inspector-section">
+            <label class="field-label" for="source-mode">Recording source</label>
+            <div class="select-wrap"><select id="source-mode"><option value="display">Screen or window</option><option value="tab">Browser tab</option></select></div>
+            <div class="checkbox-row"><label for="mic-enabled">Microphone</label><input id="mic-enabled" type="checkbox" class="toggle"></div>
+            <div class="checkbox-row"><label for="system-audio">System audio</label><input id="system-audio" type="checkbox" class="toggle" checked></div>
+          </div>
+        </details>
+
         <div class="stage-wrap">
           <div class="stage" id="stage">
+            <div class="start-welcome"><div class="welcome-frame" aria-hidden="true"><svg viewBox="0 0 80 60" fill="none"><rect x="5" y="5" width="70" height="50" rx="10" stroke="currentColor" stroke-width="2"/><path d="m33 21 17 9-17 9V21Z" fill="currentColor"/></svg></div><p>Make the important bits stand out.</p><span>Drop a video here, or use the buttons above.</span></div>
             <canvas id="preview" width="1280" height="720" tabindex="0" aria-label="Video preview; click to focus, hold drag shortcut to pan">Your browser does not support the video preview.</canvas>
           </div>
           <div class="stage-caption"><span><span class="mini-dot"></span>LIVE PREVIEW</span><span class="zoom-readout"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5.5 2H2v3.5M10.5 2H14v3.5M14 10.5V14h-3.5M5.5 14H2v-3.5" stroke="currentColor" stroke-width="1.2"/></svg><span id="zoom-value">1.0×</span> zoom</span></div>
@@ -64,68 +96,53 @@
           <div id="zoom-markers" class="zoom-markers" aria-label="Zoom points in this recording"></div>
         </div>
 
-        <section id="camera-timeline" class="camera-timeline" aria-labelledby="camera-timeline-title" hidden>
-          <div class="camera-timeline-heading"><h2 id="camera-timeline-title">Focus timeline</h2><span>YOUR CAMERA MOVES</span></div>
+        <details id="camera-timeline" class="camera-timeline advanced-options" hidden>
+          <summary id="camera-timeline-title">Edit saved camera moves <span>Optional</span></summary>
           <div id="camera-events" class="camera-events" aria-label="Camera focus points"></div>
           <p class="camera-empty-note">Play the video and direct the view, or pause to place a move precisely.</p>
-        </section>
+        </details>
 
-        <div class="recording-controls">
-          <div class="capture-actions">
-            <button class="button button-primary" id="record-btn" type="button"><span class="record-symbol" aria-hidden="true"></span>Record screen</button>
-            <button class="button button-upload" id="upload-btn" type="button"><svg class="button-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 13V3m-4 4 4-4 4 4M4 12v5h12v-5" stroke="currentColor" stroke-width="1.5"/></svg>Upload footage</button>
-            <input id="video-upload" class="sr-only" type="file" accept="video/*,.mp4,.mov,.webm" aria-label="Upload video footage" tabindex="-1">
-            <button class="button button-secondary" id="demo-btn" type="button"><svg class="button-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 10 6-10 6V4Z" fill="currentColor"/></svg>Try a demo</button>
-            <button class="button button-secondary" id="pause-btn" type="button" hidden><svg class="button-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 4h3v12H5zm7 0h3v12h-3z" fill="currentColor"/></svg>Pause</button>
-            <button class="button button-stop" id="stop-btn" type="button" hidden><span class="stop-symbol" aria-hidden="true"></span>Finish recording</button>
-            <button class="button button-secondary" id="new-btn" type="button" hidden><span aria-hidden="true">＋</span>New recording</button>
-          </div>
-          <div class="source-info"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="10" rx="2" stroke="currentColor" stroke-width="1.3"/><path d="M7 17h6M10 14v3" stroke="currentColor" stroke-width="1.3"/></svg><span id="source-name">No source selected</span></div>
-        </div>
-        <div class="privacy-note"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m8 1.5 5 2V8c0 3-5 6.5-5 6.5S3 11 3 8V3.5l5-2Z" stroke="currentColor" stroke-width="1.15"/><path d="m5.5 7.5 1.7 1.7 3.3-3.4" stroke="currentColor" stroke-width="1.15"/></svg><p>All processing stays on this device. For cursor tracking across other websites, connect the optional browser extension.</p></div>
+        <div class="privacy-note"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m8 1.5 5 2V8c0 3-5 6.5-5 6.5S3 11 3 8V3.5l5-2Z" stroke="currentColor" stroke-width="1.15"/><path d="m5.5 7.5 1.7 1.7 3.3-3.4" stroke="currentColor" stroke-width="1.15"/></svg><p>Processed on your device. Your video is never uploaded.</p></div>
+        <div class="workflow-editor-nav"><button class="button button-secondary" id="change-source" type="button">Record or upload another</button><button class="button button-primary" id="continue-export" type="button" disabled>Continue to export <span aria-hidden="true">→</span></button></div>
       </div>
 
       <aside class="inspector" aria-label="Recording and appearance settings">
-        <div class="inspector-heading"><span>The finishing touches</span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 5h12M4 10h12M4 15h12" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="5" r="2" fill="white" stroke="currentColor" stroke-width="1.2"/><circle cx="13" cy="10" r="2" fill="white" stroke="currentColor" stroke-width="1.2"/><circle cx="7" cy="15" r="2" fill="white" stroke="currentColor" stroke-width="1.2"/></svg></div>
-
-        <div id="capture-settings" class="inspector-section">
-          <div class="section-heading"><span class="section-number">01</span><h2>Capture</h2></div>
-          <label class="field-label" for="source-mode">Recording source</label>
-          <div class="select-wrap"><select id="source-mode"><option value="display">Screen or window</option><option value="tab">Browser tab</option></select></div>
-          <div class="checkbox-row"><label for="mic-enabled">Microphone</label><input id="mic-enabled" type="checkbox" class="toggle"></div>
-          <div class="checkbox-row"><label for="system-audio">System audio</label><input id="system-audio" type="checkbox" class="toggle" checked></div>
-        </div>
+        <div class="inspector-heading"><span id="settings-title">Make it yours</span><span class="optional-label">Optional</span></div>
 
         <section id="mobile-editor" class="inspector-section mobile-editor" aria-labelledby="mobile-editor-title" hidden>
-          <div class="section-heading"><span class="section-number">02</span><h2 id="mobile-editor-title">Mobile footage</h2><span class="mobile-mode-tag">DIRECT</span></div>
-          <p class="mobile-tagline">Click to focus. Direct the motion.</p>
+          <div class="section-heading"><h2 id="mobile-editor-title">Focus & zoom</h2></div>
+          <p class="mobile-tagline">Pause the video, click a detail, then zoom in.</p>
           <div id="mobile-footage-info" class="footage-info">Upload a video to start.</div>
           <div class="range-field mobile-range"><div class="range-label-row"><label for="mobile-zoom">Zoom level</label><output id="mobile-zoom-value" for="mobile-zoom">2.0×</output></div><input id="mobile-zoom" type="range" min="1" max="5" step="0.1" value="2"></div>
           <div class="mobile-view-actions"><button id="mobile-zoom-in" class="motion-button" type="button">Zoom in</button><button id="mobile-zoom-out" class="motion-button" type="button">Zoom out</button><button id="mobile-reset-view" class="motion-button" type="button">Full frame</button></div>
           <button id="mobile-pan-toggle" class="motion-button" type="button" aria-pressed="false">Drag mode</button>
+          <div class="camera-edit-actions"><button id="undo-camera" class="motion-button" type="button">Undo</button><button id="clear-camera" class="motion-button" type="button">Clear motion</button></div>
+          <p id="mobile-camera-status" class="mobile-camera-status" aria-live="polite">No camera moves yet.</p>
+          <details class="advanced-options"><summary>Advanced motion</summary>
           <div class="range-field mobile-range"><div class="range-label-row"><label for="transition-duration">Move duration</label><output id="transition-value" for="transition-duration">.8s</output></div><input id="transition-duration" type="range" min="0.2" max="2" step="0.1" value="0.8"></div>
           <label class="field-label motion-easing-label" for="motion-easing">Motion feel</label>
           <div class="select-wrap"><select id="motion-easing"><option value="smooth" selected>Silky smooth</option><option value="glide">Gentle glide</option></select></div>
           <div class="shortcut-bindings"><div><span>Zoom shortcut</span><button id="zoom-key-bind" class="keybind-button" type="button" aria-label="Change zoom shortcut">Z</button></div><div><span>Drag shortcut</span><button id="drag-key-bind" class="keybind-button" type="button" aria-label="Change drag shortcut">D</button></div></div>
           <p id="mobile-shortcuts" class="mobile-shortcuts">Z: zoom in/out · Hold D + drag: pan · Click: focus · Space: play</p>
           <button id="add-camera-point" class="motion-button add-focus-button" type="button"><span aria-hidden="true">＋</span>Add focus point</button>
-          <div class="camera-edit-actions"><button id="undo-camera" class="motion-button" type="button">Undo</button><button id="clear-camera" class="motion-button" type="button">Clear motion</button></div>
-          <p id="mobile-camera-status" class="mobile-camera-status" aria-live="polite">No camera moves yet.</p>
           <p class="mobile-editor-note">Camera moves are saved at the playhead. Your mouse never appears in the export.</p>
+          </details>
         </section>
 
         <div id="cursor-settings" class="inspector-section">
-          <div class="section-heading"><span class="section-number">02</span><h2>Motion & focus</h2><span class="small-tag">THE MAGIC</span></div>
+          <div class="section-heading"><h2>Motion</h2></div>
           <div class="checkbox-row"><label for="auto-zoom">Automatic zoom</label><input id="auto-zoom" type="checkbox" class="toggle" checked></div>
+          <details class="advanced-options"><summary>Cursor & tracking options</summary>
           <div class="checkbox-row"><label for="follow-cursor">Follow the cursor</label><input id="follow-cursor" type="checkbox" class="toggle" checked></div>
           <div class="checkbox-row"><label for="show-cursor">Show cursor</label><input id="show-cursor" type="checkbox" class="toggle" checked></div>
           <div class="range-field"><label for="zoom-strength">Zoom strength</label><span class="range-endpoints">SUBTLE <span>BOLD</span></span><input id="zoom-strength" type="range" min="1.2" max="2.8" step="0.1" value="1.8"></div>
           <div class="tracking-note"><span class="tracking-dot"></span><span id="tracker-status">Demo cursor ready</span></div>
           <a class="extension-link" id="extension-btn" href="cursor-studio-extension.zip" download><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v8m-3-3 3 3 3-3M3 11v3h10v-3" stroke="currentColor" stroke-width="1.2"/></svg>Get the browser extension<span aria-hidden="true">↗</span></a>
+          </details>
         </div>
 
         <div class="inspector-section appearance-section">
-          <div class="section-heading"><span class="section-number">03</span><h2>Set the scene</h2></div>
+          <div class="section-heading"><h2>Look & format</h2></div>
           <span class="field-label" id="background-label">Background</span>
           <div class="background-swatches" role="group" aria-labelledby="background-label">
             <button class="background-swatch lilac selected" data-theme="lilac" type="button" aria-label="Lilac background" aria-pressed="true"><span class="swatch-check" aria-hidden="true">✓</span></button>
@@ -133,41 +150,40 @@
             <button class="background-swatch peach" data-theme="peach" type="button" aria-label="Peach background" aria-pressed="false"><span class="swatch-check" aria-hidden="true">✓</span></button>
             <button class="background-swatch mint" data-theme="mint" type="button" aria-label="Mint background" aria-pressed="false"><span class="swatch-check" aria-hidden="true">✓</span></button>
           </div>
-          <div class="two-column-fields"><div class="range-field"><label for="padding">Padding</label><input id="padding" type="range" min="0" max="100" step="4" value="56"></div><div class="range-field"><label for="radius">Corners</label><input id="radius" type="range" min="0" max="40" value="20"></div></div>
-          <label class="field-label" for="aspect-ratio">Canvas ratio</label>
+          <label class="field-label" for="aspect-ratio">Video shape</label>
           <div class="select-wrap"><select id="aspect-ratio"><option value="16:9">16:9 · Widescreen</option><option value="1:1">1:1 · Square</option><option value="9:16">9:16 · Portrait</option></select></div>
+          <details class="advanced-options"><summary>Frame spacing & corners</summary><div class="two-column-fields"><div class="range-field"><label for="padding">Padding</label><input id="padding" type="range" min="0" max="100" step="4" value="56"></div><div class="range-field"><label for="radius">Corners</label><input id="radius" type="range" min="0" max="40" value="20"></div></div></details>
         </div>
 
         <div class="export-section">
+          <h2>Save your video</h2><p class="export-description">Your edit is ready. Choose a quality and download it.</p>
           <div class="export-heading"><label class="field-label" for="export-quality">Export quality</label><div class="select-wrap"><select id="export-quality"><option value="720">720p</option><option value="1080" selected>1080p</option><option value="1440">1440p</option></select></div></div>
           <button class="button button-export" id="export-btn" type="button" disabled>Export video <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 3v10m-4-4 4 4 4-4M4 14v3h12v-3" stroke="currentColor" stroke-width="1.5"/></svg></button>
           <p class="export-note">WebM · up to 1440p · all yours</p>
+          <div id="export-progress-panel" class="export-progress-panel" hidden><label for="export-progress">Export progress</label><progress id="export-progress" value="0" max="100">0%</progress><p id="export-progress-label" role="status">Preparing your download…</p></div>
+          <button class="button button-secondary" id="back-to-edit" type="button">← Back to edit</button>
         </div>
       </aside>
     </section>
 
-    <section class="features" aria-label="Made for a better recording">
-      <article class="feature"><span class="feature-icon focus-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M11 5H5v6m16-6h6v6m0 10v6h-6m-10 0H5v-6" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="16" r="5" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="16" r="1.5" fill="currentColor"/></svg></span><div><h2>Automatic focus.</h2><p>Let smooth zooms lead the eye.<br>Every click can have its moment.</p></div></article>
-      <article class="feature"><span class="feature-icon scene-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><rect x="5" y="5" width="22" height="22" rx="5" stroke="currentColor" stroke-width="1.5"/><rect x="11" y="11" width="10" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/></svg></span><div><h2>Make it yours.</h2><p>A fresh backdrop. A softer corner.<br>The little things make the difference.</p></div></article>
-      <article class="feature"><span class="feature-icon share-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M8 24 24 8M11 8h13v13" stroke="currentColor" stroke-width="1.5"/><path d="M8 7H5v20h20v-3" stroke="currentColor" stroke-width="1.5"/></svg></span><div><h2>Ready to share.</h2><p>Record, polish, export.<br>Your next walkthrough, beautifully done.</p></div></article>
-    </section>
   </main>
 
   <footer class="site-footer"><span>Cursor Studio<span class="brand-dot">.</span></span><p>Craftush · Founded by <strong>Tushar Mondal</strong></p><div class="cursor-downloads"><a href="cursor-studio-desktop.zip" download>Download desktop ZIP ↗</a><a href="Examples/phone-demo-raw.mp4" download>Sample mobile footage ↗</a></div></footer>
 
   <dialog id="help-dialog" aria-labelledby="help-title">
     <div class="help-topline"><span class="eyebrow">A QUICK WALKTHROUGH</span><button class="icon-button" id="close-help" type="button" aria-label="Close help">×</button></div>
-    <h2 id="help-title">From screen to scene.</h2>
+    <h2 id="help-title">Three steps. One good video.</h2>
     <ol class="help-steps">
-      <li><strong>Choose what to capture.</strong><p>Press Record screen and select a screen, window, or browser tab in your browser’s sharing prompt. Enable your microphone if you want to narrate.</p></li>
-      <li><strong>Give your cursor a spotlight.</strong><p>For tracking on other websites, download and unzip the optional extension. Open your browser’s extensions page, enable Developer mode, and choose Load unpacked to select the unzipped folder. Start a recording with Browser tab selected, then click the extension icon in that shared tab and choose Track this tab.</p></li>
-      <li><strong>Reframe a phone recording.</strong><p>Choose Upload footage or drop a video into the preview. Use a compatible MP4, MOV, or WebM file; its original audio is kept. Press Z to zoom in or out, hold D while dragging the preview to pan, and click a detail to focus. Use Space to play or pause, or place a focus point at an exact moment. Click either shortcut button to choose your own zoom and drag keys. Adjust move duration and motion feel for smooth transitions.</p></li>
-      <li><strong>Finish, style, and share.</strong><p>Finish your recording, preview it, and adjust motion, background, corners, and canvas ratio. Export video saves a WebM video to your device.</p></li>
+      <li><strong>Start.</strong><p>Choose Record screen, or Upload footage for an existing video. Recording options contains microphone and audio settings. Finish recording when your take is ready.</p></li>
+      <li><strong>Edit.</strong><p>Play your video and choose its background or shape. For uploaded footage, pause, click a detail and choose Zoom in. Use Full frame to zoom back out. Advanced options are there when you need them.</p></li>
+      <li><strong>Export.</strong><p>Choose Continue to export, then Export video. Keep this tab visible until the download completes. Your original audio is preserved.</p></li>
     </ol>
     <div class="help-tip"><strong>Just exploring?</strong> Try a demo to see an eight-second recording with automatic cursor tracking and zooms.</div>
+    <details class="advanced-options"><summary>Tracking a cursor on another website</summary><p class="help-privacy">Download and unzip the optional extension from Cursor & tracking options in Edit. Open your browser’s extensions page, enable Developer mode, and choose Load unpacked. Before recording, choose Browser tab in Recording options. Then open the extension in your shared tab and choose Track this tab.</p></details>
     <p class="help-privacy">No account needed. Recordings and exports are processed on your device.</p>
   </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="app.js" type="module"></script>
+  <script src="workflow.js?v=20261013-simple1" type="module"></script>
 </body>
 </html>

@@ -63,10 +63,12 @@ test('the Pages build preserves the recording modules and serves the fifth tool,
     assert.equal(page.querySelector('script[type="module"]').getAttribute('src'), 'app.js');
     assert(page.querySelector('link[href*="craftush.css"]'));
     for (const selector of ['#record-btn', '#demo-btn', '#upload-btn', '#export-btn', '#mobile-editor', '#camera-timeline']) assert(page.querySelector(selector), selector);
-    for (const asset of ['app.js', 'camera.js', 'mobile-editor.js', 'styles.css', 'Examples/phone-demo-raw.mp4', 'cursor-studio-desktop.zip']) {
+    for (const asset of ['app.js', 'camera.js', 'mobile-editor.js', 'styles.css', 'workflow.js', 'workflow.css', 'Examples/phone-demo-raw.mp4', 'cursor-studio-desktop.zip']) {
       assert.deepEqual(await readFile(join(directory, 'cursor', asset)), await readFile(new URL(asset, root)), asset);
     }
     const desktop = zipFiles(await readFile(new URL('cursor-studio-desktop.zip', root)));
+    const original = parseHTML(desktop.get('index.html').toString()).document;
+    for (const control of original.querySelectorAll('[id]')) assert(page.getElementById(control.id), 'original control retained: ' + control.id);
     for (const asset of ['app.js', 'camera.js', 'mobile-editor.js']) assert.deepEqual(await readFile(new URL(asset, root)), desktop.get(asset), asset + ' must retain the supplied behavior');
     const extension = zipFiles(await readFile(join(directory, 'cursor/cursor-studio-extension.zip')));
     const manifest = JSON.parse(extension.get('manifest.json').toString());
