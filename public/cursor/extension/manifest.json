@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "Cursor Studio Companion",
+  "version": "1.0.1",
+  "description": "Track the cursor in one selected browser tab for your Craftush Cursor Studio recording.",
+  "minimum_chrome_version": "102",
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Cursor Studio Companion"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*/*",
+        "http://*/*"
+      ],
+      "js": [
+        "recorder-location.js",
+        "content.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ]
+}

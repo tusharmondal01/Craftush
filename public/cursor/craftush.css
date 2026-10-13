@@ -1,0 +1,33 @@
+/* Craftush surfaces and navigation. Recording and editing logic stay unchanged. */
+:root{--page:#f7f3eb;--surface:#fffcf7;--ink:#292620;--muted:#71685f;--line:#e3d8ca;--blue:#c85443;--blue-hover:#ad4333;--soft:#fae9dc;color-scheme:light}
+body{background:var(--page)}
+#hostingNotice{background:#f6e8d5!important;color:#77614c!important;border-color:#e4d3bb!important}
+.site-header{height:auto;min-height:92px;flex-wrap:wrap;gap:20px 36px;padding-block:18px}
+.brand{color:var(--ink);font-size:23px;letter-spacing:-.8px}.brand-section{font-size:13px;font-weight:450;letter-spacing:0;color:var(--muted)}
+.site-header nav{gap:22px;min-height:38px}.nav-link.active::after{background:var(--blue)}
+.local-badge{color:var(--muted)}.local-dot{background:var(--blue);box-shadow:0 0 0 3px #c8544312}
+.eyebrow,.field-label,.range-field label,.checkbox-row label{color:#7a6557}.eyebrow-line{background:#c8977d}h1>span{color:#a07a64}
+.editor,.inspector{border-color:var(--line);background:var(--surface);box-shadow:0 8px 28px #73553c08}
+.stage-wrap{background:var(--surface)}.status-pill{color:#8b5742;background:var(--soft)}.status-dot{background:var(--blue)}
+.playback-area,.camera-timeline,.mobile-editor{background:#fffaf3;border-color:var(--line)}
+.button-secondary,.button-upload,.motion-button,.keybind-button{background:#faf1e7;border-color:#dcccb9;color:#615044}
+.button-secondary:hover:not(:disabled),.button-upload:hover:not(:disabled),.motion-button:hover:not(:disabled),.keybind-button:hover{background:#f2e3d4;border-color:#c7aa8f;color:#8e4637}
+.button-primary,.button-export{background:var(--blue);border-color:var(--blue);color:#fff}.button-primary:hover:not(:disabled),.button-export:hover:not(:disabled){background:var(--blue-hover)}
+.button-export:disabled{background:#f2e6d9;color:#a78b74;border-color:var(--line)}
+.small-tag,.mobile-mode-tag,.add-focus-button,.help-tip{background:var(--soft);border-color:#e2c6b5;color:#965441}
+.upload-hint{background:#fff8ef;border-color:#d6b89a;color:#8b6a54}.upload-hint:hover{background:#fcebdc;border-color:#c79071;color:#8b4735}.upload-hint svg{color:var(--blue)}
+.tracking-dot,.mini-dot{background:var(--blue)}.tracking-note,.extension-link{color:#8b5742}
+.footage-info,.camera-event,.camera-events>div,.camera-events>button{background:#faf0e4;border-color:var(--line);color:#796451}
+.camera-events .active,.camera-events .selected{background:var(--soft);border-color:#ce9d82;color:#8b4735}.camera-event button,.camera-events>div button{background:#efdbca;color:#8b5742}
+.camera-event-field input{background:#fffefa;border-color:#d9cdbd;color:var(--ink)}
+.mobile-editor-note{border-color:var(--line)}.range-label-row output,.mobile-camera-status{color:#8b5742}
+.keybind-button.listening,.keybind-button.binding,#mobile-pan-toggle[aria-pressed=true]{background:var(--soft);border-color:var(--blue);color:var(--blue)}
+.icon-button:hover:not(:disabled){background:var(--soft);color:var(--blue)}.background-swatch.selected{outline-color:var(--blue)}
+.stage.drag-over,#preview:focus-visible{outline-color:var(--blue)}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline-color:var(--blue)}
+.inspector-section,.privacy-note,.features,.site-footer{border-color:var(--line)}
+dialog{background:var(--surface);border-color:var(--line)}dialog::backdrop{background:#3f302581}.toast{background:#473a30;color:#fffaf3}
+.cursor-downloads{display:flex;flex-wrap:wrap;gap:10px 22px;font-size:12px;color:#8b5742}.cursor-downloads a:hover{text-decoration:underline}.site-footer{flex-wrap:wrap;gap:18px 30px}
+.hero,.workspace,.features{animation:cursorStudioEnter .6s ease both}.workspace{animation-delay:.08s}.features{animation-delay:.16s}
+@keyframes cursorStudioEnter{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@media(max-width:760px){.site-header{gap:8px 22px;padding-block:16px}.brand{flex:1 1 100%}.site-header nav{min-height:32px}.local-badge{display:none}.site-footer{align-items:flex-start}.cursor-downloads{flex:1 1 100%}}
+@media(prefers-reduced-motion:reduce){.hero,.workspace,.features{animation:none}html{scroll-behavior:auto}}

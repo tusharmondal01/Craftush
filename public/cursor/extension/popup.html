@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Cursor Studio Companion</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="brand"><span class="mark" aria-hidden="true">↖</span><span>CURSOR STUDIO</span></div>
+  <h1>Give your cursor<br>the spotlight.</h1>
+  <p class="intro">Start recording in Cursor Studio, then select the same browser tab here.</p>
+  <div class="status-card" role="status" aria-live="polite"><span class="dot" id="dot"></span><div><strong id="status">Connecting…</strong><p id="detail">Checking your recorder</p></div></div>
+  <button class="primary" id="track" type="button" disabled>Track this tab <span aria-hidden="true">↗</span></button>
+  <button class="secondary" id="clear" type="button" disabled>Clear selected tab</button>
+  <p class="footnote">One tab. Only while recording.<br>Cursor data stays in your browser.</p>
+  <script src="popup.js"></script>
+</body>
+</html>
