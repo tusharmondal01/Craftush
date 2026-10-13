@@ -77,6 +77,8 @@ function sampleAt(time) {
   return {x:a.x,y:a.y,time:a.movedAt??a.t,clickTime,valid:a.valid};
 }
 function render(now, schedule=true) {
+  // Export owns its frame clock so compositor throttling cannot reduce saved motion to one frame per second.
+  if(state.exporting&&schedule){requestAnimationFrame(render);return;}
   const dt=clamp((now-lastFrame)/1000,0,.1);lastFrame=now;
   const live=state.mode==='capture' || state.mode==='demoRecording';
   if(live && !state.paused) state.elapsed=(now-state.started-state.pausedTotal)/1000;
@@ -234,11 +236,16 @@ video.addEventListener('ended',()=>{state.playing=false;setControls();});
 async function exportVideo() {
   if(state.mode!=='recorded'||state.exporting||state.starting||state.analyzingTouches)return;
   state.exporting=true;state.playing=false;mobile.clearTransient();video.pause();video.currentTime=0;state.smooth={x:.5,y:.5,zoom:1};state.camera={x:.5,y:.5};setControls();status('Rendering your video · 0%');
-  let output,rec,ac,timeout,progress,visibilityHandler;
+  let output,rec,ac,timeout,progress,frameTicker,visibilityHandler;
   try {
     if(video.seeking)await new Promise(resolve=>video.addEventListener('seeked',resolve,{once:true}));
     render(performance.now(),false);
-    output=canvas.captureStream(60);
+    output=canvas.captureStream(0);
+    let frameTrack=output.getVideoTracks()[0];
+    if(typeof frameTrack.requestFrame!=='function'){
+      output.getTracks().forEach(track=>track.stop());output=canvas.captureStream(60);frameTrack=output.getVideoTracks()[0];
+    }
+    const captureFrame=()=>{render(performance.now(),false);frameTrack.requestFrame?.();};
     // Route the saved recording's audio directly to the export, without playing it through the speakers.
     if(!state.isDemo){
       ac=state.exportContext||(state.exportContext=new AudioContext());await ac.resume();
@@ -247,18 +254,19 @@ async function exportVideo() {
     }
     const mime=mimeType();const chunks=[];rec=new MediaRecorder(output,{...(mime?{mimeType:mime}:{}),videoBitsPerSecond:canvas.height>=1440?16000000:10000000});
     const done=new Promise((resolve,reject)=>{rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};rec.onstop=()=>resolve(new Blob(chunks,{type:rec.mimeType}));rec.onerror=e=>reject(e.error||new Error('Video encoding failed.'));});
-    rec.start(500);await video.play();state.playing=true;
+    rec.start(500);captureFrame();await video.play();state.playing=true;
+    frameTicker=setInterval(captureFrame,1000/60);
     const ended=new Promise(resolve=>video.addEventListener('ended',resolve,{once:true}));
     const reachedEnd=new Promise(resolve=>{progress=setInterval(()=>{const pct=clamp(video.currentTime/state.duration)*100;status(`Rendering your video · ${Math.round(pct)}%`);if(video.currentTime>=state.duration-.03){resolve();}},100);});
     const stalled=new Promise((_,reject)=>{timeout=setTimeout(()=>reject(new Error('Rendering took too long. Please try exporting again.')),(state.duration+35)*1000);});
     const hidden=new Promise((_,reject)=>{visibilityHandler=()=>{if(document.hidden)reject(new Error('Keep this tab visible while exporting, then try again. Your recording is still here.'));};document.addEventListener('visibilitychange',visibilityHandler);});
-    await Promise.race([ended,reachedEnd,stalled,hidden]);clearInterval(progress);clearTimeout(timeout);await new Promise(r=>setTimeout(r,150));video.pause();rec.stop();
+    await Promise.race([ended,reachedEnd,stalled,hidden]);clearInterval(frameTicker);captureFrame();clearInterval(progress);clearTimeout(timeout);await new Promise(r=>setTimeout(r,150));video.pause();rec.stop();
     const blob=await done;if(blob.size<1000)throw new Error('The exported video was empty. Try again.');
     const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`cursor-studio-${new Date().toISOString().slice(0,10)}.${blob.type.includes('mp4')?'mp4':'webm'}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
     state.lastExport={bytes:blob.size,type:blob.type,width:canvas.width,height:canvas.height,duration:state.duration,requestedFps:60,cameraMoves:state.cameraEvents.length};
     status('Video exported');toast(`Exported ${canvas.width} × ${canvas.height} video. Your download is ready.`);
   }catch(e){if(rec&&rec.state!=='inactive')rec.stop();toast(`Export failed: ${e.message}`);status('Ready to export');}
-  finally {clearInterval(progress);clearTimeout(timeout);document.removeEventListener('visibilitychange',visibilityHandler);video.pause();video.muted=true;state.videoAudioNode?.disconnect();output?.getTracks().forEach(t=>t.stop());state.exporting=false;state.playing=false;video.currentTime=0;setControls();}
+  finally {clearInterval(frameTicker);clearInterval(progress);clearTimeout(timeout);document.removeEventListener('visibilitychange',visibilityHandler);video.pause();video.muted=true;state.videoAudioNode?.disconnect();output?.getTracks().forEach(t=>t.stop());state.exporting=false;state.playing=false;video.currentTime=0;setControls();}
 }
 function updateTracker() {
   const surface=state.captureStream?.getVideoTracks()[0]?.getSettings().displaySurface;
