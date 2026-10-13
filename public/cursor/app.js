@@ -1,5 +1,5 @@
-import {createMobileEditor} from './mobile-editor.js?v=20261013-touch1';
-import {cropForCamera} from './camera.js?v=20261013-touch1';
+import {createMobileEditor} from './mobile-editor.js?v=20261013-touch2';
+import {cropForCamera} from './camera.js?v=20261013-touch2';
 const $ = (id) => document.getElementById(id);
 const canvas = $('preview');
 const ctx = canvas.getContext('2d', { alpha: false });

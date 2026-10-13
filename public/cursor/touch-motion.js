@@ -1,4 +1,4 @@
-import { normalizeEvents, createCameraSampler } from './camera.js';
+import { normalizeEvents, createCameraSampler } from './camera.js?v=20261013-touch2';
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 const ease = t => { t = clamp(t, 0, 1); return t * t * t * (t * (t * 6 - 15) + 10); };
 

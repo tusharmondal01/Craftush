@@ -1,7 +1,7 @@
-import {cameraAt, createCameraSampler, normalizeEvents, screenPointToSource} from './camera.js?v=20261013-touch1';
-import {analyseVideoTouches} from './touch-analysis.js?v=20261013-touch1';
-import {buildTouchMotion, insertCameraMove} from './touch-motion.js?v=20261013-touch1';
-import {createMotionTimeline} from './motion-timeline.js?v=20261013-touch1';
+import {cameraAt, createCameraSampler, normalizeEvents, screenPointToSource} from './camera.js?v=20261013-touch2';
+import {analyseVideoTouches} from './touch-analysis.js?v=20261013-touch2';
+import {buildTouchMotion, insertCameraMove} from './touch-motion.js?v=20261013-touch2';
+import {createMotionTimeline} from './motion-timeline.js?v=20261013-touch2';
 
 const clamp=(v,min=0,max=1)=>Math.max(min,Math.min(max,v));
 const timeLabel=t=>`${String(Math.floor(t/60)).padStart(2,'0')}:${(t%60).toFixed(2).padStart(5,'0')}`;

@@ -1,4 +1,4 @@
-import { normalizeEvents, createCameraSampler } from './camera.js';
+import { normalizeEvents, createCameraSampler } from './camera.js?v=20261013-touch2';
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 const clock = time => `${String(Math.floor(time / 60)).padStart(2, '0')}:${(time % 60).toFixed(2).padStart(5, '0')}`;
 const tracks = [{ key: 'zoom', label: 'Scale', min: 1, max: 5 }, { key: 'x', label: 'Pan X', min: 0, max: 1 }, { key: 'y', label: 'Pan Y', min: 0, max: 1 }];

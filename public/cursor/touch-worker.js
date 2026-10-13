@@ -1,4 +1,4 @@
-import { createTouchTracker } from './touch-detector.js';
+import { createTouchTracker } from './touch-detector.js?v=20261013-touch2';
 let tracker, job;
 self.onmessage = event => {
   const message = event.data;

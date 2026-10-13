@@ -12,6 +12,17 @@ import { dashboardView } from '../netlify/lib/shared.js';
 const root = new URL('../public/cursor/', import.meta.url);
 const hosted = 'https://tusharmondal01.github.io/Craftush/cursor/';
 
+test('every camera consumer uses the same versioned module after a Pages update', async () => {
+  const names = ['app.js', 'mobile-editor.js', 'motion-timeline.js', 'touch-motion.js'];
+  const imports = await Promise.all(names.map(async name => {
+    const source = await readFile(new URL(name, root), 'utf8');
+    const specifier = source.match(/from\s+['"]([^'"]*camera\.js[^'"]*)['"]/)[1];
+    assert.match(specifier, /\?v=.+/, `${name} must avoid stale unversioned camera code`);
+    return specifier;
+  }));
+  assert.equal(new Set(imports).size, 1);
+});
+
 function zipFiles(bytes) {
   const end = bytes.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
   assert(end >= 0, 'ZIP must have a complete directory');

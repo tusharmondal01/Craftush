@@ -1,4 +1,4 @@
-import { createTouchTracker } from './touch-detector.js';
+import { createTouchTracker } from './touch-detector.js?v=20261013-touch2';
 const abortError = () => new DOMException('Touch analysis stopped.', 'AbortError');
 
 export async function analyseVideoTouches({ url, width, height, duration, signal, onProgress = () => {}, hint = null, fps = 12 }) {
@@ -36,7 +36,7 @@ export async function analyseVideoTouches({ url, width, height, duration, signal
   try {
     check(); await wait('loadeddata', () => { probe.src = url; }); check();
     if (typeof Worker !== 'undefined') {
-      try { worker = new Worker(new URL('./touch-worker.js', import.meta.url), { type: 'module' }); await request({ type: 'start', width: w, height: h, hint: scaledHint }); }
+      try { worker = new Worker(new URL('./touch-worker.js?v=20261013-touch2', import.meta.url), { type: 'module' }); await request({ type: 'start', width: w, height: h, hint: scaledHint }); }
       catch (error) { worker?.terminate(); worker = null; check(); }
     }
     const total = Math.max(1, Math.ceil(duration * fps));
