@@ -10,16 +10,19 @@ import { activeKey, env, json, openStore, readSettings, safeEqual } from '../net
 import { withRuntime } from '../netlify/lib/runtime-context.js';
 import { cloudflareStore } from './storage.js';
 import { publicRateLimits, requestRateLimiter } from './rate-limit.js';
+import { createImageRequestsHandler } from './image-requests.js';
 export { CraftushStorage } from './storage.js';
 
 const mcp = createChatGPTMCP(bridge, {
   projectPage: () => (env('PUBLIC_SITE_URL') || 'https://tusharmondal01.github.io/Craftush').replace(/\/+$/, '') + '/chatgpt/',
 });
+const imageRequests = createImageRequestsHandler({ openStore, readSettings, env, safeEqual, json });
 const routes = new Map([
   ['/api/admin', admin], ['/api/runware', runware], ['/api/tools', tools],
   ['/api/thumbnail', thumbnail], ['/thumbnail', thumbnail],
   ['/api/documentary', documentary], ['/api/documentary-media', media],
   ['/api/chatgpt-bridge', bridge], ['/api/chatgpt-mcp', mcp],
+  ['/api/image-requests', imageRequests],
 ]);
 const error = (code, message, status) => json({ errors: [{ code, message }] }, status);
 
@@ -42,7 +45,7 @@ function headersFor(response, origin) {
     headers.set('Access-Control-Allow-Origin', origin);
     headers.append('Vary', 'Origin');
     headers.set('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-    headers.set('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Password, X-Team-Code, Accept, MCP-Protocol-Version, MCP-Session-Id, Last-Event-ID');
+    headers.set('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Password, X-Team-Code, X-Image-Runner, Accept, MCP-Protocol-Version, MCP-Session-Id, Last-Event-ID');
     headers.set('Access-Control-Expose-Headers', 'X-Media-Total, X-Media-Next, MCP-Session-Id, Retry-After');
     headers.set('Access-Control-Max-Age', '600');
   }
@@ -75,9 +78,14 @@ export default {
               runwareConfigured: !!activeKey(settings), rateLimiting: publicRateLimits(environment) }, adminConfigured ? 200 : 503);
           }
         } else {
-          if (path === '/api/admin' && request.method === 'POST' && env('ADMIN_PASSWORD') &&
+          if (((path === '/api/admin' && request.method === 'POST') || (path === '/api/image-requests' && request.headers.has('x-admin-password'))) && env('ADMIN_PASSWORD') &&
               !safeEqual(request.headers.get('x-admin-password') || '', env('ADMIN_PASSWORD'))) {
             const blocked = await limiter.admin();
+            if (blocked) return headersFor(blocked, origin);
+          }
+          if (path === '/api/image-requests') {
+            const owner = !!env('ADMIN_PASSWORD') && safeEqual(request.headers.get('x-admin-password') || '', env('ADMIN_PASSWORD'));
+            const blocked = await limiter.imageRequests(request.method === 'POST', owner);
             if (blocked) return headersFor(blocked, origin);
           }
           response = await handler(request);

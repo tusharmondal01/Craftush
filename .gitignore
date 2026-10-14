@@ -10,4 +10,6 @@ dist-worker/
 .env
 .env.*
 !.dev.vars.example
+.craftush-imagegen/
+craftush-generator-connection.json
 

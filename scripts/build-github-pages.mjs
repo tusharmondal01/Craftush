@@ -10,7 +10,7 @@ export function adaptPagesText(text, basePath, extension, backendURL = '') {
   text = text.replace(/fetch\((['"])\/api\//g, 'window.craftushAPI($1/api/');
   // Root-based links must stay inside this repository's GitHub Pages site.
   text = text.replace(/\b(href|src|action)=(["'])\/(?!\/)/g, '$1=$2' + base);
-  text = text.replace(/(["'])\/(admin|visuals|documentary|chatgpt|comfy|thumbnail|cursor)(?=[\/\?#"'])/g, '$1' + base + '$2');
+  text = text.replace(/(["'])\/(admin|visuals|documentary|chatgpt|comfy|thumbnail|images|cursor)(?=[\/\?#"'])/g, '$1' + base + '$2');
   text = text.replace(/url\((["']?)\/(?!\/)/g, 'url($1' + base);
   // Connected builds advertise their actual MCP service, never an old host.
   if (!backendURL) text = text.replace(/<div class="setup-item"><div><strong>2\. Craftush<\/strong>.*?<\/button><\/div>/g,
@@ -54,5 +54,3 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   await buildPages();
   console.log('v17 GitHub Pages frontend prepared. Backend features require a separate service.');
 }
-
-

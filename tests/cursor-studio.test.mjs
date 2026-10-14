@@ -43,7 +43,7 @@ function zipFiles(bytes) {
   return files;
 }
 
-test('the existing backend configuration keeps the original four tools followed by Cursor Studio', async () => {
+test('dashboard preserves Cursor Studio fifth and adds Image Generator sixth', async () => {
   const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
   const { document, CustomEvent } = parseHTML(html);
   const main = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)].find(match => match[2].includes('async function loadConfig'))[2];
@@ -55,15 +55,19 @@ test('the existing backend configuration keeps the original four tools followed 
   vm.runInContext(main, context);
   await new Promise(resolve => setImmediate(resolve));
   const slides = [...document.querySelectorAll('#track .slide')];
-  assert.deepEqual(slides.map(slide => slide.dataset.id), ['thumbnail', 'visuals', 'comfy', 'documentary', 'cursor']);
+  assert.deepEqual(slides.map(slide => slide.dataset.id), ['thumbnail', 'visuals', 'comfy', 'documentary', 'cursor', 'images']);
   assert.equal(slides[4].querySelector('.open').getAttribute('href'), '/cursor/');
+  assert.equal(slides[5].querySelector('.open').getAttribute('href'), '/images/');
   assert.equal(slides[4].querySelector('.open').hidden, false);
   assert.equal(slides[4].querySelector('.title').textContent, 'Cursor Studio');
+  assert.equal(slides[5].querySelector('.title').textContent, 'Image Generator');
+  assert.equal(slides[4].querySelector('.tag').textContent, '05 · Screen & mobile editor');
+  assert.equal(slides[5].querySelector('.tag').textContent, '06 · Image Generator');
   assert(slides[4].querySelector('.motion-stage'));
-  assert.match(document.getElementById('studioHeading').textContent, /Five creative tools/);
+  assert.match(document.getElementById('studioHeading').textContent, /Six creative tools/);
 });
 
-test('the Pages build preserves the recording modules and serves the fifth tool, sample and both ZIP downloads', async () => {
+test('the Pages build preserves the recording modules, sample and both ZIP downloads', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'craftush-cursor-'));
   try {
     await buildPages({ destination: directory, backendURL: 'https://craftush.tushar-mondal.workers.dev' });

@@ -140,6 +140,7 @@ export const DEFAULT_CARDS = {
   visuals: { title: "Stunning Visuals", desc: "Turn a script into one hyper-realistic image per sentence, timed on a Premiere Pro timeline.", enabled: true },
   comfy: { title: "Idea to Video", desc: "Describe an idea and your ComfyUI workflow turns it into a video.", enabled: true },
   documentary: { title: "Documentary Studio", desc: "Create a cinematic Hinglish documentary with Runware. Preview scenes, add music and save the final video.", enabled: true },
+  images: { title: "Image Generator", desc: "Submit single or bulk image requests. The connected studio computer generates them with ImageGen and returns the finished files.", enabled: true },
 };
 
 export function dashboardView(settings) {
@@ -148,7 +149,7 @@ export function dashboardView(settings) {
   for (const id of Object.keys(DEFAULT_CARDS)) cards[id] = { ...DEFAULT_CARDS[id], ...((d.cards || {})[id] || {}) };
   return {
     cards,
-    available: { thumbnail: !!d.thumb, visuals: true, comfy: !!d.comfyFile, documentary: true },
+    available: { thumbnail: !!d.thumb, visuals: true, comfy: !!d.comfyFile, documentary: true, images: true },
     thumb: d.thumb || null,
     comfyFile: d.comfyFile || null,
   };
@@ -184,4 +185,3 @@ export async function teamCodeOk(req, settings) {
   const code = settings.teamCode || "";
   return !code || safeEqual(req.headers.get("x-team-code") || "", code);
 }
-
