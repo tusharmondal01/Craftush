@@ -84,6 +84,10 @@ export function requestRateLimiter(request, environment) {
 
   return {
     admin: () => consume([{ name: 'admin-login', limit: limits.adminAttemptsPer10Minutes, weight: 1, periodMs: 600000 }], 'sign-in attempts'),
+    imageRequests: (write, owner = false) => consume(write ? [
+      { name: owner ? 'image-owner-minute' : 'image-request-minute', limit: integer(environment.RATE_LIMIT_REQUESTS_MINUTE, owner ? 300 : 30), weight: 1, periodMs: 60000 },
+      { name: owner ? 'image-owner-hour' : 'image-request-hour', limit: integer(environment.RATE_LIMIT_REQUESTS_HOUR, owner ? 1200 : 300), weight: 1, periodMs: 3600000 },
+    ] : [{ name: 'image-request-read', limit: 300, weight: 1, periodMs: 60000 }], 'image request operations'),
     async runware(tasks) {
       let generation = 0, lookup = 0;
       for (const task of tasks) {

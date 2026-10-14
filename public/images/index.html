@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Image Generator · Craftush</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/images/style.css">
+  <script src="/images/app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to image generator</a>
+  <div class="background" aria-hidden="true"></div>
+  <div class="wrap">
+    <header class="top">
+      <a class="logo" href="/" aria-label="Craftush studio"><span aria-hidden="true">✦</span> Craftush</a>
+      <nav aria-label="Studio navigation"><a href="/">All tools</a><a href="/admin">Admin</a></nav>
+    </header>
+    <main id="main">
+      <section class="intro" aria-labelledby="heading">
+        <span class="eyebrow">06 / Image Generator</span>
+        <h1 id="heading">Your ideas.<br><span>One shared image queue.</span></h1>
+        <p>Submit a prompt or a batch. Images are generated automatically and will appear here.</p>
+        <div class="steps" aria-label="How it works"><span><b>1</b> Add your ideas</span><span><b>2</b> Images generate</span><span><b>3</b> Download results</span></div>
+      </section>
+
+      <div id="connectionNotice" class="notice" role="status">Checking the shared queue…</div>
+      <section id="accessSection" class="card access" aria-labelledby="accessHeading">
+        <span class="eyebrow">Get started</span>
+        <h2 id="accessHeading">Join your studio</h2>
+        <p class="help">Team members use the Craftush access code. No ChatGPT account is needed to submit requests or download results.</p>
+        <form id="accessForm">
+          <div class="form-grid">
+            <label class="field">Open as
+              <select id="accessRole"><option value="team">Team member</option><option value="owner">Studio owner</option></select>
+            </label>
+            <label class="field"><span id="credentialLabel">Team access code</span>
+              <input id="credential" type="password" required maxlength="256" autocomplete="off" aria-describedby="credentialHelp">
+            </label>
+          </div>
+          <p id="credentialHelp" class="help">Ask your studio owner for the code. It stays in memory until you leave or lock this page.</p>
+          <button id="accessButton" class="primary" type="submit" disabled>Open image queue <span aria-hidden="true">↗</span></button>
+          <p id="accessMessage" class="message" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <div id="workspace" hidden>
+        <div class="workspace-bar"><div><span id="sessionLabel" class="eyebrow"></span><p class="help">Requests and results are shared with your Craftush team.</p></div><button id="lockButton" type="button">Lock this page</button></div>
+        <section class="generator-health" aria-labelledby="generatorHeading">
+          <div><h2 id="generatorHeading">Background generator</h2><p id="generatorStatus" role="status">Checking generator connection…</p><p id="generatorHeartbeat" class="help"></p></div>
+          <span id="generatorBadge" class="status-badge">Checking</span>
+        </section>
+        <section id="pairingSection" class="card pairing" aria-labelledby="pairingHeading" hidden>
+          <span class="eyebrow">One-time owner setup</span><h2 id="pairingHeading">Connect your background generator</h2>
+          <p class="help">Connect the computer running Codex once. Your team's requests will then run in the background.</p>
+          <ol class="pairing-steps"><li>Create and download the connection file below.</li><li>Give the downloaded file to Codex in your chat for the one-time connection.</li><li>Keep Codex open and your computer awake. This page shows when your generator comes online.</li></ol>
+          <p class="help">No ChatGPT password or paid image API key is needed.</p>
+          <div class="actions"><button id="pairGenerator" class="primary" type="button">Create connection file <span aria-hidden="true">↗</span></button><button id="downloadPairing" type="button" hidden>Download connection file</button></div>
+          <p id="pairingMessage" class="message" role="status" aria-live="polite"></p>
+          <p id="pairingSecurity" class="help" hidden>Keep the connection file on your generator computer. It grants access to the image queue and is available here only until you leave or lock this page.</p>
+        </section>
+        <section id="requestSection" class="card" aria-labelledby="requestHeading">
+          <div class="section-head"><div><span class="eyebrow">Create a brief</span><h2 id="requestHeading">Generate new images</h2></div><span class="pill">Automatic generation</span></div>
+          <p class="help">Send one image prompt or paste a batch of titles. Your connected generator will use the prompt, style notes and optional reference.</p>
+          <form id="requestForm">
+            <div class="form-grid">
+              <label class="field">Your name <input id="requesterName" required maxlength="80" autocomplete="name" placeholder="e.g. Riya"></label>
+              <label class="field">Project or batch name <input id="projectTitle" required maxlength="160" placeholder="e.g. October history thumbnails"></label>
+            </div>
+            <fieldset class="choice"><legend>What are you requesting?</legend><label><input type="radio" name="requestMode" value="single" checked> One image</label><label><input type="radio" name="requestMode" value="batch"> Batch of images</label></fieldset>
+            <div id="singleFields"><label class="field">Image title <input id="singleTitle" maxlength="160" placeholder="e.g. The lost city"></label></div>
+            <div id="batchFields" hidden>
+              <label class="field">Titles — one per line <textarea id="batchTitles" rows="6" maxlength="40000" placeholder="The lost city&#10;Secrets beneath the ocean&#10;The world in 2050" aria-describedby="batchHelp"></textarea></label>
+              <p id="batchHelp" class="help">Up to 200 images. The prompt and style notes below apply to every title.</p>
+              <p id="batchCount" class="counter" aria-live="polite">0 titles</p>
+            </div>
+            <label class="field">Image prompt <textarea id="imagePrompt" rows="5" required maxlength="12000" placeholder="Describe the scene, subject, composition and any exact text you want in the image. For a batch, explain how each title should guide its image."></textarea></label>
+            <label class="field">Shared style notes <textarea id="styleNotes" rows="3" maxlength="4000" placeholder="Colors, typography, mood, composition rules, text placement…"></textarea></label>
+            <div class="form-grid">
+              <div><span class="field-label" id="sizeLabel">Requested image size</span><div class="dimensions" role="group" aria-labelledby="sizeLabel"><label>Width <input id="imageWidth" type="number" min="64" max="8192" step="1" value="1080" required></label><span aria-hidden="true">×</span><label>Height <input id="imageHeight" type="number" min="64" max="8192" step="1" value="864" required></label><span class="unit">px</span></div><p class="help">Used as generation guidance. Actual image dimensions may vary.</p></div>
+              <label class="field">Benchmark or style reference <input id="referenceFile" type="file" accept="image/png,image/jpeg,image/webp" aria-describedby="referenceHelp"><span id="referenceHelp" class="help">Optional · PNG, JPG or WebP · up to 5 MB</span></label>
+            </div>
+            <div id="referencePreview" class="reference-preview" hidden><img id="referencePreviewImage" alt="Your selected benchmark reference"><span id="referencePreviewName"></span><button id="clearReference" type="button">Remove</button></div>
+            <div class="form-footer"><button id="submitRequest" class="primary" type="submit">Generate images <span aria-hidden="true">↗</span></button><span class="help">Added to your studio's automatic image queue.</span></div>
+            <p id="requestMessage" class="message" role="status" aria-live="polite"></p>
+            <div id="pendingSubmission" class="notice" hidden><p id="pendingMessage"></p><div class="actions"><button id="retrySubmission" type="button">Check by submitting the same request</button><button id="abandonSubmission" type="button">Discard this submission</button></div></div>
+          </form>
+        </section>
+
+        <section class="card" aria-labelledby="queueHeading">
+          <div class="section-head"><div><span class="eyebrow">Shared with your team</span><h2 id="queueHeading">Image queue</h2></div><button id="refreshQueue" type="button">Refresh</button></div>
+          <div class="queue-toolbar"><label class="field">Show on this page <select id="statusFilter"><option value="all">All statuses</option><option value="queued">Queued</option><option value="in_progress">Generating</option><option value="completed">Completed</option><option value="needs_attention">Needs attention</option><option value="cancelled">Cancelled</option></select></label><span id="queueTotal" class="help"></span></div>
+          <p id="queueMessage" class="message" role="status" aria-live="polite"></p>
+          <div id="queueList" class="queue-list"></div>
+          <div class="pagination"><button id="previousPage" type="button" disabled>Previous</button><span id="pageLabel" class="help"></span><button id="nextPage" type="button" disabled>Next</button></div>
+        </section>
+
+        <section id="detailSection" class="card detail" aria-labelledby="detailHeading" hidden>
+          <div class="section-head"><div><span class="eyebrow">Request details</span><h2 id="detailHeading" tabindex="-1"></h2></div><button id="closeDetail" type="button">Close details</button></div>
+          <p id="detailMeta" class="help"></p><p id="detailMessage" class="message" role="status" aria-live="polite"></p>
+          <details class="brief-tools"><summary>Export request briefs</summary><div class="actions"><button id="copyBrief" type="button">Copy full brief</button><button id="downloadBrief" type="button">Download brief .txt</button></div></details>
+          <details><summary>Shared style notes</summary><p id="detailStyle" class="preserve"></p></details>
+          <div id="detailNotes" class="notice" hidden></div>
+          <div id="detailReferences" class="asset-grid"></div>
+          <div id="detailItems" class="item-list"></div>
+          <div class="results-head"><h3>Finished images</h3><span id="resultCount" class="help"></span></div>
+          <p id="resultsEmpty" class="help">Finished images appear automatically. This page refreshes while the generator works.</p>
+          <div id="detailResults" class="asset-grid"></div>
+
+          <details id="ownerControls" class="owner-controls" hidden>
+            <summary>Advanced recovery controls</summary>
+            <p class="help">Requests normally generate and deliver automatically. These owner controls are available if a request needs attention.</p>
+            <form id="statusForm">
+              <div class="form-grid"><label class="field">Request status <select id="ownerStatus"><option value="queued">Queued</option><option value="in_progress">Generating</option><option value="completed">Completed</option><option value="needs_attention">Needs attention</option><option value="cancelled">Cancelled</option></select></label><label class="field">Owner's note <textarea id="ownerNotes" rows="2" maxlength="4000" placeholder="Optional update for your team"></textarea></label></div>
+              <button id="saveStatus" type="submit">Save status and note</button><p id="statusMessage" class="message" role="status" aria-live="polite"></p>
+            </form>
+            <form id="deliveryForm">
+              <label class="field">Finished images <input id="deliveryFiles" type="file" accept="image/png,image/jpeg,image/webp" multiple aria-describedby="deliveryHelp"></label>
+              <p id="deliveryHelp" class="help">Choose up to 10 images at a time, each up to 5 MB. Match each file to its requested title before uploading.</p>
+              <div id="deliveryMapping" class="delivery-mapping"></div>
+              <button id="deliverButton" class="primary" type="submit" disabled>Upload finished images <span aria-hidden="true">↗</span></button>
+              <p id="deliveryMessage" class="message" role="status" aria-live="polite"></p>
+            </form>
+          </details>
+        </section>
+      </div>
+    </main>
+    <footer>Craftush · Image Generator<span>Powered by your connected Codex generator</span></footer>
+  </div>
+</body>
+</html>

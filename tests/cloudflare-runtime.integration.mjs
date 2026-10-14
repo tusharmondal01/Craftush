@@ -70,6 +70,28 @@ test('compiled v17 Worker runs with actual Cloudflare SQLite storage and preserv
       const result = await call('/thumbnail');
       assert.equal(result.status, 200); assert.match(await result.text(), /हिन्दी 🦋/);
     });
+    await t.test('the manual image queue delivers a saved raster through real Durable Objects without a provider call', async () => {
+      const team = { 'x-team-code': 'runtime-fixture-team' }, owner = { 'x-admin-password': 'runtime-fixture-admin' };
+      const id = crypto.randomUUID(), assetId = crypto.randomUUID();
+      const image = 'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEklEQVR4nGOUq7jEwMDAxAAGABBWAWw4iy1UAAAAAElFTkSuQmCC';
+      const before = providerCalls.length;
+      const create = { action: 'create', submissionId: id, name: 'Editor', title: 'Solar thumbnails', width: 1080, height: 864,
+        items: [{ title: 'Earth', prompt: 'Blue space scene with Earth', filename: 'earth.png' }] };
+      assert.equal((await call('/api/image-requests', create)).status, 401);
+      const saved = await call('/api/image-requests', create, team);
+      assert.equal(saved.status, 201); assert.equal((await saved.json()).request.id, id);
+      assert.equal((await call('/api/image-requests', { action: 'status', id, status: 'completed' }, owner)).status, 409);
+      const deliver = { action: 'deliver', id, images: [{ assetId, itemId: '1', name: 'earth.png', mime: 'image/png', base64: image }] };
+      assert.equal((await call('/api/image-requests', deliver, team)).status, 401);
+      assert.equal((await call('/api/image-requests', deliver, owner)).status, 200);
+      assert.equal((await call('/api/image-requests', { action: 'status', id, status: 'completed' }, owner)).status, 200);
+      const detail = await call('/api/image-requests?action=detail&id=' + id, undefined, team);
+      assert.equal((await detail.json()).request.status, 'completed');
+      const asset = await call('/api/image-requests?action=asset&id=' + id + '&assetId=' + assetId, undefined, team);
+      assert.equal(asset.status, 200); assert.equal(asset.headers.get('content-type'), 'image/png');
+      assert.deepEqual(Buffer.from(await asset.arrayBuffer()), Buffer.from(image, 'base64'));
+      assert.equal(providerCalls.length, before);
+    });
   } finally { await runtime.dispose(); }
 });
 
