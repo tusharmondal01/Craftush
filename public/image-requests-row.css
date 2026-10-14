@@ -1,3 +1,4 @@
+[data-id="images"] .tag::before{content:"06"}
 .image-requests-preview{position:relative;width:min(100%,570px);height:185px;display:flex;align-items:center;justify-content:center;gap:12px;padding:8px 22px;box-sizing:border-box}
 .request-preview-brief{width:62%;padding:15px 18px;border:1px solid rgba(68,81,76,.2);border-radius:16px;background:#fffaf2;color:#31433d;box-shadow:0 15px 30px rgba(57,57,42,.12);transform:rotate(-4deg)}
 .request-preview-brief>span{font:600 9px/1.5 system-ui;letter-spacing:.13em;color:#83948c}.request-preview-brief strong{display:block;margin:12px 0 18px;font:500 clamp(18px,2vw,25px)/1.15 Georgia,serif;letter-spacing:-.03em}

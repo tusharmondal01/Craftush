@@ -8,7 +8,7 @@ Craftush saves requests in the existing private Cloudflare SQLite queue. A sched
 
 The studio computer must stay awake with Codex running. Requests wait while it is offline. The proposed schedule checks every five minutes and processes one image per run. Native generation consumes included Codex usage and remains subject to normal account limits. Requested dimensions are guidance; actual native dimensions may vary.
 
-**Verification status:** a real scheduled native ImageGen call succeeded on 14 October 2026. The original image was saved, returned to the local Craftush queue and downloaded with identical bytes using team access. Queue, runner, upload, download and interruption tests pass locally. Production Cloudflare connectivity, publication and browser rendering remain unverified. The changed website and backend have not been published.
+**Verification status:** a real scheduled native ImageGen call succeeded on 14 October 2026. The original image was saved, returned to the local Craftush queue and downloaded with identical bytes using team access. Desktop browser checks verified slide 06, team submission, result preview and an actual matching image download. Queue, runner, upload, download and interruption tests pass locally. Cloudflare sign-in and access to the existing Worker are verified. Live feature deployment, unattended network access to the production queue and mobile layout remain unverified. The changed website and backend have not been published.
 
 ## One-time setup
 
@@ -49,6 +49,6 @@ Use the existing craftush Worker, CRAFTUSH_DATA binding and Durable Object ident
 
 Check public metadata, team submission, owner pairing, a fresh native start, idempotent completion and authenticated download before sharing the feature. The existing Publish Craftush v17 to GitHub Pages workflow checks out fix/v17-cloudflare-backend. Expected page: https://tusharmondal01.github.io/Craftush/images/ .
 
-Run the regression suite and both Cloudflare runtime integration files. Browser rendering and real file-picker/download interactions remain unverified because a browser surface was unavailable.
+Run the regression suite and both Cloudflare runtime integration files. Desktop request/result/download checks pass; reference-file selection and mobile interactions still need verification. The isolated previews configuration passes Wrangler validation and preserves production storage/settings. Its follow-up source upload is awaiting approval before retrying the Cloudflare preview deployment.
 
 Official references: [scheduled follow-ups](https://learn.chatgpt.com/docs/automations?surface=app) and [native image generation](https://learn.chatgpt.com/docs/image-generation).
