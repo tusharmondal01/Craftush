@@ -19,6 +19,7 @@
   let deliveryBusy = false;
   let statusBusy = false;
   let pairingBusy = false;
+  let bulkDownloadBusy = false;
   let pairingConfig = null;
   let pollTimer = null;
   let deliveryEntries = [];
@@ -118,7 +119,7 @@
   });
 
   $('lockButton').addEventListener('click', () => {
-    if (submissionBusy || deliveryBusy || statusBusy || pairingBusy) return message('queueMessage', 'Wait for the current connection, upload or save to finish before locking the page.', 'error');
+    if (submissionBusy || deliveryBusy || statusBusy || pairingBusy || bulkDownloadBusy) return message('queueMessage', 'Wait for the current download, connection, upload or save to finish before locking the page.', 'error');
     stopPoll();
     credential = '';
     pairingConfig = null;
@@ -160,7 +161,7 @@
   async function pollWorkspace() {
     pollTimer = null;
     if (!credential || $('workspace').hidden) return;
-    if (document.visibilityState === 'hidden' || submissionBusy || deliveryBusy || statusBusy || pairingBusy) return schedulePoll();
+    if (document.visibilityState === 'hidden' || submissionBusy || deliveryBusy || statusBusy || pairingBusy || bulkDownloadBusy) return schedulePoll();
     const sessionCredential = credential;
     try {
       const status = await request('meta');
@@ -171,7 +172,7 @@
       const opened = currentRequest;
       if (opened && !deliveryBusy && !statusBusy) {
         const data = await request('detail', null, { id: opened.id });
-        if (credential === sessionCredential && currentRequest?.id === opened.id && !deliveryBusy && !statusBusy && data.request) {
+        if (credential === sessionCredential && currentRequest?.id === opened.id && !deliveryBusy && !statusBusy && !bulkDownloadBusy && data.request) {
           const changed = data.request.updatedAt !== opened.updatedAt || data.request.status !== opened.status || data.request.notes !== opened.notes || data.request.results?.length !== opened.results?.length || JSON.stringify(data.request.items?.map(item => item.generation)) !== JSON.stringify(opened.items?.map(item => item.generation));
           if (changed) displayDetail(data.request);
         }
@@ -409,11 +410,14 @@
     return ['CRAFTUSH IMAGE REQUEST', 'Project: ' + batch.title, 'Requested by: ' + batch.name, 'Request ID: ' + batch.id, 'Images requested: ' + batch.items.length, '', 'The connected background generator processes this brief automatically with native ChatGPT ImageGen. Use the supplied benchmark reference if present.', '', ...batch.items.flatMap((item, index) => ['— IMAGE ' + (index + 1) + ' —', generationPrompt(item, batch), ''])].join('\n');
   }
   function downloadText(text, name, mime = 'text/plain;charset=utf-8') {
-    const url = URL.createObjectURL(new Blob([text], { type: mime }));
+    downloadBlob(new Blob([text], { type: mime }), name);
+  }
+  function downloadBlob(blob, name) {
+    const url = URL.createObjectURL(blob);
     const link = element('a');
     link.href = url; link.download = name;
-    document.body.append(link); link.click(); link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    try { document.body.append(link); link.click(); }
+    finally { link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
   }
   async function copyText(text) {
     try { await navigator.clipboard.writeText(text); message('detailMessage', 'Request brief copied.', 'success'); }
@@ -427,7 +431,7 @@
     assetURLs = [];
   }
   function closeDetail() {
-    if (deliveryBusy || statusBusy) return message('detailMessage', 'Wait for the current upload or save to finish before closing this request.', 'error');
+    if (deliveryBusy || statusBusy || bulkDownloadBusy) return message('detailMessage', 'Wait for the current download, upload or save to finish before closing this request.', 'error');
     detailRevision++;
     clearAssetURLs();
     currentRequest = null;
@@ -437,7 +441,7 @@
   $('closeDetail').addEventListener('click', closeDetail);
 
   async function showDetail(id) {
-    if (deliveryBusy || statusBusy) return message('queueMessage', 'Wait for the current upload or save to finish before opening another request.', 'error');
+    if (deliveryBusy || statusBusy || bulkDownloadBusy) return message('queueMessage', 'Wait for the current download, upload or save to finish before opening another request.', 'error');
     const revision = ++detailRevision;
     message('queueMessage', 'Opening request…');
     try {
@@ -491,10 +495,114 @@
     const references = batch.references || [], results = batch.results || [];
     $('resultsEmpty').hidden = results.length > 0;
     $('resultCount').textContent = results.length + (results.length === 1 ? ' image delivered' : ' images delivered');
+    $('bulkDownloadControls').hidden = results.length === 0;
+    $('downloadAllResults').disabled = results.length === 0;
+    $('downloadAllResults').textContent = 'Download all ' + results.length + ' (.zip)';
+    message('bulkDownloadMessage', results.length && results.length < batch.items.length ? 'The ZIP includes the ' + results.length + ' finished images available now. Download again when more are ready.' : '');
     references.forEach(asset => displayAsset(batch, asset, $('detailReferences'), revision, true));
     results.forEach(asset => displayAsset(batch, asset, $('detailResults'), revision, false));
     if (focus) { $('detailSection').scrollIntoView({ block: 'start' }); $('detailHeading').focus({ preventScroll: true }); }
   }
+
+  async function fetchAsset(batch, asset) {
+    const query = '?' + new URLSearchParams({ action: 'asset', id: batch.id, assetId: asset.assetId });
+    const response = await fetch('/api/image-requests' + query, { headers: headers(), credentials: 'omit', redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(30000) });
+    if (!response.ok) throw new Error('Image unavailable. Try loading it again.');
+    const blob = await response.blob();
+    if (!IMAGE_TYPES.has(blob.type)) throw new Error('The server did not return a supported image.');
+    if (!blob.size || blob.size > MAX_BYTES) throw new Error('The image is empty or exceeds the 5 MB download limit.');
+    return blob;
+  }
+
+  // PNG, JPEG and WebP are already compressed. Store their original bytes in a
+  // standard ZIP without loading the complete archive into a second byte array.
+  const CRC_TABLE = Array.from({ length: 256 }, (_, value) => {
+    for (let bit = 0; bit < 8; bit++) value = (value >>> 1) ^ ((value & 1) ? 0xedb88320 : 0);
+    return value >>> 0;
+  });
+  function crc32(bytes) {
+    let checksum = 0xffffffff;
+    for (const byte of bytes) checksum = CRC_TABLE[(checksum ^ byte) & 255] ^ (checksum >>> 8);
+    return (checksum ^ 0xffffffff) >>> 0;
+  }
+  function zipHeader(length) {
+    const bytes = new Uint8Array(length);
+    return { bytes, view: new DataView(bytes.buffer) };
+  }
+  function imageZip(entries) {
+    if (!entries.length || entries.length > 65535) throw new Error('The image selection cannot be saved as a ZIP.');
+    const files = [], directory = [];
+    let offset = 0, directoryBytes = 0;
+    for (const entry of entries) {
+      const name = new TextEncoder().encode(entry.name);
+      if (entry.blob.size > 0xffffffff || offset + 30 + name.length + entry.blob.size > 0xffffffff) throw new Error('This ZIP is too large for the browser.');
+      const local = zipHeader(30);
+      local.view.setUint32(0, 0x04034b50, true);
+      local.view.setUint16(4, 20, true);
+      local.view.setUint16(6, 0x0800, true);
+      local.view.setUint16(12, 33, true); // 1 January 1980, valid DOS date.
+      local.view.setUint32(14, entry.crc, true);
+      local.view.setUint32(18, entry.blob.size, true);
+      local.view.setUint32(22, entry.blob.size, true);
+      local.view.setUint16(26, name.length, true);
+      files.push(local.bytes, name, entry.blob);
+      const central = zipHeader(46);
+      central.view.setUint32(0, 0x02014b50, true);
+      central.view.setUint16(4, 20, true);
+      central.view.setUint16(6, 20, true);
+      central.view.setUint16(8, 0x0800, true);
+      central.view.setUint16(14, 33, true);
+      central.view.setUint32(16, entry.crc, true);
+      central.view.setUint32(20, entry.blob.size, true);
+      central.view.setUint32(24, entry.blob.size, true);
+      central.view.setUint16(28, name.length, true);
+      central.view.setUint32(42, offset, true);
+      directory.push(central.bytes, name);
+      directoryBytes += 46 + name.length;
+      offset += 30 + name.length + entry.blob.size;
+    }
+    if (offset + directoryBytes + 22 > 0xffffffff) throw new Error('This ZIP is too large for the browser.');
+    const end = zipHeader(22);
+    end.view.setUint32(0, 0x06054b50, true);
+    end.view.setUint16(8, entries.length, true);
+    end.view.setUint16(10, entries.length, true);
+    end.view.setUint32(12, directoryBytes, true);
+    end.view.setUint32(16, offset, true);
+    return new Blob([...files, ...directory, end.bytes], { type: 'application/zip' });
+  }
+
+  $('downloadAllResults').addEventListener('click', async () => {
+    if (!currentRequest || !credential || bulkDownloadBusy || deliveryBusy || statusBusy || !currentRequest.results?.length) return;
+    bulkDownloadBusy = true;
+    const batch = currentRequest;
+    const items = new Map(batch.items.map((item, index) => [item.id, { item, index }]));
+    const results = [...batch.results].sort((left, right) => (items.get(left.itemId)?.index ?? batch.items.length) - (items.get(right.itemId)?.index ?? batch.items.length));
+    const button = $('downloadAllResults');
+    const buttonText = button.textContent;
+    button.disabled = true;
+    $('bulkDownloadControls').setAttribute('aria-busy', 'true');
+    const entries = [];
+    try {
+      for (const [index, asset] of results.entries()) {
+        button.textContent = 'Preparing ' + (index + 1) + ' of ' + results.length + '…';
+        message('bulkDownloadMessage', 'Preparing your ZIP. Keep this page open (' + (index + 1) + ' of ' + results.length + ').');
+        const blob = await fetchAsset(batch, asset);
+        const base = filename(String(asset.name || items.get(asset.itemId)?.item.title || 'image').replace(/\.[^.]*$/, ''));
+        const extension = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/webp': '.webp' }[blob.type];
+        entries.push({ name: String(index + 1).padStart(3, '0') + '-' + base + extension, blob, crc: crc32(new Uint8Array(await blob.arrayBuffer())) });
+      }
+      downloadBlob(imageZip(entries), filename(batch.title) + '-images.zip');
+      message('bulkDownloadMessage', 'ZIP ready: ' + entries.length + (entries.length === 1 ? ' image.' : ' images.') + (entries.length < batch.items.length ? ' More images are still pending.' : ''), 'success');
+    } catch (error) {
+      message('bulkDownloadMessage', 'No ZIP was downloaded. ' + error.message + ' Try Download all again; individual images remain available.', 'error');
+    } finally {
+      entries.length = 0;
+      bulkDownloadBusy = false;
+      button.disabled = false;
+      button.textContent = buttonText;
+      $('bulkDownloadControls').removeAttribute('aria-busy');
+    }
+  });
 
   function displayAsset(batch, asset, container, revision, reference) {
     const card = element('article', 'asset-card');
@@ -511,11 +619,7 @@
       progress.textContent = 'Loading image…';
       progress.className = '';
       try {
-        const query = '?' + new URLSearchParams({ action: 'asset', id: batch.id, assetId: asset.assetId });
-        const response = await fetch('/api/image-requests' + query, { headers: headers(), credentials: 'omit', redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(30000) });
-        if (!response.ok) throw new Error('Image unavailable. Try loading it again.');
-        const blob = await response.blob();
-        if (!IMAGE_TYPES.has(blob.type)) throw new Error('The server did not return a supported image.');
+        const blob = await fetchAsset(batch, asset);
         if (revision !== detailRevision || !credential) return;
         const url = URL.createObjectURL(blob); assetURLs.push(url);
         image.src = url; image.hidden = false;
@@ -533,7 +637,7 @@
 
   $('statusForm').addEventListener('submit', async event => {
     event.preventDefault();
-    if (!currentRequest || role !== 'owner' || deliveryBusy || statusBusy) return;
+    if (!currentRequest || role !== 'owner' || deliveryBusy || statusBusy || bulkDownloadBusy) return;
     statusBusy = true;
     $('saveStatus').disabled = true;
     message('statusMessage', 'Saving your update…');
@@ -589,7 +693,7 @@
 
   $('deliveryForm').addEventListener('submit', async event => {
     event.preventDefault();
-    if (role !== 'owner' || !currentRequest || deliveryBusy || statusBusy || !deliveryEntries.length) return;
+    if (role !== 'owner' || !currentRequest || deliveryBusy || statusBusy || bulkDownloadBusy || !deliveryEntries.length) return;
     deliveryBusy = true;
     const batchId = currentRequest.id;
     renderDelivery();
@@ -614,7 +718,7 @@
   });
 
   window.addEventListener('beforeunload', event => {
-    if (pendingSubmission || deliveryBusy || deliveryEntries.some(entry => entry.uncertain)) { event.preventDefault(); event.returnValue = ''; }
+    if (pendingSubmission || deliveryBusy || bulkDownloadBusy || deliveryEntries.some(entry => entry.uncertain)) { event.preventDefault(); event.returnValue = ''; }
   });
   connect();
 })();
