@@ -460,6 +460,10 @@
     clearAssetURLs();
     $('detailSection').hidden = false;
     $('detailHeading').textContent = batch.title;
+    $('stopControls').hidden = ['completed', 'cancelled'].includes(batch.status);
+    $('stopRequest').hidden = false;
+    $('stopConfirmation').hidden = true;
+    message('stopMessage', batch.status === 'cancelled' ? 'Request stopped. Images already generating may finish; finished images remain available.' : '');
     $('detailMeta').textContent = 'By ' + batch.name + ' · ' + (STATUS_LABELS[batch.status] || batch.status) + ' · ' + batch.items.length + ' requested · ' + batch.width + ' × ' + batch.height + ' px · ' + date(batch.createdAt);
     $('detailStyle').textContent = batch.styleNotes || 'No shared style notes supplied.';
     $('detailNotes').hidden = !batch.notes;
@@ -634,6 +638,38 @@
     load.addEventListener('click', loadAsset);
     if (reference) loadAsset();
   }
+
+  $('stopRequest').addEventListener('click', () => {
+    if (deliveryBusy || statusBusy || bulkDownloadBusy) return;
+    $('stopRequest').hidden = true;
+    $('stopConfirmation').hidden = false;
+    $('confirmStop').focus();
+  });
+  $('keepRunning').addEventListener('click', () => {
+    if (statusBusy) return;
+    $('stopConfirmation').hidden = true;
+    $('stopRequest').hidden = false;
+    $('stopRequest').focus();
+  });
+  $('confirmStop').addEventListener('click', async () => {
+    if (!currentRequest || deliveryBusy || statusBusy || bulkDownloadBusy || ['completed', 'cancelled'].includes(currentRequest.status)) return;
+    const requestId = currentRequest.id;
+    statusBusy = true;
+    $('confirmStop').disabled = true;
+    $('keepRunning').disabled = true;
+    message('stopMessage', 'Stopping this request…');
+    try {
+      const data = await request('cancel', { id: requestId });
+      displayDetail(data.request);
+      await loadQueue();
+    } catch (error) {
+      message('stopMessage', error.message + ' Refresh this request to check whether it stopped.', 'error');
+    } finally {
+      statusBusy = false;
+      $('confirmStop').disabled = false;
+      $('keepRunning').disabled = false;
+    }
+  });
 
   $('statusForm').addEventListener('submit', async event => {
     event.preventDefault();
