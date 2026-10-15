@@ -15,10 +15,12 @@
   let requests = [];
   let currentRequest = null;
   let pendingSubmission = null;
+  let teamSubmission = null;
   let submissionBusy = false;
   let deliveryBusy = false;
   let statusBusy = false;
   let pairingBusy = false;
+  let bulkDownloadBusy = false;
   let pairingConfig = null;
   let pollTimer = null;
   let deliveryEntries = [];
@@ -70,6 +72,7 @@
   function updateAccess(clearMessage = true) {
     const owner = $('accessRole').value === 'owner';
     $('credentialLabel').textContent = owner ? 'Admin password' : 'Team access code';
+    $('accessButton').firstChild.textContent = owner ? 'Open owner archive ' : 'Open request form ';
     $('credentialHelp').textContent = owner ? 'Use your existing Craftush admin password. It stays in memory until you leave or lock this page.' : 'Ask your studio owner for the code. It stays in memory until you leave or lock this page.';
     $('credential').value = '';
     $('accessButton').disabled = !connected || (!owner && (!metadata?.enabled || !metadata?.teamConfigured));
@@ -81,7 +84,7 @@
       metadata = await request('meta');
       if (typeof metadata.teamConfigured !== 'boolean') throw new Error('The image request backend is not deployed at this address yet.');
       connected = true;
-      $('connectionNotice').textContent = !metadata.enabled ? 'The Image Generator is turned off. The owner can still open the queue.' : metadata.teamConfigured ? 'The shared image queue is ready. Submit a prompt and your images will appear here automatically.' : 'The shared queue is ready. The owner must set a team access code in Admin to enable team access.';
+      $('connectionNotice').textContent = !metadata.enabled ? 'The Image Generator is turned off. The owner can still open the archive.' : metadata.teamConfigured ? 'Ready for thumbnail requests. Images are generated one by one and saved in a folder for the owner in chat.' : 'The owner must set a team access code in Admin to enable requests.';
       renderGenerator();
     } catch (error) {
       connected = false;
@@ -97,19 +100,25 @@
     credential = $('credential').value.trim();
     if (!credential) return message('accessMessage', 'Enter your ' + (role === 'owner' ? 'admin password.' : 'team access code.'), 'error');
     $('accessButton').disabled = true;
-    message('accessMessage', 'Opening the shared queue…');
+    message('accessMessage', 'Checking access…');
     try {
       offset = 0;
-      await loadQueue(true);
+      if (role === 'owner') await loadQueue(true);
+      else {
+        const access = await request('access');
+        if (access.role !== 'team') throw new Error('Team access could not be confirmed.');
+      }
       $('credential').value = '';
       $('accessSection').hidden = true;
       $('workspace').hidden = false;
       $('sessionLabel').textContent = role === 'owner' ? 'Studio owner' : 'Team workspace';
       $('requestSection').hidden = !metadata.enabled;
       $('pairingSection').hidden = role !== 'owner';
+      $('queueSection').hidden = role !== 'owner';
+      $('sessionHelp').textContent = role === 'owner' ? 'Your private request archive. Previous images remain available here.' : 'Submit a brief. The owner receives the finished folder in chat.';
       renderGenerator();
       message('accessMessage', '');
-      $('queueHeading').scrollIntoView({ block: 'start' });
+      $(role === 'owner' ? 'queueHeading' : 'requestHeading').scrollIntoView({ block: 'start' });
       schedulePoll();
     } catch (error) {
       credential = '';
@@ -118,7 +127,7 @@
   });
 
   $('lockButton').addEventListener('click', () => {
-    if (submissionBusy || deliveryBusy || statusBusy || pairingBusy) return message('queueMessage', 'Wait for the current connection, upload or save to finish before locking the page.', 'error');
+    if (submissionBusy || deliveryBusy || statusBusy || pairingBusy || bulkDownloadBusy) return message('queueMessage', 'Wait for the current download, connection, upload or save to finish before locking the page.', 'error');
     stopPoll();
     credential = '';
     pairingConfig = null;
@@ -126,9 +135,16 @@
     $('pairingSecurity').hidden = true;
     message('pairingMessage', '');
     currentRequest = null;
+    teamSubmission = null;
+    $('teamReceipt').hidden = true;
+    $('teamReceiptMessage').textContent = '';
+    $('teamStopMessage').textContent = '';
     requests = [];
     queueRevision++;
     closeDetail();
+    for (const id of ['detailHeading', 'detailMeta', 'detailDeliveryPolicy', 'detailStyle', 'detailNotes', 'detailItems', 'detailReferences', 'detailResults', 'resultCount']) $(id).replaceChildren();
+    $('ownerNotes').value = '';
+    $('ownerControls').hidden = true;
     clearDelivery();
     $('queueList').replaceChildren();
     $('workspace').hidden = true;
@@ -143,8 +159,8 @@
     const attention = Number(generator.needsAttention || 0);
     $('generatorBadge').className = 'status-badge ' + (attention ? 'needs_attention' : online ? 'completed' : 'queued');
     $('generatorBadge').textContent = attention ? 'Needs attention' : online ? 'Online' : generator.paired ? 'Offline' : 'Not connected';
-    $('generatorStatus').textContent = !generator.paired ? 'The owner needs to connect the background generator once.' : !online ? 'The generator is offline. Requests stay queued until the generator computer and Codex are running.' : attention ? 'Generator online. ' + attention + (attention === 1 ? ' image needs' : ' images need') + ' attention; check the affected request for details.' : generator.state === 'busy' ? 'Your generator is creating images. Results appear here as they finish.' : 'Generator online. New requests will run automatically.';
-    $('generatorHeartbeat').textContent = generator.lastSeenAt ? 'Last connected: ' + date(generator.lastSeenAt) + '. This page updates automatically.' : 'Waiting for the first connection from your generator computer.';
+    $('generatorStatus').textContent = !generator.paired ? 'The owner needs to connect the background generator once.' : !online ? 'The generator is offline. Requests stay queued until the generator computer and Codex are running.' : attention ? 'Generator online. The owner can check requests that need attention.' : generator.state === 'busy' ? 'Your generator is creating images one by one. The finished folder goes to the owner in chat.' : 'Generator online. Requests are generated one by one and saved for the owner in chat.';
+    $('generatorHeartbeat').textContent = generator.lastSeenAt ? 'Last connected: ' + date(generator.lastSeenAt) + (role === 'owner' ? '. This archive updates automatically.' : '.') : 'Waiting for the first connection from your generator computer.';
     if (role === 'owner') $('pairGenerator').textContent = pairingConfig ? 'Replace connection file' : generator.paired ? 'Create replacement connection file' : 'Create connection file';
   }
 
@@ -154,13 +170,13 @@
   }
   function schedulePoll() {
     stopPoll();
-    if (!credential || $('workspace').hidden) return;
+    if (role !== 'owner' || !credential || $('workspace').hidden) return;
     pollTimer = setTimeout(pollWorkspace, document.visibilityState === 'hidden' ? 60000 : 15000);
   }
   async function pollWorkspace() {
     pollTimer = null;
-    if (!credential || $('workspace').hidden) return;
-    if (document.visibilityState === 'hidden' || submissionBusy || deliveryBusy || statusBusy || pairingBusy) return schedulePoll();
+    if (role !== 'owner' || !credential || $('workspace').hidden) return;
+    if (document.visibilityState === 'hidden' || submissionBusy || deliveryBusy || statusBusy || pairingBusy || bulkDownloadBusy) return schedulePoll();
     const sessionCredential = credential;
     try {
       const status = await request('meta');
@@ -171,7 +187,7 @@
       const opened = currentRequest;
       if (opened && !deliveryBusy && !statusBusy) {
         const data = await request('detail', null, { id: opened.id });
-        if (credential === sessionCredential && currentRequest?.id === opened.id && !deliveryBusy && !statusBusy && data.request) {
+        if (credential === sessionCredential && currentRequest?.id === opened.id && !deliveryBusy && !statusBusy && !bulkDownloadBusy && data.request) {
           const changed = data.request.updatedAt !== opened.updatedAt || data.request.status !== opened.status || data.request.notes !== opened.notes || data.request.results?.length !== opened.results?.length || JSON.stringify(data.request.items?.map(item => item.generation)) !== JSON.stringify(opened.items?.map(item => item.generation));
           if (changed) displayDetail(data.request);
         }
@@ -267,7 +283,7 @@
 
   $('requestForm').addEventListener('submit', async event => {
     event.preventDefault();
-    if (submissionBusy || pendingSubmission) return;
+    if (submissionBusy || pendingSubmission || statusBusy) return;
     const name = $('requesterName').value.trim();
     const title = $('projectTitle').value.trim();
     const prompt = $('imagePrompt').value.trim();
@@ -301,9 +317,10 @@
     updatePending('Waiting for confirmation.');
     message('requestMessage', 'Saving your request to the shared queue…');
     try {
+      const submitted = pendingSubmission;
       const data = await request('create', pendingSubmission);
-      if (!data.request?.id) throw new Error('The save did not return a request ID.');
-      const saved = data.request;
+      const saved = role === 'owner' ? data.request : data.acknowledgement;
+      if (!saved?.id || (role !== 'owner' && saved.accepted !== true)) throw new Error('The save did not return a request confirmation.');
       const name = $('requesterName').value;
       pendingSubmission = null;
       $('requestForm').reset();
@@ -313,17 +330,27 @@
       $('batchTitles').required = false;
       $('batchCount').textContent = '0 titles';
       clearReference();
-      message('requestMessage', (data.duplicate ? 'Your existing request was confirmed.' : 'Request saved.') + ' ' + saved.items.length + (saved.items.length === 1 ? ' image is queued.' : ' images are queued.') + ' Images are generated automatically and will appear here.', 'success');
-      offset = 0;
-      await loadQueue();
-      await showDetail(saved.id);
+      message('requestMessage', (data.duplicate ? 'Your existing request was confirmed.' : 'Request accepted.') + ' ' + submitted.items.length + (submitted.items.length === 1 ? ' image is queued.' : ' images are queued.') + ' Images are generated one by one. The owner receives a folder named after your project in chat.', 'success');
+      if (role === 'owner') {
+        offset = 0;
+        await loadQueue();
+        await showDetail(saved.id);
+      } else {
+        teamSubmission = { id: saved.id, title: submitted.title };
+        $('teamReceipt').hidden = false;
+        $('teamReceiptMessage').textContent = 'Accepted: ' + submitted.title + '. Keep this page open if you need to stop this request.';
+        $('teamStopControls').hidden = false;
+        $('teamStopRequest').hidden = false;
+        $('teamStopConfirmation').hidden = true;
+        message('teamStopMessage', '');
+      }
     } catch (error) {
       if (pendingSubmission && error.status >= 400 && error.status < 500 && ![408, 429].includes(error.status)) {
         pendingSubmission = null;
         message('requestMessage', error.message, 'error');
       } else if (pendingSubmission) {
         message('requestMessage', 'The save has not been confirmed. ' + error.message, 'error');
-        updatePending('The request may already be saved. Refresh the queue to check, or retry the same submission.');
+        updatePending('The request may already be saved. Retry this same submission to confirm it.');
       } else message('queueMessage', 'The request is saved, but the queue could not refresh. ' + error.message, 'error');
     } finally {
       submissionBusy = false;
@@ -336,11 +363,11 @@
   $('retrySubmission').addEventListener('click', saveSubmission);
   $('abandonSubmission').addEventListener('click', () => {
     if (submissionBusy || !pendingSubmission) return;
-    if (!window.confirm('Discard the pending submission? It may already be saved. Check the queue before submitting another copy.')) return;
+    if (!window.confirm('Discard the pending submission? It may already be saved. Retrying the same submission is the best way to confirm it.')) return;
     pendingSubmission = null;
     lockSubmissionForm(false);
     $('pendingSubmission').hidden = true;
-    message('requestMessage', 'The pending submission was discarded. Check the shared queue before creating the same request again.');
+    message('requestMessage', 'The pending submission was discarded. Ask the owner to check before submitting the same brief again.');
   });
 
   function date(value) {
@@ -351,13 +378,14 @@
   function renderQueue() {
     const list = $('queueList');
     list.replaceChildren();
+    if (role !== 'owner') return;
     const filter = $('statusFilter').value;
     const shown = requests.filter(item => filter === 'all' || item.status === filter);
     if (!shown.length) list.append(element('p', 'empty', requests.length ? 'No requests with this status on this page.' : 'Your queue is empty. Submit the first image brief above.'));
     for (const item of shown) {
       const row = element('article', 'queue-entry');
       const copy = element('div');
-      copy.append(element('h3', '', item.title), element('p', '', 'By ' + item.name + ' · ' + item.itemCount + ' requested · ' + item.resultCount + ' delivered'), element('p', '', date(item.createdAt)));
+      copy.append(element('h3', '', item.title), element('p', '', 'By ' + item.name + ' · ' + item.itemCount + ' requested' + (item.localDelivery ? ' · ' + (item.localResultCount || item.localDelivery.itemCount || 0) + ' saved in folder' : ' · ' + item.resultCount + ' archived images')), element('p', '', date(item.createdAt)));
       const actions = element('div', 'entry-actions');
       const open = element('button', '', 'View request');
       open.type = 'button';
@@ -366,12 +394,13 @@
       row.append(copy, actions);
       list.append(row);
     }
-    $('queueTotal').textContent = total + (total === 1 ? ' shared request' : ' shared requests');
+    $('queueTotal').textContent = total + (total === 1 ? ' archived request' : ' archived requests');
     $('pageLabel').textContent = total ? (offset + 1) + '–' + Math.min(offset + requests.length, total) + ' of ' + total : 'No requests yet';
     $('previousPage').disabled = offset === 0;
     $('nextPage').disabled = offset + LIMIT >= total;
   }
   async function loadQueue(throwErrors = false, quiet = false) {
+    if (role !== 'owner') return;
     const revision = ++queueRevision;
     $('refreshQueue').disabled = true;
     if (!quiet) message('queueMessage', 'Loading the shared queue…');
@@ -409,11 +438,14 @@
     return ['CRAFTUSH IMAGE REQUEST', 'Project: ' + batch.title, 'Requested by: ' + batch.name, 'Request ID: ' + batch.id, 'Images requested: ' + batch.items.length, '', 'The connected background generator processes this brief automatically with native ChatGPT ImageGen. Use the supplied benchmark reference if present.', '', ...batch.items.flatMap((item, index) => ['— IMAGE ' + (index + 1) + ' —', generationPrompt(item, batch), ''])].join('\n');
   }
   function downloadText(text, name, mime = 'text/plain;charset=utf-8') {
-    const url = URL.createObjectURL(new Blob([text], { type: mime }));
+    downloadBlob(new Blob([text], { type: mime }), name);
+  }
+  function downloadBlob(blob, name) {
+    const url = URL.createObjectURL(blob);
     const link = element('a');
     link.href = url; link.download = name;
-    document.body.append(link); link.click(); link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    try { document.body.append(link); link.click(); }
+    finally { link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
   }
   async function copyText(text) {
     try { await navigator.clipboard.writeText(text); message('detailMessage', 'Request brief copied.', 'success'); }
@@ -427,7 +459,7 @@
     assetURLs = [];
   }
   function closeDetail() {
-    if (deliveryBusy || statusBusy) return message('detailMessage', 'Wait for the current upload or save to finish before closing this request.', 'error');
+    if (deliveryBusy || statusBusy || bulkDownloadBusy) return message('detailMessage', 'Wait for the current download, upload or save to finish before closing this request.', 'error');
     detailRevision++;
     clearAssetURLs();
     currentRequest = null;
@@ -437,7 +469,8 @@
   $('closeDetail').addEventListener('click', closeDetail);
 
   async function showDetail(id) {
-    if (deliveryBusy || statusBusy) return message('queueMessage', 'Wait for the current upload or save to finish before opening another request.', 'error');
+    if (role !== 'owner') return;
+    if (deliveryBusy || statusBusy || bulkDownloadBusy) return message('queueMessage', 'Wait for the current download, upload or save to finish before opening another request.', 'error');
     const revision = ++detailRevision;
     message('queueMessage', 'Opening request…');
     try {
@@ -451,16 +484,28 @@
   }
 
   function displayDetail(batch, focus = false) {
+    if (role !== 'owner') return;
     currentRequest = batch;
     const revision = ++detailRevision;
     clearAssetURLs();
     $('detailSection').hidden = false;
     $('detailHeading').textContent = batch.title;
+    $('stopControls').hidden = ['completed', 'cancelled'].includes(batch.status);
+    $('stopRequest').hidden = false;
+    $('stopConfirmation').hidden = true;
+    message('stopMessage', batch.status === 'cancelled' ? 'Request stopped. Images already generating may finish; finished images remain available.' : '');
     $('detailMeta').textContent = 'By ' + batch.name + ' · ' + (STATUS_LABELS[batch.status] || batch.status) + ' · ' + batch.items.length + ' requested · ' + batch.width + ' × ' + batch.height + ' px · ' + date(batch.createdAt);
+    const localFolder = batch.localDelivery;
+    const localDelivery = batch.uploadPolicy === 'local_folder' || Boolean(localFolder);
+    $('detailDeliveryPolicy').hidden = batch.status === 'cancelled';
+    $('detailDeliveryPolicy').textContent = localFolder?.completedAt
+      ? 'Folder complete: ' + (localFolder.folderName || batch.title) + '. Open this request’s folder from the owner’s Codex chat.'
+      : 'Images are generated one by one and saved in a folder named after this project. The owner receives it in chat. Previous website images remain in this owner archive.';
     $('detailStyle').textContent = batch.styleNotes || 'No shared style notes supplied.';
     $('detailNotes').hidden = !batch.notes;
     $('detailNotes').textContent = batch.notes ? 'Owner’s note: ' + batch.notes : '';
     $('ownerControls').hidden = role !== 'owner';
+    $('deliveryForm').hidden = metadata?.uploadPolicy === 'local_folder' || localDelivery;
     $('ownerStatus').value = batch.status;
     $('ownerNotes').value = batch.notes || '';
     message('detailMessage', '');
@@ -479,8 +524,8 @@
       card.append(element('h3', '', item.title));
       const job = item.generation;
       if (job) {
-        const labels = { pending: 'Queued', claimed: 'Queued', started: 'Generating', completed: 'Completed', failed: 'Needs attention', needs_attention: 'Needs attention' };
-        card.append(element('span', 'status-badge ' + (job.state === 'completed' ? 'completed' : job.state === 'started' ? 'in_progress' : ['failed', 'needs_attention'].includes(job.state) ? 'needs_attention' : 'queued'), labels[job.state] || 'Queued'));
+        const labels = { pending: 'Queued', claimed: 'Queued', started: 'Generating', completed: 'Completed', saved_locally: 'Saved in folder', local_saved: 'Saved in folder', failed: 'Needs attention', needs_attention: 'Needs attention' };
+        card.append(element('span', 'status-badge ' + (['completed', 'saved_locally', 'local_saved'].includes(job.state) ? 'completed' : job.state === 'started' ? 'in_progress' : ['failed', 'needs_attention'].includes(job.state) ? 'needs_attention' : 'queued'), labels[job.state] || 'Queued'));
         if (job.message) card.append(element('p', 'help', job.message));
       }
       card.append(details);
@@ -489,12 +534,117 @@
     $('detailReferences').replaceChildren();
     $('detailResults').replaceChildren();
     const references = batch.references || [], results = batch.results || [];
+    $('resultsEmpty').textContent = localDelivery || metadata?.uploadPolicy === 'local_folder' ? (localFolder?.completedAt ? 'These images are saved in the owner’s folder in chat. They are not uploaded to Craftush.' : 'New images are saved in the owner’s folder in chat. They will not appear here.') : batch.status === 'cancelled' ? 'No archived images for this stopped request.' : 'No archived website images for this request.';
     $('resultsEmpty').hidden = results.length > 0;
-    $('resultCount').textContent = results.length + (results.length === 1 ? ' image delivered' : ' images delivered');
+    $('resultCount').textContent = results.length + (results.length === 1 ? ' archived website image' : ' archived website images');
+    $('bulkDownloadControls').hidden = results.length === 0;
+    $('downloadAllResults').disabled = results.length === 0;
+    $('downloadAllResults').textContent = 'Download all ' + results.length + ' (.zip)';
+    message('bulkDownloadMessage', results.length && results.length < batch.items.length ? 'The ZIP includes the ' + results.length + ' finished images available now. Download again when more are ready.' : '');
     references.forEach(asset => displayAsset(batch, asset, $('detailReferences'), revision, true));
     results.forEach(asset => displayAsset(batch, asset, $('detailResults'), revision, false));
     if (focus) { $('detailSection').scrollIntoView({ block: 'start' }); $('detailHeading').focus({ preventScroll: true }); }
   }
+
+  async function fetchAsset(batch, asset) {
+    const query = '?' + new URLSearchParams({ action: 'asset', id: batch.id, assetId: asset.assetId });
+    const response = await fetch('/api/image-requests' + query, { headers: headers(), credentials: 'omit', redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(30000) });
+    if (!response.ok) throw new Error('Image unavailable. Try loading it again.');
+    const blob = await response.blob();
+    if (!IMAGE_TYPES.has(blob.type)) throw new Error('The server did not return a supported image.');
+    if (!blob.size || blob.size > MAX_BYTES) throw new Error('The image is empty or exceeds the 5 MB download limit.');
+    return blob;
+  }
+
+  // PNG, JPEG and WebP are already compressed. Store their original bytes in a
+  // standard ZIP without loading the complete archive into a second byte array.
+  const CRC_TABLE = Array.from({ length: 256 }, (_, value) => {
+    for (let bit = 0; bit < 8; bit++) value = (value >>> 1) ^ ((value & 1) ? 0xedb88320 : 0);
+    return value >>> 0;
+  });
+  function crc32(bytes) {
+    let checksum = 0xffffffff;
+    for (const byte of bytes) checksum = CRC_TABLE[(checksum ^ byte) & 255] ^ (checksum >>> 8);
+    return (checksum ^ 0xffffffff) >>> 0;
+  }
+  function zipHeader(length) {
+    const bytes = new Uint8Array(length);
+    return { bytes, view: new DataView(bytes.buffer) };
+  }
+  function imageZip(entries) {
+    if (!entries.length || entries.length > 65535) throw new Error('The image selection cannot be saved as a ZIP.');
+    const files = [], directory = [];
+    let offset = 0, directoryBytes = 0;
+    for (const entry of entries) {
+      const name = new TextEncoder().encode(entry.name);
+      if (entry.blob.size > 0xffffffff || offset + 30 + name.length + entry.blob.size > 0xffffffff) throw new Error('This ZIP is too large for the browser.');
+      const local = zipHeader(30);
+      local.view.setUint32(0, 0x04034b50, true);
+      local.view.setUint16(4, 20, true);
+      local.view.setUint16(6, 0x0800, true);
+      local.view.setUint16(12, 33, true); // 1 January 1980, valid DOS date.
+      local.view.setUint32(14, entry.crc, true);
+      local.view.setUint32(18, entry.blob.size, true);
+      local.view.setUint32(22, entry.blob.size, true);
+      local.view.setUint16(26, name.length, true);
+      files.push(local.bytes, name, entry.blob);
+      const central = zipHeader(46);
+      central.view.setUint32(0, 0x02014b50, true);
+      central.view.setUint16(4, 20, true);
+      central.view.setUint16(6, 20, true);
+      central.view.setUint16(8, 0x0800, true);
+      central.view.setUint16(14, 33, true);
+      central.view.setUint32(16, entry.crc, true);
+      central.view.setUint32(20, entry.blob.size, true);
+      central.view.setUint32(24, entry.blob.size, true);
+      central.view.setUint16(28, name.length, true);
+      central.view.setUint32(42, offset, true);
+      directory.push(central.bytes, name);
+      directoryBytes += 46 + name.length;
+      offset += 30 + name.length + entry.blob.size;
+    }
+    if (offset + directoryBytes + 22 > 0xffffffff) throw new Error('This ZIP is too large for the browser.');
+    const end = zipHeader(22);
+    end.view.setUint32(0, 0x06054b50, true);
+    end.view.setUint16(8, entries.length, true);
+    end.view.setUint16(10, entries.length, true);
+    end.view.setUint32(12, directoryBytes, true);
+    end.view.setUint32(16, offset, true);
+    return new Blob([...files, ...directory, end.bytes], { type: 'application/zip' });
+  }
+
+  $('downloadAllResults').addEventListener('click', async () => {
+    if (!currentRequest || !credential || bulkDownloadBusy || deliveryBusy || statusBusy || !currentRequest.results?.length) return;
+    bulkDownloadBusy = true;
+    const batch = currentRequest;
+    const items = new Map(batch.items.map((item, index) => [item.id, { item, index }]));
+    const results = [...batch.results].sort((left, right) => (items.get(left.itemId)?.index ?? batch.items.length) - (items.get(right.itemId)?.index ?? batch.items.length));
+    const button = $('downloadAllResults');
+    const buttonText = button.textContent;
+    button.disabled = true;
+    $('bulkDownloadControls').setAttribute('aria-busy', 'true');
+    const entries = [];
+    try {
+      for (const [index, asset] of results.entries()) {
+        button.textContent = 'Preparing ' + (index + 1) + ' of ' + results.length + '…';
+        message('bulkDownloadMessage', 'Preparing your ZIP. Keep this page open (' + (index + 1) + ' of ' + results.length + ').');
+        const blob = await fetchAsset(batch, asset);
+        const base = filename(String(asset.name || items.get(asset.itemId)?.item.title || 'image').replace(/\.[^.]*$/, ''));
+        const extension = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/webp': '.webp' }[blob.type];
+        entries.push({ name: String(index + 1).padStart(3, '0') + '-' + base + extension, blob, crc: crc32(new Uint8Array(await blob.arrayBuffer())) });
+      }
+      downloadBlob(imageZip(entries), filename(batch.title) + '-images.zip');
+      message('bulkDownloadMessage', 'ZIP ready: ' + entries.length + (entries.length === 1 ? ' image.' : ' images.') + (entries.length < batch.items.length ? ' More images are still pending.' : ''), 'success');
+    } catch (error) {
+      message('bulkDownloadMessage', 'No ZIP was downloaded. ' + error.message + ' Try Download all again; individual images remain available.', 'error');
+    } finally {
+      entries.length = 0;
+      bulkDownloadBusy = false;
+      button.disabled = false;
+      button.textContent = buttonText;
+      $('bulkDownloadControls').removeAttribute('aria-busy');
+    }
+  });
 
   function displayAsset(batch, asset, container, revision, reference) {
     const card = element('article', 'asset-card');
@@ -511,11 +661,7 @@
       progress.textContent = 'Loading image…';
       progress.className = '';
       try {
-        const query = '?' + new URLSearchParams({ action: 'asset', id: batch.id, assetId: asset.assetId });
-        const response = await fetch('/api/image-requests' + query, { headers: headers(), credentials: 'omit', redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(30000) });
-        if (!response.ok) throw new Error('Image unavailable. Try loading it again.');
-        const blob = await response.blob();
-        if (!IMAGE_TYPES.has(blob.type)) throw new Error('The server did not return a supported image.');
+        const blob = await fetchAsset(batch, asset);
         if (revision !== detailRevision || !credential) return;
         const url = URL.createObjectURL(blob); assetURLs.push(url);
         image.src = url; image.hidden = false;
@@ -531,9 +677,74 @@
     if (reference) loadAsset();
   }
 
+  $('stopRequest').addEventListener('click', () => {
+    if (deliveryBusy || statusBusy || bulkDownloadBusy) return;
+    $('stopRequest').hidden = true;
+    $('stopConfirmation').hidden = false;
+    $('confirmStop').focus();
+  });
+
+  $('teamStopRequest').addEventListener('click', () => {
+    if (role !== 'team' || !teamSubmission || statusBusy) return;
+    $('teamStopRequest').hidden = true;
+    $('teamStopConfirmation').hidden = false;
+    $('teamConfirmStop').focus();
+  });
+  $('teamKeepRunning').addEventListener('click', () => {
+    if (statusBusy) return;
+    $('teamStopConfirmation').hidden = true;
+    $('teamStopRequest').hidden = false;
+  });
+  $('teamConfirmStop').addEventListener('click', async () => {
+    if (role !== 'team' || !teamSubmission || statusBusy) return;
+    const requestId = teamSubmission.id;
+    statusBusy = true;
+    $('teamConfirmStop').disabled = true;
+    $('teamKeepRunning').disabled = true;
+    message('teamStopMessage', 'Stopping this request…');
+    try {
+      const data = await request('cancel', { id: requestId });
+      if (data.acknowledgement?.id !== requestId || data.acknowledgement.stopped !== true) throw new Error('The stop was not confirmed.');
+      teamSubmission = null;
+      $('teamStopControls').hidden = true;
+      message('teamStopMessage', 'Request stopped. An image already generating may finish; the owner keeps any saved files.', 'success');
+    } catch (error) {
+      message('teamStopMessage', error.message + ' You can retry Stop for this same request.', 'error');
+    } finally {
+      statusBusy = false;
+      $('teamConfirmStop').disabled = false;
+      $('teamKeepRunning').disabled = false;
+    }
+  });
+  $('keepRunning').addEventListener('click', () => {
+    if (statusBusy) return;
+    $('stopConfirmation').hidden = true;
+    $('stopRequest').hidden = false;
+    $('stopRequest').focus();
+  });
+  $('confirmStop').addEventListener('click', async () => {
+    if (!currentRequest || deliveryBusy || statusBusy || bulkDownloadBusy || ['completed', 'cancelled'].includes(currentRequest.status)) return;
+    const requestId = currentRequest.id;
+    statusBusy = true;
+    $('confirmStop').disabled = true;
+    $('keepRunning').disabled = true;
+    message('stopMessage', 'Stopping this request…');
+    try {
+      const data = await request('cancel', { id: requestId });
+      displayDetail(data.request);
+      await loadQueue();
+    } catch (error) {
+      message('stopMessage', error.message + ' Refresh this request to check whether it stopped.', 'error');
+    } finally {
+      statusBusy = false;
+      $('confirmStop').disabled = false;
+      $('keepRunning').disabled = false;
+    }
+  });
+
   $('statusForm').addEventListener('submit', async event => {
     event.preventDefault();
-    if (!currentRequest || role !== 'owner' || deliveryBusy || statusBusy) return;
+    if (!currentRequest || role !== 'owner' || deliveryBusy || statusBusy || bulkDownloadBusy) return;
     statusBusy = true;
     $('saveStatus').disabled = true;
     message('statusMessage', 'Saving your update…');
@@ -574,7 +785,7 @@
   }
   $('deliveryFiles').addEventListener('change', () => {
     const files = [...$('deliveryFiles').files];
-    if (!currentRequest) return;
+    if (!currentRequest || role !== 'owner' || metadata?.uploadPolicy === 'local_folder' || currentRequest.uploadPolicy === 'local_folder') return;
     if (deliveryEntries.some(entry => entry.uncertain) && !window.confirm('One or more previous uploads were not confirmed. Check the finished images before replacing this selection. Continue?')) { $('deliveryFiles').value = ''; return; }
     try {
       if (files.length > 10) throw new Error('Select no more than 10 images per upload.');
@@ -589,7 +800,7 @@
 
   $('deliveryForm').addEventListener('submit', async event => {
     event.preventDefault();
-    if (role !== 'owner' || !currentRequest || deliveryBusy || statusBusy || !deliveryEntries.length) return;
+    if (role !== 'owner' || !currentRequest || metadata?.uploadPolicy === 'local_folder' || currentRequest.uploadPolicy === 'local_folder' || deliveryBusy || statusBusy || bulkDownloadBusy || !deliveryEntries.length) return;
     deliveryBusy = true;
     const batchId = currentRequest.id;
     renderDelivery();
@@ -605,7 +816,7 @@
         entry.saved = true; entry.uncertain = false; confirmed++;
         displayDetail(data.request); renderDelivery();
       }
-      message('deliveryMessage', confirmed + (confirmed === 1 ? ' image recovered.' : ' images recovered.') + ' Your team can download the results now.', 'success');
+      message('deliveryMessage', confirmed + (confirmed === 1 ? ' archived image recovered.' : ' archived images recovered.'), 'success');
       await loadQueue();
     } catch (error) {
       message('deliveryMessage', confirmed + ' image(s) confirmed. ' + error.message + ' Keep this file selection to retry safely with the same image IDs. Uploaded images stay available.', 'error');
@@ -614,7 +825,7 @@
   });
 
   window.addEventListener('beforeunload', event => {
-    if (pendingSubmission || deliveryBusy || deliveryEntries.some(entry => entry.uncertain)) { event.preventDefault(); event.returnValue = ''; }
+    if (pendingSubmission || deliveryBusy || bulkDownloadBusy || deliveryEntries.some(entry => entry.uncertain)) { event.preventDefault(); event.returnValue = ''; }
   });
   connect();
 })();

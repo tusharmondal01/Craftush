@@ -4,6 +4,7 @@ import { resolve, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { connection, atomicJSON, ImageQueue } from './imagegen-queue.mjs';
+import { ImageBatchQueue } from './imagegen-batch.mjs';
 
 function connectionIdentities() {
   if (process.platform !== 'win32') throw new Error('This connection helper currently supports Windows.');
@@ -59,8 +60,14 @@ try {
     if (!values.file) throw new Error('Supply the downloaded Craftush connection file.');
     const config=connection(JSON.parse(await readFile(resolve(values.file),'utf8')));
     const identities=connectionIdentities();
-    const credentialDirectory=join(directory,'credentials',config.runnerId);
-    await mkdir(credentialDirectory,{recursive:true}); restrictConnection(credentialDirectory,identities,true);
+    // A reconnect can use another protected Windows session. Create a fresh
+    // private credential container instead of changing an earlier session's
+    // permissions. The runner's job receipts/results remain in their old path.
+    const credentialId=randomUUID();
+    const credentialParent=join(directory,'credentials');
+    await mkdir(credentialParent,{recursive:true});
+    const credentialDirectory=join(credentialParent,credentialId);
+    await mkdir(credentialDirectory); restrictConnection(credentialDirectory,identities,true);
     const secretPath=join(credentialDirectory,'connection.private.json');
     const temporary=secretPath+'.'+randomUUID()+'.tmp';
     // Apply the private ACL to an EMPTY file before any token is written.
@@ -68,23 +75,39 @@ try {
     restrictConnection(temporary,identities);
     await writeFile(temporary,JSON.stringify(config),{mode:0o600});
     await rename(temporary,secretPath);
-    await atomicJSON(join(directory,'connection.json'),{version:1,runnerId:config.runnerId});
+    await atomicJSON(join(directory,'connection.json'),{version:1,runnerId:config.runnerId,credentialId});
     console.log(JSON.stringify({state:'configured',backendURL:config.backendURL,runnerId:config.runnerId}));
   } else {
     const pointer=JSON.parse(await readFile(join(directory,'connection.json'),'utf8'));
     if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pointer.runnerId)) throw new Error('Invalid connection identity.');
-    const secretPath=join(directory,'credentials',pointer.runnerId,'connection.private.json');
+    if(pointer.credentialId !== undefined && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pointer.credentialId)) throw new Error('Invalid private connection identity.');
+    const secretPath=join(directory,'credentials',pointer.credentialId || pointer.runnerId,'connection.private.json');
     verifyConnection(secretPath,connectionIdentities());
     const config=connection(JSON.parse(await readFile(secretPath,'utf8')));
     if(config.runnerId!==pointer.runnerId) throw new Error('The connection identity changed.');
     const queue=new ImageQueue(config,join(directory,config.runnerId));
+    // The current owner policy is local folders. Even legacy upload receipts
+    // cannot turn a later CLI call into an image-byte delivery operation.
+    if(values['delivery-policy']&&values['delivery-policy']!=='local_folder')throw new Error('This bridge uses local-folder delivery only.');
+    const batchQueue=new ImageBatchQueue(config,join(directory,config.runnerId),{uploadPolicy:'local_folder',resultDirectory:values['result-dir'] || resolve('../craftush-native-results')});
     let result;
-    if(command === 'next') result=await queue.next();
+    if(['flush-request','flush-batch','next','start','complete'].includes(command))throw new Error('Image uploads and legacy single-image recovery are disabled. Use local-folder request commands.');
+    if(command === 'prepare-batch') result=await batchQueue.prepare(values.request);
+    else if(command === 'start-batch') result=await batchQueue.start(values.batch);
+    else if(command === 'stage-batch') result=await batchQueue.stage(JSON.parse(await readFile(resolve(values.manifest),'utf8')));
+    else if(command === 'defer-batch') result=await batchQueue.defer();
+    else if(command === 'request-status') result=await batchQueue.requestStatus();
+    else if(command === 'adopt-local-request') result=await batchQueue.adoptLocalRequest(values.request);
+    else if(command === 'finalize-folder') result=await batchQueue.finalizeFolder(values.request,resolve(values['output-root'] || '../../outputs'));
+    else if(command === 'flush-request') result=await batchQueue.flushRequest(values.request);
+    else if(command === 'flush-batch') result=await batchQueue.flush();
+    else if(command === 'next') result=await queue.next();
     else if(command === 'start') result=await queue.start(values.job);
     else if(command === 'complete') result=await queue.complete(values.job,values['image-path']);
     else if(command === 'report') result=await queue.report(values.job,values.state,values.message);
     else if(command === 'status') result=await queue.api(null,{action:'runnerMeta'});
-    else throw new Error('Choose configure, next, start, complete, report or status.');
+    else if(command === 'heartbeat') result=await queue.api({action:'runnerHeartbeat'});
+    else throw new Error('Choose configure, status, heartbeat, prepare-batch, start-batch, stage-batch, defer-batch, request-status, adopt-local-request, finalize-folder or report.');
     console.log(JSON.stringify(result));
   }
 } catch(error) {

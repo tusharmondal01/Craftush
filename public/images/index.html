@@ -20,16 +20,16 @@
     <main id="main">
       <section class="intro" aria-labelledby="heading">
         <span class="eyebrow">06 / Image Generator</span>
-        <h1 id="heading">Your ideas.<br><span>One shared image queue.</span></h1>
-        <p>Submit a prompt or a batch. Images are generated automatically and will appear here.</p>
-        <div class="steps" aria-label="How it works"><span><b>1</b> Add your ideas</span><span><b>2</b> Images generate</span><span><b>3</b> Download results</span></div>
+        <h1 id="heading">Your ideas.<br><span>A folder for every project.</span></h1>
+        <p>Submit your thumbnail brief. Images are generated one by one, then saved in a project folder for the owner in chat.</p>
+        <div class="steps" aria-label="How it works"><span><b>1</b> Add your ideas</span><span><b>2</b> Generate one by one</span><span><b>3</b> Owner gets the folder</span></div>
       </section>
 
       <div id="connectionNotice" class="notice" role="status">Checking the shared queue…</div>
       <section id="accessSection" class="card access" aria-labelledby="accessHeading">
         <span class="eyebrow">Get started</span>
         <h2 id="accessHeading">Join your studio</h2>
-        <p class="help">Team members use the Craftush access code. No ChatGPT account is needed to submit requests or download results.</p>
+        <p class="help">Use your team code to submit requests. The owner receives the finished files in chat and keeps the private archive.</p>
         <form id="accessForm">
           <div class="form-grid">
             <label class="field">Open as
@@ -40,13 +40,13 @@
             </label>
           </div>
           <p id="credentialHelp" class="help">Ask your studio owner for the code. It stays in memory until you leave or lock this page.</p>
-          <button id="accessButton" class="primary" type="submit" disabled>Open image queue <span aria-hidden="true">↗</span></button>
+          <button id="accessButton" class="primary" type="submit" disabled>Open request form <span aria-hidden="true">↗</span></button>
           <p id="accessMessage" class="message" role="status" aria-live="polite"></p>
         </form>
       </section>
 
       <div id="workspace" hidden>
-        <div class="workspace-bar"><div><span id="sessionLabel" class="eyebrow"></span><p class="help">Requests and results are shared with your Craftush team.</p></div><button id="lockButton" type="button">Lock this page</button></div>
+        <div class="workspace-bar"><div><span id="sessionLabel" class="eyebrow"></span><p id="sessionHelp" class="help">Submit a brief. The owner receives the finished folder in chat.</p></div><button id="lockButton" type="button">Lock this page</button></div>
         <section class="generator-health" aria-labelledby="generatorHeading">
           <div><h2 id="generatorHeading">Background generator</h2><p id="generatorStatus" role="status">Checking generator connection…</p><p id="generatorHeartbeat" class="help"></p></div>
           <span id="generatorBadge" class="status-badge">Checking</span>
@@ -61,12 +61,13 @@
           <p id="pairingSecurity" class="help" hidden>Keep the connection file on your generator computer. It grants access to the image queue and is available here only until you leave or lock this page.</p>
         </section>
         <section id="requestSection" class="card" aria-labelledby="requestHeading">
-          <div class="section-head"><div><span class="eyebrow">Create a brief</span><h2 id="requestHeading">Generate new images</h2></div><span class="pill">Automatic generation</span></div>
+          <div class="section-head"><div><span class="eyebrow">Create a brief</span><h2 id="requestHeading">Request thumbnails</h2></div><span class="pill">One project, one folder</span></div>
           <p class="help">Send one image prompt or paste a batch of titles. Your connected generator will use the prompt, style notes and optional reference.</p>
+          <p id="requestDeliveryPolicy" class="help">Images are generated one by one. The owner receives all finished files in a folder named after your project, in chat.</p>
           <form id="requestForm">
             <div class="form-grid">
               <label class="field">Your name <input id="requesterName" required maxlength="80" autocomplete="name" placeholder="e.g. Riya"></label>
-              <label class="field">Project or batch name <input id="projectTitle" required maxlength="160" placeholder="e.g. October history thumbnails"></label>
+              <label class="field">Track or project name <input id="projectTitle" required maxlength="160" placeholder="e.g. Share Market"></label>
             </div>
             <fieldset class="choice"><legend>What are you requesting?</legend><label><input type="radio" name="requestMode" value="single" checked> One image</label><label><input type="radio" name="requestMode" value="batch"> Batch of images</label></fieldset>
             <div id="singleFields"><label class="field">Image title <input id="singleTitle" maxlength="160" placeholder="e.g. The lost city"></label></div>
@@ -82,14 +83,25 @@
               <label class="field">Benchmark or style reference <input id="referenceFile" type="file" accept="image/png,image/jpeg,image/webp" aria-describedby="referenceHelp"><span id="referenceHelp" class="help">Optional · PNG, JPG or WebP · up to 5 MB</span></label>
             </div>
             <div id="referencePreview" class="reference-preview" hidden><img id="referencePreviewImage" alt="Your selected benchmark reference"><span id="referencePreviewName"></span><button id="clearReference" type="button">Remove</button></div>
-            <div class="form-footer"><button id="submitRequest" class="primary" type="submit">Generate images <span aria-hidden="true">↗</span></button><span class="help">Added to your studio's automatic image queue.</span></div>
+            <div class="form-footer"><button id="submitRequest" class="primary" type="submit">Submit request <span aria-hidden="true">↗</span></button><span class="help">Finished files go to the owner in chat.</span></div>
             <p id="requestMessage" class="message" role="status" aria-live="polite"></p>
             <div id="pendingSubmission" class="notice" hidden><p id="pendingMessage"></p><div class="actions"><button id="retrySubmission" type="button">Check by submitting the same request</button><button id="abandonSubmission" type="button">Discard this submission</button></div></div>
           </form>
         </section>
 
-        <section class="card" aria-labelledby="queueHeading">
-          <div class="section-head"><div><span class="eyebrow">Shared with your team</span><h2 id="queueHeading">Image queue</h2></div><button id="refreshQueue" type="button">Refresh</button></div>
+        <section id="teamReceipt" class="card" aria-labelledby="teamReceiptHeading" hidden>
+          <span class="eyebrow">Submitted in this session</span><h2 id="teamReceiptHeading">Request accepted</h2>
+          <p id="teamReceiptMessage" class="help" role="status"></p>
+          <div id="teamStopControls" class="stop-controls">
+            <button id="teamStopRequest" class="danger" type="button">Stop this request</button>
+            <div id="teamStopConfirmation" hidden><p>Stop the remaining images? An image already generating may finish.</p><div class="actions"><button id="teamConfirmStop" class="danger" type="button">Yes, stop request</button><button id="teamKeepRunning" type="button">Keep running</button></div></div>
+          </div>
+          <p id="teamStopMessage" class="message" role="status" aria-live="polite"></p>
+          <p class="help">History and finished files are available to the owner only.</p>
+        </section>
+
+        <section id="queueSection" class="card" aria-labelledby="queueHeading" hidden>
+          <div class="section-head"><div><span class="eyebrow">Owner only</span><h2 id="queueHeading">Request archive</h2></div><button id="refreshQueue" type="button">Refresh</button></div>
           <div class="queue-toolbar"><label class="field">Show on this page <select id="statusFilter"><option value="all">All statuses</option><option value="queued">Queued</option><option value="in_progress">Generating</option><option value="completed">Completed</option><option value="needs_attention">Needs attention</option><option value="cancelled">Cancelled</option></select></label><span id="queueTotal" class="help"></span></div>
           <p id="queueMessage" class="message" role="status" aria-live="polite"></p>
           <div id="queueList" class="queue-list"></div>
@@ -98,19 +110,28 @@
 
         <section id="detailSection" class="card detail" aria-labelledby="detailHeading" hidden>
           <div class="section-head"><div><span class="eyebrow">Request details</span><h2 id="detailHeading" tabindex="-1"></h2></div><button id="closeDetail" type="button">Close details</button></div>
-          <p id="detailMeta" class="help"></p><p id="detailMessage" class="message" role="status" aria-live="polite"></p>
+          <p id="detailMeta" class="help"></p><p id="detailDeliveryPolicy" class="help"></p><p id="detailMessage" class="message" role="status" aria-live="polite"></p>
+          <div id="stopControls" class="stop-controls" hidden>
+            <button id="stopRequest" type="button" class="danger">Stop request</button>
+            <div id="stopConfirmation" hidden>
+              <p>Stop the remaining images in this request? An image already generating may finish. Saved files and archived images are kept.</p>
+              <div class="actions"><button id="confirmStop" type="button" class="danger">Yes, stop request</button><button id="keepRunning" type="button">Keep running</button></div>
+            </div>
+          </div>
+          <p id="stopMessage" class="message" role="status" aria-live="polite"></p>
           <details class="brief-tools"><summary>Export request briefs</summary><div class="actions"><button id="copyBrief" type="button">Copy full brief</button><button id="downloadBrief" type="button">Download brief .txt</button></div></details>
           <details><summary>Shared style notes</summary><p id="detailStyle" class="preserve"></p></details>
           <div id="detailNotes" class="notice" hidden></div>
           <div id="detailReferences" class="asset-grid"></div>
           <div id="detailItems" class="item-list"></div>
-          <div class="results-head"><h3>Finished images</h3><span id="resultCount" class="help"></span></div>
-          <p id="resultsEmpty" class="help">Finished images appear automatically. This page refreshes while the generator works.</p>
+          <div class="results-head"><div><h3>Archived website images</h3><span id="resultCount" class="help"></span></div><div id="bulkDownloadControls" hidden><button id="downloadAllResults" type="button" disabled>Download all (.zip)</button></div></div>
+          <p id="bulkDownloadMessage" class="message" role="status" aria-live="polite"></p>
+          <p id="resultsEmpty" class="help">New images are saved in the owner's folder in chat.</p>
           <div id="detailResults" class="asset-grid"></div>
 
           <details id="ownerControls" class="owner-controls" hidden>
             <summary>Advanced recovery controls</summary>
-            <p class="help">Requests normally generate and deliver automatically. These owner controls are available if a request needs attention.</p>
+            <p class="help">Finished folders are shared in your Codex chat. These owner controls are available if a request needs attention.</p>
             <form id="statusForm">
               <div class="form-grid"><label class="field">Request status <select id="ownerStatus"><option value="queued">Queued</option><option value="in_progress">Generating</option><option value="completed">Completed</option><option value="needs_attention">Needs attention</option><option value="cancelled">Cancelled</option></select></label><label class="field">Owner's note <textarea id="ownerNotes" rows="2" maxlength="4000" placeholder="Optional update for your team"></textarea></label></div>
               <button id="saveStatus" type="submit">Save status and note</button><p id="statusMessage" class="message" role="status" aria-live="polite"></p>
