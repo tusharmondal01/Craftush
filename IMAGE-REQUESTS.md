@@ -1,48 +1,57 @@
-# Craftush Image Generator — full-request delivery
+# Craftush Image Generator — project folders in the owner's chat
 
-Team members open [Image Generator](https://tusharmondal01.github.io/Craftush/images/), sign in with the studio team code, and submit one image or a bulk request. No ChatGPT account is needed for team submission or downloads.
+Team members open [Image Generator](https://tusharmondal01.github.io/Craftush/images/), sign in with the studio team code, and submit one thumbnail or a bulk brief. Keep the track or project name, individual track titles, shared prompt, style notes, requested dimensions and optional reference together in one request.
 
-## Current delivery setting
+## Current setting
 
-Generate the entire request first, then send its saved images to Craftush in one final delivery phase. A 132-image request is processed as 132 images; ten is only the maximum native dispatch group, not a request limit. No image bytes are uploaded between generation groups.
+Generate every image in one request **one at a time**, then give the owner a folder in the existing Codex chat. New thumbnail files are not uploaded to Craftush. A 132-image request still means all 132 images. The internal ten-item preparation window is a receipt boundary, not native concurrency or a request limit: generationConcurrency 1, generationBatchSize 10, uploadPolicy local_folder.
 
-The page updates during final delivery, and Download all (.zip) saves delivered originals together. Final transport sends files separately to respect existing size limits, so visibility is not an atomic all-at-once switch. No speedup is guaranteed. Stop request prevents later generation groups and preserves finished results and attempt receipts. Calls already dispatched to the native service may finish.
+The folder uses the exact project name, and image filenames use the exact track titles with the actual raster extension. Only characters or names Windows cannot use are mapped; the local manifest records that mapping. Duplicate track names or conflicting existing files require attention instead of silently overwriting a different result. Native size requests remain guidance; the original image bytes are preserved.
+
+Team members receive a brief accepted acknowledgement. While that submission remains in memory on the page, they can Stop it. There is no team request history, thumbnail preview, download list or background history polling. Reloading or locking the page clears the acknowledgement; it does not cancel an accepted request. Stop prevents later generation; a native call already running may finish and its saved original is kept.
+
+## Owner archive and privacy
+
+The owner signs in with the existing admin password to review the private request archive. All prior request records, notes, references and previously uploaded thumbnails remain available to the owner, including their existing preview and ZIP download controls. New local-folder completions show the folder name and completion status instead of missing-image warnings. The folder link is provided in the owner's chat; it is not automatically sent to team members.
+
+Team API access returns only access confirmation, create acknowledgement and Stop acknowledgement. Team list responses are empty; detail and asset access require owner authentication. Hiding team history does not delete the owner's underlying records or stored image bytes. Credentials and the current team acknowledgement stay in page memory; locking the page clears private owner details and authenticated preview URLs.
 
 ## Owner's computer
 
-The existing Codex chat uses the built-in ImageGen skill only. No Runware, generation API key or separately billed generation API is used for these requests. Keep the computer awake, online and Codex running. Normal account limits apply.
+The existing Codex chat uses built-in ImageGen through the imagegen skill. No Runware, generation API key, generation CLI or separately configured paid image API is used. Keep the computer awake, online and Codex running. Normal account and native generation limits still apply; this delivery change does not guarantee a speed or token reduction.
 
-The five-minute automation checks only while this chat has no pending owner work. It processes one oldest waiting request and preserves that target across groups and safe interruptions. An owner-stopped run stays stopped until explicitly resumed. The private optional owner code is a chat command, never website authentication, and is excluded from public source and packages.
+The five-minute automation checks only when trusted prior chat context proves no owner work is pending. It pins one oldest waiting request and preserves that target through preparation windows and safe interruptions. An owner-stopped run remains stopped until explicitly resumed. The optional private owner code is a chat command, never website authentication, and stays out of public source and packages.
 
-## Native transport
+## Queue transport and saved originals
 
-The helper transports queue data and saved original bytes; it does not generate images. Windows pairing credentials stay in their existing protected local connection. Never read, print, package or publish those private files. Do not alter their permissions.
+The existing Windows helper transports request data and receipt metadata. It does not generate images or upload new thumbnail bytes. Read scoped credentials only through that helper; never inspect, print, package or publish credential containers or token files, and never weaken their permissions.
 
-1. Verify authenticated status, heartbeat, status with normal network permission and the configured runner. The first genuinely scheduled verification for a runner records proof and ends without processing.
-2. Prepare at most ten items of the same pinned request. Save all prompts and inspect unique references before start.
-3. Start the exact batch once. Only a fresh complete acknowledgement authorizes one native call per started job; duplicate or uncertain starts never authorize another generation.
-4. Dispatch independent built-in calls together. Keep the exact tool-returned output paths. After all settle, save/fingerprint their original bytes with stage-batch. Its backend acknowledgement contains metadata only, never image bytes.
-5. Repeat preparation and generation for the same request, including a final short group. Saved groups survive interruption. Do not use per-group uploads.
-6. Once every remaining item has a saved accepted original, request-status reports ready_to_upload. flush-request verifies remote coverage and starts final delivery for all saved groups. Upload failures preserve receipts and resume identical bytes later; never regenerate.
+1. Acquire the exact shared operation lease with the local preflight. Active or unknown prior work skips before queue contact. No time-based lease takeover is allowed.
+2. With actual normal network permission, verify authenticated status, heartbeat, status for the configured runner. The first genuine scheduled verification records matching proof and ends without processing; later runs require that existing proof.
+3. Prepare up to ten items of the same pinned request. Save the exact prompts and inspect unique references before starting.
+4. Call start-batch once for that exact window. Only a fresh complete acknowledgement permits one native call per acknowledged job. Duplicate, uncertain or lost start responses never authorize another call.
+5. Await each built-in native call before invoking the next. No parallel generation or extra shell, queue, save, upload, test or inspection commands run between native calls. Keep the exact tool-returned output paths and timestamps, display the results, and preserve returned outputs before handling new owner work. Never revise or automatically generate replacements.
+6. Save the exact output manifest and receipts. stage-batch copies and fingerprints unchanged originals; only staging metadata is acknowledged by Craftush. Continue the same request, including a final short window.
+7. request-status must confirm full local coverage and ready_to_finalize. finalize-folder copies exact originals into the request-title folder, then sends finishLocalRequest with names, sizes, MIME types and fingerprints only. No image bytes or private filesystem paths are sent.
+8. Persist progress and release only this invocation's exact lease. A lost completion acknowledgement resumes the same saved folder idempotently; it never regenerates images. Give the owner the completed folder link in chat.
 
-Backend enforcement requires all request items to be staged or already completed before delivery begins. Uploaded bytes must match the saved fingerprint, MIME, name and size. New bulk claims always use after_request, including older clients. Existing legacy receipts remain recoverable by adopting saved groups into the request spool.
-
-Commands for the owner computer:
+Commands for the owner computer, using its configured Node executable and fixed working directory:
     node scripts/imagegen-bridge.mjs prepare-batch --request <pinned-request-id> --state-dir <private-directory>
     node scripts/imagegen-bridge.mjs start-batch --batch <exact-batch-id> --state-dir <private-directory>
     node scripts/imagegen-bridge.mjs stage-batch --manifest <exact-path-manifest> --result-dir <workspace-originals> --state-dir <private-directory>
     node scripts/imagegen-bridge.mjs request-status --state-dir <private-directory>
     node scripts/imagegen-bridge.mjs defer-batch --state-dir <private-directory>
-    node scripts/imagegen-bridge.mjs flush-request --request <pinned-request-id> --state-dir <private-directory>
+    node scripts/imagegen-bridge.mjs adopt-local-request --request <pinned-request-id> --state-dir <private-directory>
+    node scripts/imagegen-bridge.mjs finalize-folder --request <pinned-request-id> --output-root <absolute-owner-output-directory> --state-dir <private-directory>
 
-The older single-job and flush-batch commands are for old receipt recovery; they must not bypass full-request coverage. Never guess a newest generated file, change original pixels, reset attempts or create automatic replacements.
+Legacy after_request receipts can be adopted into local delivery without another native attempt. Previously delivered originals count once and stay in the owner archive. Do not call flush-request, flush-batch, legacy next, start or complete: their image upload/recovery paths are disabled. Never guess a newest generated file, alter pixels, reset attempts or replace an uncertain outcome.
 
 ## Limits and recovery
 
-Up to 200 images and one reference per request. Each PNG, JPEG or WebP is at most 5 MiB. Existing queue storage limits remain: 400 results and 512 MiB per request, 1,000 requests and 2 GiB total. The current team code shares all requests and results with studio members.
+Each request accepts up to 200 images and one reference. PNG, JPEG and WebP references and accepted saved originals are limited to 5 MiB each. Existing backend archive limits remain 400 stored results and 512 MiB per request, 1,000 requests and 2 GiB total; new local folders do not add thumbnail bytes to that archive.
 
-Unstarted claims expire after ten minutes. Started native jobs without an outcome require attention after thirty minutes; staged originals do not expire as uncertain native work while later groups generate. Cancellation stops later groups and never resets an uncertain native attempt. Existing originals and delivered files are preserved.
+Unstarted claims expire after ten minutes. Started native jobs without an outcome require attention after thirty minutes. Exact saved receipts can acknowledge originals, while staged originals remain available through later windows. Cancellation and local delivery preserve previous originals and attempt receipts. Missing or changed originals, filename collisions and uncertain native outcomes require attention; they are never repaired with automatic regeneration.
 
 ## Validation
 
-Full-request coverage, 132-image local transport, final short groups, no early uploads, exact-byte retry, cancellation, pinned request isolation, duplicate/lost starts and saved-image integrity are covered by focused tests. SQLite runtime checks exercise the compiled backend. Website tests retain Stop controls and ZIP downloads. Publishing this setting does not invoke native ImageGen or claim a real queue request.
+Focused tests cover sequential local policy, full request coverage, exact-byte folder copies, filename safety and collision rejection, idempotent metadata completion, migration of saved legacy originals, cancellation, pinned requests, duplicate/lost starts and receipt integrity. Backend tests verify empty team history and denied team detail/asset access while owner history remains intact. Website tests verify acknowledgement and Stop without history polling, owner archive previews/ZIP downloads, local-folder completion and cleared private state on lock. Publishing this setting does not invoke ImageGen or claim a live queue request.

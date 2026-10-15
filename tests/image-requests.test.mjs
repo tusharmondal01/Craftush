@@ -43,8 +43,8 @@ function fixture(settings = { teamCode: 'fixture-team' }) {
   f.call = (body, headers = TEAM, query = '') => f.handler(new Request('https://craftush.example/api/image-requests' + query, {
     method: body === undefined ? 'GET' : 'POST', headers: { 'content-type': 'application/json', ...headers }, ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   }));
-  f.create = async extra => { const body = brief(extra), response = await f.call(body); assert.equal(response.status, 201); return { body, ...(await response.json()) }; };
-  f.detail = async id => (await (await f.call(undefined, TEAM, '?action=detail&id=' + id)).json()).request;
+  f.create = async extra => { const body = brief(extra), response = await f.call(body, OWNER); assert.equal(response.status, 201); return { body, ...(await response.json()) }; };
+  f.detail = async id => (await (await f.call(undefined, OWNER, '?action=detail&id=' + id)).json()).request;
   return f;
 }
 
@@ -73,7 +73,8 @@ test('authenticated team cancellation is scoped, idempotent and preserves finish
     assert.equal((await f.call({ action: 'cancel', id: request.id }, {})).status, 401);
     const response = await f.call({ action: 'cancel', id: request.id, status: 'completed', notes: 'Cannot replace owner note' });
     assert.equal(response.status, 200);
-    const stopped = (await response.json()).request;
+    assert.deepEqual((await response.json()).acknowledgement, { id: request.id, stopped: true });
+    const stopped = await f.detail(request.id);
     assert.equal(stopped.status, 'cancelled'); assert.equal(stopped.notes, 'Keep this note');
     assert.equal(stopped.results.length, 1);
     assert.equal((await f.call({ action: 'cancel', id: request.id })).status, 200);
@@ -102,7 +103,7 @@ test('stopping a claimed bulk request prevents its acknowledged group from start
   } finally { f.close(); }
 });
 
-test('an image already started can finish after stop without restarting the cancelled request', async () => {
+test('an image already started cannot upload after local-folder policy or restart a cancelled request', async () => {
   const f = fixture();
   try {
     const { request } = await f.create();
@@ -110,11 +111,9 @@ test('an image already started can finish after stop without restarting the canc
     assert.equal((await runner.call({ action: 'start', jobId: job.jobId })).status, 200);
     assert.equal((await f.call({ action: 'cancel', id: request.id })).status, 200);
     const finished = await runner.call({ action: 'complete', jobId: job.jobId, image: upload() });
-    assert.equal(finished.status, 200);
-    const saved = (await finished.json()).request;
-    assert.equal(saved.status, 'cancelled'); assert.equal(saved.results.length, 1);
-    const asset = await f.call(undefined, TEAM, '?action=asset&id=' + request.id + '&assetId=' + saved.results[0].assetId);
-    assert.equal(asset.status, 200); assert.equal(Buffer.from(await asset.arrayBuffer()).toString('base64'), PNG);
+    assert.equal(finished.status, 409);
+    const saved = await f.detail(request.id);
+    assert.equal(saved.status, 'cancelled'); assert.equal(saved.results.length, 0);
   } finally { f.close(); }
 });
 
@@ -154,7 +153,7 @@ test('simultaneous 200-item submissions are retained, metadata lists omit briefs
     const bodies = Array.from({ length: 12 }, (_, index) => brief({ title: 'Batch ' + index, items: Array.from({ length: 200 }, (_, item) => ({ title: 'Planet ' + item, prompt: 'हिन्दी scene 🪐 ' + item })), reference: upload() }));
     const responses = await Promise.all(bodies.map(body => f.call(body)));
     assert(responses.every(response => response.status === 201));
-    const listing = await (await f.call(undefined, TEAM, '?action=list&limit=5&offset=5')).json();
+    const listing = await (await f.call(undefined, OWNER, '?action=list&limit=5&offset=5')).json();
     assert.equal(listing.total, 12); assert.equal(listing.requests.length, 5); assert.equal(listing.requests[0].itemCount, 200);
     assert(!JSON.stringify(listing).includes('हिन्दी')); assert(!JSON.stringify(listing).includes(PNG));
     const detail = await f.detail(bodies[0].submissionId);
@@ -169,7 +168,7 @@ test('a lost submission response can be retried once without duplicate jobs or r
     const body = brief({ reference: upload() });
     const responses = await Promise.all([f.call(body), f.call(body)]), data = await Promise.all(responses.map(response => response.json()));
     assert(responses.every(response => response.status === 201)); assert.equal(data.filter(result => result.duplicate).length, 1);
-    assert.equal((await (await f.call(undefined, TEAM, '?action=list')).json()).total, 1);
+    assert.equal((await (await f.call(undefined, OWNER, '?action=list')).json()).total, 1);
     assert.equal((await f.detail(body.submissionId)).references.length, 1);
     const conflict = await f.call({ ...body, title: 'Changed brief' });
     assert.equal(conflict.status, 409); assert.equal((await conflict.json()).errors[0].code, 'IDEMPOTENCY_CONFLICT');
@@ -182,7 +181,7 @@ test('only supported raster images are accepted, including real JPG and WebP fil
   try {
     for (const reference of [upload(PNG), upload(JPG, 'image/jpeg', 'photo.jpg'), upload(WEBP, 'image/webp', 'photo.webp')]) {
       const { request } = await f.create({ reference });
-      const response = await f.call(undefined, TEAM, '?action=asset&id=' + request.id + '&assetId=' + request.references[0].assetId);
+      const response = await f.call(undefined, OWNER, '?action=asset&id=' + request.id + '&assetId=' + request.references[0].assetId);
       assert.equal(response.status, 200); assert.equal(response.headers.get('content-type'), reference.mime);
       assert.deepEqual(Buffer.from(await response.arrayBuffer()), Buffer.from(reference.base64, 'base64'));
       assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
@@ -190,7 +189,7 @@ test('only supported raster images are accepted, including real JPG and WebP fil
     for (const reference of [upload(Buffer.from('<svg><script>alert(1)</script></svg>').toString('base64')), upload(PNG, 'image/jpeg'), upload(PNG.slice(0, -8)), upload('@@@@')]) assert.equal((await f.call(brief({ reference }))).status >= 400, true);
     const oversized = Buffer.alloc(IMAGE_REQUEST_LIMITS.assetBytes + 1).toString('base64');
     assert.equal((await f.call(brief({ reference: upload(oversized) }))).status, 413);
-    const listing = await (await f.call(undefined, TEAM, '?action=list')).json(); assert.equal(listing.total, 3);
+    const listing = await (await f.call(undefined, OWNER, '?action=list')).json(); assert.equal(listing.total, 3);
   } finally { f.close(); }
 });
 
@@ -206,7 +205,7 @@ test('owner delivers incrementally; completion requires results for every item',
     const second = { ...upload(JPG, 'image/jpeg', 'mars.jpg'), assetId: crypto.randomUUID(), itemId: '2' };
     assert.equal((await f.call({ action: 'deliver', id: request.id, images: [second], status: 'completed', notes: 'Ready to download' }, OWNER)).status, 200);
     const complete = await f.detail(request.id); assert.equal(complete.results.length, 2); assert.equal(complete.status, 'completed'); assert.equal(complete.notes, 'Ready to download');
-    const listing = await (await f.call(undefined, TEAM, '?action=list')).json(); assert.equal(listing.requests[0].resultCount, 2);
+    const listing = await (await f.call(undefined, OWNER, '?action=list')).json(); assert.equal(listing.requests[0].resultCount, 2);
   } finally { f.close(); }
 });
 
@@ -221,7 +220,7 @@ test('parallel deliveries preserve both results and duplicate upload retries do 
     assert.equal((await repeated.json()).duplicate, true); assert.equal((await f.detail(request.id)).results.length, 2);
     const collision = await f.call({ action: 'deliver', id: request.id, images: [{ ...images[0], ...upload(JPG, 'image/jpeg', 'different.jpg') }] }, OWNER);
     assert.equal(collision.status, 409);
-    const saved = await f.call(undefined, TEAM, '?action=asset&id=' + request.id + '&assetId=' + images[0].assetId);
+    const saved = await f.call(undefined, OWNER, '?action=asset&id=' + request.id + '&assetId=' + images[0].assetId);
     assert.deepEqual(Buffer.from(await saved.arrayBuffer()), Buffer.from(PNG, 'base64'));
     assert.equal((await f.call(undefined, OWNER, '?action=asset&id=' + crypto.randomUUID() + '&assetId=' + images[0].assetId)).status, 404);
   } finally { f.close(); }
@@ -239,7 +238,7 @@ test('failed image writes roll back an entire delivery and preserve saved briefs
     assert.equal((await f.call(brief({ reference: upload() }))).status, 503);
     f.failImageWrite = false;
     const preserved = await f.detail(request.id); assert.equal(preserved.results.length, 1); assert.equal(preserved.references.length, 1); assert.equal(preserved.status, 'queued');
-    assert.equal((await (await f.call(undefined, TEAM, '?action=list')).json()).total, 1);
+    assert.equal((await (await f.call(undefined, OWNER, '?action=list')).json()).total, 1);
     assert.equal((await f.call({ action: 'deliver', id: request.id, images: [next] }, OWNER)).status, 200);
     assert.equal((await f.detail(request.id)).results.length, 2);
   } finally { f.close(); }
@@ -252,12 +251,12 @@ test('large raster assets round-trip across rows and a second-chunk failure leav
     const body = brief({ reference });
     f.failImageWriteAt = 1;
     assert.equal((await f.call(body)).status, 503);
-    assert.equal((await (await f.call(undefined, TEAM, '?action=list')).json()).total, 0);
+    assert.equal((await (await f.call(undefined, OWNER, '?action=list')).json()).total, 0);
     assert.equal(f.database.prepare('SELECT COUNT(*) AS total FROM image_request_asset_chunks').get().total, 0);
     f.failImageWriteAt = undefined;
     assert.equal((await f.call(body)).status, 201);
     const detail = await f.detail(body.submissionId);
-    const saved = await f.call(undefined, TEAM, '?action=asset&id=' + detail.id + '&assetId=' + detail.references[0].assetId);
+    const saved = await f.call(undefined, OWNER, '?action=asset&id=' + detail.id + '&assetId=' + detail.references[0].assetId);
     assert.deepEqual(Buffer.from(await saved.arrayBuffer()), bytes);
     assert.equal(f.database.prepare('SELECT COUNT(*) AS total FROM image_request_asset_chunks').get().total, 2);
   } finally { f.close(); }
@@ -292,7 +291,7 @@ test('invalid IDs, batches, item mappings, and unsupported status changes fail w
     assert.equal((await f.call({ action: 'status', id: request.id, status: 'unknown' }, OWNER)).status, 400);
     assert.equal((await f.call({ action: 'deliver', id: request.id, images: [{ ...upload(), assetId: crypto.randomUUID(), itemId: '2' }] }, OWNER)).status, 400);
     assert.equal((await f.detail(request.id)).results.length, 0);
-    assert.equal((await f.call(undefined, TEAM, '?action=detail&id=' + crypto.randomUUID())).status, 404);
+    assert.equal((await f.call(undefined, OWNER, '?action=detail&id=' + crypto.randomUUID())).status, 404);
   } finally { f.close(); }
 });
 
@@ -320,7 +319,7 @@ function routeRequest(body, headers = TEAM, query = '') {
   });
 }
 
-test('actual Worker route persists a team brief, accepts owner delivery, and lets the team download without a provider', async () => {
+test('actual Worker route persists a team brief and keeps archived delivery and downloads owner-only without a provider', async () => {
   const f = fixture(), environment = workerEnvironment(f), originalFetch = globalThis.fetch;
   let externalCalls = 0;
   globalThis.fetch = async () => { externalCalls++; throw new Error('No outside service should be called'); };
@@ -332,16 +331,20 @@ test('actual Worker route persists a team brief, accepts owner delivery, and let
     const metaText = await meta.text(); assert(!metaText.includes('fixture-team')); assert(!metaText.includes('never-send-this-provider-key'));
     const body = brief({ reference: upload() }), created = await call(body);
     assert.equal(created.status, 201);
-    const { request } = await created.json();
+    assert.equal((await created.json()).acknowledgement.id, body.submissionId);
+    const request = (await (await call(undefined, OWNER, '?action=detail&id=' + body.submissionId)).json()).request;
     assert.equal((await call({ action: 'status', id: request.id, status: 'in_progress' }, OWNER)).status, 200);
     const image = { ...upload(JPG, 'image/jpeg', 'finished.jpg'), assetId: crypto.randomUUID(), itemId: '1' };
     const delivered = await call({ action: 'deliver', id: request.id, images: [image], status: 'completed', notes: 'Ready' }, OWNER);
     assert.equal(delivered.status, 200); assert.equal((await delivered.json()).request.status, 'completed');
-    const listing = await (await call(undefined, TEAM, '?action=list')).json();
+    assert.equal((await (await call(undefined, TEAM, '?action=list')).json()).total, 0);
+    const listing = await (await call(undefined, OWNER, '?action=list')).json();
     assert.equal(listing.requests.length, 1); assert.equal(listing.requests[0].resultCount, 1);
-    const detail = await (await call(undefined, TEAM, '?action=detail&id=' + request.id)).json();
+    assert.equal((await call(undefined, TEAM, '?action=detail&id=' + request.id)).status, 403);
+    const detail = await (await call(undefined, OWNER, '?action=detail&id=' + request.id)).json();
     assert.equal(detail.request.results[0].assetId, image.assetId);
-    const result = await call(undefined, TEAM, '?action=asset&id=' + request.id + '&assetId=' + image.assetId);
+    assert.equal((await call(undefined, TEAM, '?action=asset&id=' + request.id + '&assetId=' + image.assetId)).status, 403);
+    const result = await call(undefined, OWNER, '?action=asset&id=' + request.id + '&assetId=' + image.assetId);
     assert.equal(result.status, 200); assert.equal(result.headers.get('content-type'), 'image/jpeg');
     assert.equal(result.headers.get('cache-control'), 'no-store'); assert.equal(result.headers.get('access-control-allow-origin'), SITE);
     assert.deepEqual(Buffer.from(await result.arrayBuffer()), Buffer.from(JPG, 'base64'));
@@ -441,7 +444,7 @@ test('only the first durable start permits ImageGen, and interrupted started job
     assert.equal(saved.state, 'needs_attention'); assert.equal(saved.started_at, '2026-10-14T10:00:00.000Z');
     const cannotRestart = await (await runner.call({ action: 'start', jobId: job.jobId })).json(); assert.equal(cannotRestart.canGenerate, false);
     const completed = await runner.call({ action: 'complete', jobId: job.jobId, image: upload() });
-    assert.equal(completed.status, 200); assert.equal((await completed.json()).request.status, 'completed');
+    assert.equal(completed.status, 409); assert.equal((await f.detail(job.requestId)).status, 'in_progress');
   } finally { f.close(); }
 });
 
@@ -457,27 +460,24 @@ test('an expired unstarted claim is safely reclaimed with its original job UUID'
   } finally { f.close(); }
 });
 
-test('completion uploads are atomic and retryable without regenerating or replacing a saved image', async () => {
+test('the retired runner upload endpoint cannot write or replace an image under local-folder delivery', async () => {
   const f = fixture();
   try {
     await f.create({ items: [{ title: 'Earth', prompt: 'Earth' }, { title: 'Mars', prompt: 'Mars' }] });
     const runner = await pairRunner(f), first = await claim(runner), image = upload(largePNG().toString('base64'), 'image/png', first.job.filename);
     await runner.call({ action: 'start', jobId: first.job.jobId });
     f.failImageWriteAt = 1;
-    assert.equal((await runner.call({ action: 'complete', jobId: first.job.jobId, image })).status, 503);
+    assert.equal((await runner.call({ action: 'complete', jobId: first.job.jobId, image })).status, 409);
     assert.equal(f.database.prepare('SELECT state FROM image_request_generation WHERE job_id = ?').get(first.job.jobId).state, 'started');
     assert.equal((await f.detail(first.job.requestId)).results.length, 0);
     f.failImageWriteAt = undefined;
-    const completed = await (await runner.call({ action: 'complete', jobId: first.job.jobId, image })).json();
-    assert.equal(completed.duplicate, false); assert.equal(completed.request.results[0].assetId, first.job.jobId); assert.equal(completed.request.status, 'in_progress');
-    const retried = await (await runner.call({ action: 'complete', jobId: first.job.jobId, image })).json();
-    assert.equal(retried.duplicate, true); assert.equal(retried.request.results.length, 1);
+    const completed = await runner.call({ action: 'complete', jobId: first.job.jobId, image });
+    assert.equal(completed.status, 409); assert.equal((await completed.json()).errors[0].code, 'LOCAL_FOLDER_ONLY');
+    assert.equal((await runner.call({ action: 'complete', jobId: first.job.jobId, image })).status, 409);
     assert.equal((await runner.call({ action: 'complete', jobId: first.job.jobId, image: upload(JPG, 'image/jpeg', 'different.jpg') })).status, 409);
-    const second = await claim(runner); assert.equal(second.job.itemId, '2');
-    await runner.call({ action: 'start', jobId: second.job.jobId });
-    const final = await (await runner.call({ action: 'complete', jobId: second.job.jobId, image: upload() })).json();
-    assert.equal(final.request.status, 'completed'); assert.equal(final.request.results.length, 2);
-    assert.equal((await claim(runner)).job, null);
+    assert.equal((await f.detail(first.job.requestId)).results.length, 0);
+    assert.equal(f.database.prepare('SELECT COUNT(*) AS total FROM image_request_asset_chunks').get().total, 0);
+    assert.equal((await runner.call({ action: 'claim', claimId: crypto.randomUUID() })).status, 409);
   } finally { f.close(); }
 });
 
@@ -541,11 +541,11 @@ test('team-selected submission and reference IDs cannot reserve a native job res
     assert.notEqual(unrelated.request.references[0].assetId, job.jobId);
     await runner.call({ action: 'start', jobId: job.jobId });
     const completed = await runner.call({ action: 'complete', jobId: job.jobId, image: upload() });
-    assert.equal(completed.status, 200);
-    assert.equal((await completed.json()).request.id, original.request.id);
+    assert.equal(completed.status, 409);
+    assert.equal((await f.detail(original.request.id)).results.length, 0);
     const recovered = await runner.call(undefined, '?action=runnerJob&jobId=' + job.jobId);
     assert.equal(recovered.status, 200);
-    const saved = await recovered.json(); assert.equal(saved.job.state, 'completed'); assert.equal(saved.job.requestStatus, 'completed');
+    const saved = await recovered.json(); assert.equal(saved.job.state, 'started'); assert.equal(saved.job.requestStatus, 'in_progress');
     const otherJob = (await f.detail(unrelated.request.id)).items[0].generation.jobId;
     assert.equal((await runner.call(undefined, '?action=runnerJob&jobId=' + otherJob)).status, 403);
   } finally { f.close(); }

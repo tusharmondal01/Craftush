@@ -147,18 +147,25 @@ export class CraftushStorage {
     if (!batch || batch.runner_id !== runnerId) throw queueError('This image group does not belong to the paired generator.', 403, 'RUNNER_SCOPE_DENIED');
     const jobs = JSON.parse(batch.job_ids).map(jobId => this.jobBrief(this.scopedJob(jobId, runnerId)));
     const record = this.requestRecord(batch.request_id);
-    return { batchId, requestId: batch.request_id, requestStatus: record.status, itemCount: record.item_count, resultCount: record.result_count, jobs, canGenerate: false };
+    const document = JSON.parse(record.document);
+    return { batchId, requestId: batch.request_id, requestTitle: document.title, requestStatus: record.status, itemCount: record.item_count, resultCount: record.result_count,
+      uploadPolicy: document.uploadPolicy || 'after_request', generationConcurrency: IMAGE_RUNNER_LIMITS.generationConcurrency, jobs, canGenerate: false };
   }
 
   runnerRequest(requestId, runnerId) {
     const jobs = this.sql.exec('SELECT * FROM image_request_generation WHERE request_id = ?', requestId).toArray();
     if (!jobs.some(job => job.runner_id === runnerId)) throw queueError('This request does not belong to the paired generator.', 403, 'RUNNER_SCOPE_DENIED');
-    const record = this.requestRecord(requestId), delivery = this.sql.exec('SELECT * FROM image_request_deliveries WHERE request_id = ?', requestId).toArray()[0];
+    const record = this.requestRecord(requestId), document = JSON.parse(record.document), delivery = this.sql.exec('SELECT * FROM image_request_deliveries WHERE request_id = ?', requestId).toArray()[0];
     if (delivery && delivery.runner_id !== runnerId) throw queueError('This request belongs to another generator connection.', 403, 'RUNNER_SCOPE_DENIED');
     const stagedCount = jobs.filter(job => job.state === 'staged').length;
-    return { requestId, requestStatus: record.status, itemCount: record.item_count, resultCount: record.result_count, stagedCount,
-      uploadPolicy: delivery ? 'after_request' : 'after_group', deliveryPhase: delivery?.phase || null,
-      readyToUpload: jobs.length === record.item_count && jobs.every(job => job.state === 'completed' || (job.state === 'staged' && job.runner_id === runnerId)),
+    const readyToFinishLocal = jobs.length === record.item_count && jobs.every(job => job.state === 'completed' || (job.state === 'staged' && job.runner_id === runnerId));
+    return { requestId, title: document.title, requestStatus: record.status, itemCount: record.item_count,
+      resultCount: document.localDelivery ? jobs.filter(job => job.state === 'completed').length : record.result_count, uploadedCount: record.result_count, stagedCount,
+      uploadPolicy: document.uploadPolicy || (delivery ? 'after_request' : 'after_group'), deliveryPhase: delivery?.phase || null,
+      generationConcurrency: IMAGE_RUNNER_LIMITS.generationConcurrency, readyToFinishLocal,
+      localDelivery: document.localDelivery || null,
+      items: document.items.map(item => { const job = jobs.find(job => job.item_id === item.id); return { id: item.id, title: item.title, filename: item.filename, jobId: job?.job_id, state: job?.state }; }),
+      readyToUpload: document.uploadPolicy !== 'local_folder' && readyToFinishLocal,
       jobs: jobs.map(job => ({ jobId: job.job_id, itemId: job.item_id, state: job.state })), canGenerate: false };
   }
 
@@ -186,6 +193,34 @@ export class CraftushStorage {
     if (operation === 'runner-heartbeat') return summary();
     if (operation === 'runner-batch') return this.runnerBatch(payload.batchId, runner.runner_id);
     if (operation === 'runner-request') return this.runnerRequest(payload.requestId, runner.runner_id);
+    if (operation === 'runner-finish-local-request') {
+      const progress = this.runnerRequest(payload.requestId, runner.runner_id);
+      if (progress.requestStatus === 'cancelled') throw queueError('This image request was cancelled.', 409, 'REQUEST_CANCELLED');
+      if (!progress.readyToFinishLocal) throw queueError('Save every requested thumbnail before finishing its folder.', 409, 'REQUEST_NOT_READY');
+      const record = this.requestRecord(payload.requestId), document = JSON.parse(record.document);
+      const files = new Map(payload.files.map(file => [file.jobId, file]));
+      if (files.size !== progress.jobs.length || payload.files.length !== progress.jobs.length) throw queueError('The folder must include every requested thumbnail exactly once.', 409, 'LOCAL_FOLDER_MISMATCH');
+      for (const job of progress.jobs) {
+        const file = files.get(job.jobId);
+        const saved = this.sql.exec('SELECT * FROM image_request_staged_results WHERE job_id = ?', job.jobId).toArray()[0];
+        const uploaded = this.sql.exec('SELECT * FROM image_request_assets WHERE asset_id = ? AND request_id = ? AND kind = ?', job.jobId, payload.requestId, 'result').toArray()[0];
+        const receipt = saved || uploaded;
+        if (!file || file.itemId !== job.itemId || !receipt || ['fingerprint','mime','bytes'].some(key => receipt[key] !== file[key])) throw queueError('The folder does not match its exact saved thumbnail receipts.', 409, 'LOCAL_FOLDER_MISMATCH');
+      }
+      if (document.localDelivery) {
+        if (document.localDelivery.folderName !== payload.folderName || document.localDelivery.manifestFingerprint !== payload.manifestFingerprint) throw queueError('This request already has a different saved folder receipt.', 409, 'LOCAL_FOLDER_CONFLICT');
+        return { ...progress, duplicate: true };
+      }
+      document.uploadPolicy = 'local_folder';
+      document.localDelivery = { folderName: payload.folderName, manifestFingerprint: payload.manifestFingerprint, itemCount: record.item_count, completedAt: stamp };
+      document.status = 'completed';
+      this.sql.exec("UPDATE image_request_generation SET state = 'completed', message = '', updated_at = ? WHERE request_id = ? AND state = 'staged' AND runner_id = ?", stamp, payload.requestId, runner.runner_id);
+      this.saveRequestDocument(record, document, stamp);
+      const delivery = this.sql.exec('SELECT * FROM image_request_deliveries WHERE request_id = ?', payload.requestId).toArray()[0];
+      if (delivery) this.sql.exec("UPDATE image_request_deliveries SET phase = 'completed', updated_at = ? WHERE request_id = ?", stamp, payload.requestId);
+      else this.sql.exec("INSERT INTO image_request_deliveries (request_id, runner_id, phase, updated_at) VALUES (?, ?, 'completed', ?)", payload.requestId, runner.runner_id, stamp);
+      return { ...this.runnerRequest(payload.requestId, runner.runner_id), duplicate: false };
+    }
     if (operation === 'runner-stage-batch') {
       const batch = this.runnerBatch(payload.batchId, runner.runner_id);
       if (batch.requestStatus === 'cancelled') throw queueError('This image request was cancelled.', 409, 'REQUEST_CANCELLED');
@@ -203,15 +238,11 @@ export class CraftushStorage {
       if (!delivery) this.sql.exec("INSERT INTO image_request_deliveries (request_id, runner_id, phase, updated_at) VALUES (?, ?, 'collecting', ?)", batch.requestId, runner.runner_id, stamp);
       const progress = this.runnerRequest(batch.requestId, runner.runner_id);
       if (progress.requestStatus === 'completed') this.sql.exec("UPDATE image_request_deliveries SET phase = 'completed', updated_at = ? WHERE request_id = ?", stamp, batch.requestId);
-      else if (progress.readyToUpload && delivery?.phase !== 'uploading') this.sql.exec("UPDATE image_request_deliveries SET phase = 'ready_to_upload', updated_at = ? WHERE request_id = ?", stamp, batch.requestId);
+      else if (progress.readyToFinishLocal && delivery?.phase !== 'uploading') this.sql.exec('UPDATE image_request_deliveries SET phase = ?, updated_at = ? WHERE request_id = ?', progress.uploadPolicy === 'local_folder' ? 'ready_to_finish' : 'ready_to_upload', stamp, batch.requestId);
       return { ...this.runnerBatch(payload.batchId, runner.runner_id), requestProgress: this.runnerRequest(batch.requestId, runner.runner_id), staged: true };
     }
     if (operation === 'runner-begin-request-upload') {
-      const progress = this.runnerRequest(payload.requestId, runner.runner_id);
-      if (progress.requestStatus === 'cancelled') throw queueError('This image request was cancelled.', 409, 'REQUEST_CANCELLED');
-      if (progress.uploadPolicy !== 'after_request' || !progress.readyToUpload) throw queueError('Save every image in this request before starting delivery.', 409, 'REQUEST_NOT_READY');
-      this.sql.exec("UPDATE image_request_deliveries SET phase = ?, updated_at = ? WHERE request_id = ?", progress.requestStatus === 'completed' ? 'completed' : 'uploading', stamp, payload.requestId);
-      return this.runnerRequest(payload.requestId, runner.runner_id);
+      throw queueError('Thumbnails are saved in the owner’s local folder; image delivery to Craftush is disabled.', 409, 'LOCAL_FOLDER_ONLY');
     }
     if (operation === 'runner-claim-batch') {
       const repeated = this.sql.exec('SELECT * FROM image_request_generation_batches WHERE batch_id = ?', payload.batchId).toArray()[0];
@@ -239,8 +270,9 @@ export class CraftushStorage {
       for (const job of pending) this.sql.exec("UPDATE image_request_generation SET state = 'claimed', runner_id = ?, claim_id = ?, claimed_at = ?, updated_at = ? WHERE job_id = ?", runner.runner_id, crypto.randomUUID(), stamp, stamp, job.job_id);
       this.sql.exec('INSERT INTO image_request_generation_batches (batch_id, runner_id, request_id, job_ids, claimed_at) VALUES (?, ?, ?, ?, ?)', payload.batchId, runner.runner_id, first.request_id, JSON.stringify(pending.map(job => job.job_id)), stamp);
       const record = this.requestRecord(first.request_id), document = JSON.parse(record.document);
-      // Every newly reserved bulk request uses whole-request delivery. Existing
-      // batch receipts without a delivery record retain their recovery path.
+      // New work records the owner’s local-only policy. Existing uploaded assets
+      // and staging receipts remain intact when a legacy request continues.
+      document.uploadPolicy = 'local_folder';
       if (!delivery) this.sql.exec("INSERT INTO image_request_deliveries (request_id, runner_id, phase, updated_at) VALUES (?, ?, 'collecting', ?)", first.request_id, runner.runner_id, stamp);
       document.status = 'in_progress'; this.saveRequestDocument(record, document, stamp);
       return { ...this.runnerBatch(payload.batchId, runner.runner_id), duplicate: false };
@@ -257,7 +289,7 @@ export class CraftushStorage {
       const repeated = this.sql.exec('SELECT * FROM image_request_generation WHERE claim_id = ? AND runner_id = ?', payload.claimId, runner.runner_id).toArray()[0];
       if (repeated) return { job: this.jobBrief(repeated), duplicate: true, generator: this.generatorMeta(stamp) };
       if (this.sql.exec("SELECT d.request_id FROM image_request_deliveries d JOIN image_request_records r ON r.id = d.request_id WHERE d.phase != 'completed' AND r.status IN ('queued', 'in_progress') LIMIT 1").toArray().length) throw queueError('Finish the pinned image request before claiming another.', 409, 'REQUEST_PINNED');
-      if (this.sql.exec("SELECT job_id FROM image_request_generation WHERE state IN ('claimed', 'started') LIMIT 1").toArray().length) throw queueError('The generator already has an active image job.', 409, 'RUNNER_BUSY');
+      if (this.sql.exec("SELECT j.job_id FROM image_request_generation j JOIN image_request_records r ON r.id = j.request_id WHERE j.state IN ('claimed', 'started') AND r.status != 'cancelled' LIMIT 1").toArray().length) throw queueError('The generator already has an active image job.', 409, 'RUNNER_BUSY');
       if (this.generatorMeta(stamp).needsAttention) return { job: null, blocked: 'needs_attention', generator: this.generatorMeta(stamp) };
       const legacy = this.sql.exec("SELECT r.* FROM image_request_records r WHERE r.status IN ('queued', 'in_progress') AND NOT EXISTS (SELECT 1 FROM image_request_generation j WHERE j.request_id = r.id) ORDER BY r.created_at LIMIT 1").toArray()[0];
       if (legacy) this.ensureGenerationJobs(legacy);
@@ -284,27 +316,7 @@ export class CraftushStorage {
       return { job: this.jobBrief(this.scopedJob(job.job_id, runner.runner_id)), generator: this.generatorMeta(stamp) };
     }
     if (operation !== 'runner-complete') throw queueError('Unknown image generator operation.');
-    const asset = payload.asset, existing = this.sql.exec('SELECT * FROM image_request_assets WHERE asset_id = ?', job.job_id).toArray()[0];
-    if (existing) {
-      if (job.state !== 'completed' || existing.request_id !== job.request_id || existing.item_id !== job.item_id || existing.fingerprint !== asset.fingerprint || existing.mime !== asset.mime || existing.name !== asset.name) throw queueError('A different result already exists for this image job.', 409, 'ASSET_ID_CONFLICT');
-      return { request: this.requestDetail(this.requestRecord(job.request_id)), job: this.jobBrief(job), duplicate: true };
-    }
-    const delivery = this.sql.exec('SELECT * FROM image_request_deliveries WHERE request_id = ?', job.request_id).toArray()[0];
-    const staged = this.sql.exec('SELECT * FROM image_request_staged_results WHERE job_id = ?', job.job_id).toArray()[0];
-    if (delivery && (delivery.runner_id !== runner.runner_id || delivery.phase !== 'uploading' || !staged)) throw queueError('Save the whole request and begin its delivery before uploading.', 409, 'REQUEST_NOT_READY');
-    if (staged && ['fingerprint','mime','name','bytes'].some(key => staged[key] !== asset[key])) throw queueError('The uploaded bytes do not match the saved original receipt.', 409, 'ASSET_ID_CONFLICT');
-    if (!['started', 'staged', 'needs_attention'].includes(job.state)) throw queueError('Durably start the claimed job before generating and uploading an image.', 409, 'JOB_NOT_STARTED');
-    const record = this.requestRecord(job.request_id);
-    if (record.result_count >= IMAGE_REQUEST_LIMITS.results) throw queueError('This request has reached its result limit.', 413, 'RESULT_LIMIT');
-    this.checkAssetCapacity(record.asset_bytes, asset.bytes);
-    this.insertAssets(job.request_id, [asset], stamp);
-    this.sql.exec("UPDATE image_request_generation SET state = 'completed', message = '', updated_at = ? WHERE job_id = ?", stamp, job.job_id);
-    this.sql.exec('UPDATE image_request_records SET result_count = result_count + 1, asset_bytes = asset_bytes + ? WHERE id = ?', asset.bytes, job.request_id);
-    const document = JSON.parse(record.document), ready = new Set(this.sql.exec('SELECT item_id FROM image_request_assets WHERE request_id = ? AND kind = ?', job.request_id, 'result').toArray().map(row => row.item_id));
-    if (document.status !== 'cancelled') document.status = document.items.every(item => ready.has(item.id)) ? 'completed' : 'in_progress';
-    this.saveRequestDocument(record, document, stamp);
-    if (delivery && document.status === 'completed') this.sql.exec("UPDATE image_request_deliveries SET phase = 'completed', updated_at = ? WHERE request_id = ?", stamp, job.request_id);
-    return { request: this.requestDetail(this.requestRecord(job.request_id)), job: this.jobBrief(this.scopedJob(job.job_id, runner.runner_id)), duplicate: false };
+    throw queueError('Thumbnails are saved in the owner’s local folder; image delivery to Craftush is disabled.', 409, 'LOCAL_FOLDER_ONLY');
   }
 
   insertAssets(requestId, assets, createdAt) {
@@ -322,7 +334,7 @@ export class CraftushStorage {
   }
 
   ensureCompletion(request, resultItemIds) {
-    if (request.status === 'completed' && request.items.some(item => !resultItemIds.has(item.id))) throw queueError('Upload a result for every thumbnail before marking this request completed.', 409, 'RESULTS_INCOMPLETE');
+    if (request.status === 'completed' && !request.localDelivery && request.items.some(item => !resultItemIds.has(item.id))) throw queueError('Upload a result for every thumbnail before marking this request completed.', 409, 'RESULTS_INCOMPLETE');
   }
 
   async imageRequests(request) {
@@ -336,7 +348,10 @@ export class CraftushStorage {
         if (operation === 'generator-meta' || operation.startsWith('runner-')) { result = this.runnerOperation(operation, payload); return; }
         if (operation === 'list') {
           const limit = Math.min(100, Math.max(1, Math.floor(Number(payload.limit) || 50))), offset = Math.max(0, Math.floor(Number(payload.offset) || 0));
-          const requests = this.sql.exec('SELECT id, title, name, status, item_count AS itemCount, result_count AS resultCount, created_at AS createdAt, updated_at AS updatedAt FROM image_request_records ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?', limit, offset).toArray();
+          const requests = this.sql.exec('SELECT id, title, name, status, item_count AS itemCount, result_count AS resultCount, created_at AS createdAt, updated_at AS updatedAt, document FROM image_request_records ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?', limit, offset).toArray().map(({ document, ...row }) => {
+            const saved = JSON.parse(document);
+            return { ...row, uploadPolicy: saved.uploadPolicy || 'after_request', ...(saved.localDelivery ? { localDelivery: saved.localDelivery, localResultCount: saved.localDelivery.itemCount } : {}) };
+          });
           result = { requests, total: this.sql.exec('SELECT COUNT(*) AS total FROM image_request_records').toArray()[0].total, limit, offset };
           return;
         }

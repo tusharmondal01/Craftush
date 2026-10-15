@@ -86,13 +86,19 @@ try {
     const config=connection(JSON.parse(await readFile(secretPath,'utf8')));
     if(config.runnerId!==pointer.runnerId) throw new Error('The connection identity changed.');
     const queue=new ImageQueue(config,join(directory,config.runnerId));
-    const batchQueue=new ImageBatchQueue(config,join(directory,config.runnerId),{resultDirectory:values['result-dir'] || resolve('../craftush-native-results')});
+    // The current owner policy is local folders. Even legacy upload receipts
+    // cannot turn a later CLI call into an image-byte delivery operation.
+    if(values['delivery-policy']&&values['delivery-policy']!=='local_folder')throw new Error('This bridge uses local-folder delivery only.');
+    const batchQueue=new ImageBatchQueue(config,join(directory,config.runnerId),{uploadPolicy:'local_folder',resultDirectory:values['result-dir'] || resolve('../craftush-native-results')});
     let result;
+    if(['flush-request','flush-batch','next','start','complete'].includes(command))throw new Error('Image uploads and legacy single-image recovery are disabled. Use local-folder request commands.');
     if(command === 'prepare-batch') result=await batchQueue.prepare(values.request);
     else if(command === 'start-batch') result=await batchQueue.start(values.batch);
     else if(command === 'stage-batch') result=await batchQueue.stage(JSON.parse(await readFile(resolve(values.manifest),'utf8')));
     else if(command === 'defer-batch') result=await batchQueue.defer();
     else if(command === 'request-status') result=await batchQueue.requestStatus();
+    else if(command === 'adopt-local-request') result=await batchQueue.adoptLocalRequest(values.request);
+    else if(command === 'finalize-folder') result=await batchQueue.finalizeFolder(values.request,resolve(values['output-root'] || '../../outputs'));
     else if(command === 'flush-request') result=await batchQueue.flushRequest(values.request);
     else if(command === 'flush-batch') result=await batchQueue.flush();
     else if(command === 'next') result=await queue.next();
@@ -101,7 +107,7 @@ try {
     else if(command === 'report') result=await queue.report(values.job,values.state,values.message);
     else if(command === 'status') result=await queue.api(null,{action:'runnerMeta'});
     else if(command === 'heartbeat') result=await queue.api({action:'runnerHeartbeat'});
-    else throw new Error('Choose configure, status, heartbeat, prepare-batch, start-batch, stage-batch, defer-batch, request-status, flush-request or a legacy single-image command.');
+    else throw new Error('Choose configure, status, heartbeat, prepare-batch, start-batch, stage-batch, defer-batch, request-status, adopt-local-request, finalize-folder or report.');
     console.log(JSON.stringify(result));
   }
 } catch(error) {

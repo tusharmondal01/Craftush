@@ -15,6 +15,7 @@
   let requests = [];
   let currentRequest = null;
   let pendingSubmission = null;
+  let teamSubmission = null;
   let submissionBusy = false;
   let deliveryBusy = false;
   let statusBusy = false;
@@ -71,6 +72,7 @@
   function updateAccess(clearMessage = true) {
     const owner = $('accessRole').value === 'owner';
     $('credentialLabel').textContent = owner ? 'Admin password' : 'Team access code';
+    $('accessButton').firstChild.textContent = owner ? 'Open owner archive ' : 'Open request form ';
     $('credentialHelp').textContent = owner ? 'Use your existing Craftush admin password. It stays in memory until you leave or lock this page.' : 'Ask your studio owner for the code. It stays in memory until you leave or lock this page.';
     $('credential').value = '';
     $('accessButton').disabled = !connected || (!owner && (!metadata?.enabled || !metadata?.teamConfigured));
@@ -82,7 +84,7 @@
       metadata = await request('meta');
       if (typeof metadata.teamConfigured !== 'boolean') throw new Error('The image request backend is not deployed at this address yet.');
       connected = true;
-      $('connectionNotice').textContent = !metadata.enabled ? 'The Image Generator is turned off. The owner can still open the queue.' : metadata.teamConfigured ? 'The shared image queue is ready. Submit a prompt and your images will appear here automatically.' : 'The shared queue is ready. The owner must set a team access code in Admin to enable team access.';
+      $('connectionNotice').textContent = !metadata.enabled ? 'The Image Generator is turned off. The owner can still open the archive.' : metadata.teamConfigured ? 'Ready for thumbnail requests. Images are generated one by one and saved in a folder for the owner in chat.' : 'The owner must set a team access code in Admin to enable requests.';
       renderGenerator();
     } catch (error) {
       connected = false;
@@ -98,19 +100,25 @@
     credential = $('credential').value.trim();
     if (!credential) return message('accessMessage', 'Enter your ' + (role === 'owner' ? 'admin password.' : 'team access code.'), 'error');
     $('accessButton').disabled = true;
-    message('accessMessage', 'Opening the shared queue…');
+    message('accessMessage', 'Checking access…');
     try {
       offset = 0;
-      await loadQueue(true);
+      if (role === 'owner') await loadQueue(true);
+      else {
+        const access = await request('access');
+        if (access.role !== 'team') throw new Error('Team access could not be confirmed.');
+      }
       $('credential').value = '';
       $('accessSection').hidden = true;
       $('workspace').hidden = false;
       $('sessionLabel').textContent = role === 'owner' ? 'Studio owner' : 'Team workspace';
       $('requestSection').hidden = !metadata.enabled;
       $('pairingSection').hidden = role !== 'owner';
+      $('queueSection').hidden = role !== 'owner';
+      $('sessionHelp').textContent = role === 'owner' ? 'Your private request archive. Previous images remain available here.' : 'Submit a brief. The owner receives the finished folder in chat.';
       renderGenerator();
       message('accessMessage', '');
-      $('queueHeading').scrollIntoView({ block: 'start' });
+      $(role === 'owner' ? 'queueHeading' : 'requestHeading').scrollIntoView({ block: 'start' });
       schedulePoll();
     } catch (error) {
       credential = '';
@@ -127,9 +135,16 @@
     $('pairingSecurity').hidden = true;
     message('pairingMessage', '');
     currentRequest = null;
+    teamSubmission = null;
+    $('teamReceipt').hidden = true;
+    $('teamReceiptMessage').textContent = '';
+    $('teamStopMessage').textContent = '';
     requests = [];
     queueRevision++;
     closeDetail();
+    for (const id of ['detailHeading', 'detailMeta', 'detailDeliveryPolicy', 'detailStyle', 'detailNotes', 'detailItems', 'detailReferences', 'detailResults', 'resultCount']) $(id).replaceChildren();
+    $('ownerNotes').value = '';
+    $('ownerControls').hidden = true;
     clearDelivery();
     $('queueList').replaceChildren();
     $('workspace').hidden = true;
@@ -144,8 +159,8 @@
     const attention = Number(generator.needsAttention || 0);
     $('generatorBadge').className = 'status-badge ' + (attention ? 'needs_attention' : online ? 'completed' : 'queued');
     $('generatorBadge').textContent = attention ? 'Needs attention' : online ? 'Online' : generator.paired ? 'Offline' : 'Not connected';
-    $('generatorStatus').textContent = !generator.paired ? 'The owner needs to connect the background generator once.' : !online ? 'The generator is offline. Requests stay queued until the generator computer and Codex are running.' : attention ? 'Generator online. ' + attention + (attention === 1 ? ' image needs' : ' images need') + ' attention; check the affected request for details.' : generator.state === 'busy' ? 'Your generator is creating images. Each request is generated in full before its images are sent to Craftush together.' : 'Generator online. New requests will run automatically.';
-    $('generatorHeartbeat').textContent = generator.lastSeenAt ? 'Last connected: ' + date(generator.lastSeenAt) + '. This page updates automatically.' : 'Waiting for the first connection from your generator computer.';
+    $('generatorStatus').textContent = !generator.paired ? 'The owner needs to connect the background generator once.' : !online ? 'The generator is offline. Requests stay queued until the generator computer and Codex are running.' : attention ? 'Generator online. The owner can check requests that need attention.' : generator.state === 'busy' ? 'Your generator is creating images one by one. The finished folder goes to the owner in chat.' : 'Generator online. Requests are generated one by one and saved for the owner in chat.';
+    $('generatorHeartbeat').textContent = generator.lastSeenAt ? 'Last connected: ' + date(generator.lastSeenAt) + (role === 'owner' ? '. This archive updates automatically.' : '.') : 'Waiting for the first connection from your generator computer.';
     if (role === 'owner') $('pairGenerator').textContent = pairingConfig ? 'Replace connection file' : generator.paired ? 'Create replacement connection file' : 'Create connection file';
   }
 
@@ -155,12 +170,12 @@
   }
   function schedulePoll() {
     stopPoll();
-    if (!credential || $('workspace').hidden) return;
+    if (role !== 'owner' || !credential || $('workspace').hidden) return;
     pollTimer = setTimeout(pollWorkspace, document.visibilityState === 'hidden' ? 60000 : 15000);
   }
   async function pollWorkspace() {
     pollTimer = null;
-    if (!credential || $('workspace').hidden) return;
+    if (role !== 'owner' || !credential || $('workspace').hidden) return;
     if (document.visibilityState === 'hidden' || submissionBusy || deliveryBusy || statusBusy || pairingBusy || bulkDownloadBusy) return schedulePoll();
     const sessionCredential = credential;
     try {
@@ -268,7 +283,7 @@
 
   $('requestForm').addEventListener('submit', async event => {
     event.preventDefault();
-    if (submissionBusy || pendingSubmission) return;
+    if (submissionBusy || pendingSubmission || statusBusy) return;
     const name = $('requesterName').value.trim();
     const title = $('projectTitle').value.trim();
     const prompt = $('imagePrompt').value.trim();
@@ -302,9 +317,10 @@
     updatePending('Waiting for confirmation.');
     message('requestMessage', 'Saving your request to the shared queue…');
     try {
+      const submitted = pendingSubmission;
       const data = await request('create', pendingSubmission);
-      if (!data.request?.id) throw new Error('The save did not return a request ID.');
-      const saved = data.request;
+      const saved = role === 'owner' ? data.request : data.acknowledgement;
+      if (!saved?.id || (role !== 'owner' && saved.accepted !== true)) throw new Error('The save did not return a request confirmation.');
       const name = $('requesterName').value;
       pendingSubmission = null;
       $('requestForm').reset();
@@ -314,17 +330,27 @@
       $('batchTitles').required = false;
       $('batchCount').textContent = '0 titles';
       clearReference();
-      message('requestMessage', (data.duplicate ? 'Your existing request was confirmed.' : 'Request saved.') + ' ' + saved.items.length + (saved.items.length === 1 ? ' image is queued.' : ' images are queued.') + ' Images are generated automatically. The whole request is generated first, then its images are sent to Craftush together.', 'success');
-      offset = 0;
-      await loadQueue();
-      await showDetail(saved.id);
+      message('requestMessage', (data.duplicate ? 'Your existing request was confirmed.' : 'Request accepted.') + ' ' + submitted.items.length + (submitted.items.length === 1 ? ' image is queued.' : ' images are queued.') + ' Images are generated one by one. The owner receives a folder named after your project in chat.', 'success');
+      if (role === 'owner') {
+        offset = 0;
+        await loadQueue();
+        await showDetail(saved.id);
+      } else {
+        teamSubmission = { id: saved.id, title: submitted.title };
+        $('teamReceipt').hidden = false;
+        $('teamReceiptMessage').textContent = 'Accepted: ' + submitted.title + '. Keep this page open if you need to stop this request.';
+        $('teamStopControls').hidden = false;
+        $('teamStopRequest').hidden = false;
+        $('teamStopConfirmation').hidden = true;
+        message('teamStopMessage', '');
+      }
     } catch (error) {
       if (pendingSubmission && error.status >= 400 && error.status < 500 && ![408, 429].includes(error.status)) {
         pendingSubmission = null;
         message('requestMessage', error.message, 'error');
       } else if (pendingSubmission) {
         message('requestMessage', 'The save has not been confirmed. ' + error.message, 'error');
-        updatePending('The request may already be saved. Refresh the queue to check, or retry the same submission.');
+        updatePending('The request may already be saved. Retry this same submission to confirm it.');
       } else message('queueMessage', 'The request is saved, but the queue could not refresh. ' + error.message, 'error');
     } finally {
       submissionBusy = false;
@@ -337,11 +363,11 @@
   $('retrySubmission').addEventListener('click', saveSubmission);
   $('abandonSubmission').addEventListener('click', () => {
     if (submissionBusy || !pendingSubmission) return;
-    if (!window.confirm('Discard the pending submission? It may already be saved. Check the queue before submitting another copy.')) return;
+    if (!window.confirm('Discard the pending submission? It may already be saved. Retrying the same submission is the best way to confirm it.')) return;
     pendingSubmission = null;
     lockSubmissionForm(false);
     $('pendingSubmission').hidden = true;
-    message('requestMessage', 'The pending submission was discarded. Check the shared queue before creating the same request again.');
+    message('requestMessage', 'The pending submission was discarded. Ask the owner to check before submitting the same brief again.');
   });
 
   function date(value) {
@@ -352,13 +378,14 @@
   function renderQueue() {
     const list = $('queueList');
     list.replaceChildren();
+    if (role !== 'owner') return;
     const filter = $('statusFilter').value;
     const shown = requests.filter(item => filter === 'all' || item.status === filter);
     if (!shown.length) list.append(element('p', 'empty', requests.length ? 'No requests with this status on this page.' : 'Your queue is empty. Submit the first image brief above.'));
     for (const item of shown) {
       const row = element('article', 'queue-entry');
       const copy = element('div');
-      copy.append(element('h3', '', item.title), element('p', '', 'By ' + item.name + ' · ' + item.itemCount + ' requested · ' + item.resultCount + ' delivered'), element('p', '', date(item.createdAt)));
+      copy.append(element('h3', '', item.title), element('p', '', 'By ' + item.name + ' · ' + item.itemCount + ' requested' + (item.localDelivery ? ' · ' + (item.localResultCount || item.localDelivery.itemCount || 0) + ' saved in folder' : ' · ' + item.resultCount + ' archived images')), element('p', '', date(item.createdAt)));
       const actions = element('div', 'entry-actions');
       const open = element('button', '', 'View request');
       open.type = 'button';
@@ -367,12 +394,13 @@
       row.append(copy, actions);
       list.append(row);
     }
-    $('queueTotal').textContent = total + (total === 1 ? ' shared request' : ' shared requests');
+    $('queueTotal').textContent = total + (total === 1 ? ' archived request' : ' archived requests');
     $('pageLabel').textContent = total ? (offset + 1) + '–' + Math.min(offset + requests.length, total) + ' of ' + total : 'No requests yet';
     $('previousPage').disabled = offset === 0;
     $('nextPage').disabled = offset + LIMIT >= total;
   }
   async function loadQueue(throwErrors = false, quiet = false) {
+    if (role !== 'owner') return;
     const revision = ++queueRevision;
     $('refreshQueue').disabled = true;
     if (!quiet) message('queueMessage', 'Loading the shared queue…');
@@ -441,6 +469,7 @@
   $('closeDetail').addEventListener('click', closeDetail);
 
   async function showDetail(id) {
+    if (role !== 'owner') return;
     if (deliveryBusy || statusBusy || bulkDownloadBusy) return message('queueMessage', 'Wait for the current download, upload or save to finish before opening another request.', 'error');
     const revision = ++detailRevision;
     message('queueMessage', 'Opening request…');
@@ -455,6 +484,7 @@
   }
 
   function displayDetail(batch, focus = false) {
+    if (role !== 'owner') return;
     currentRequest = batch;
     const revision = ++detailRevision;
     clearAssetURLs();
@@ -465,15 +495,17 @@
     $('stopConfirmation').hidden = true;
     message('stopMessage', batch.status === 'cancelled' ? 'Request stopped. Images already generating may finish; finished images remain available.' : '');
     $('detailMeta').textContent = 'By ' + batch.name + ' · ' + (STATUS_LABELS[batch.status] || batch.status) + ' · ' + batch.items.length + ' requested · ' + batch.width + ' × ' + batch.height + ' px · ' + date(batch.createdAt);
-    $('detailDeliveryPolicy').hidden = ['completed', 'cancelled'].includes(batch.status);
-    $('detailDeliveryPolicy').textContent = batch.results?.length
-      ? 'The remaining images are generated first, then sent to Craftush together. Previously delivered images remain available.'
-      : batch.items.length === 1 ? 'Your image is generated first, then sent to Craftush.'
-      : 'All ' + batch.items.length + ' images are generated first, then sent to Craftush together. Download all results as one ZIP after delivery.';
+    const localFolder = batch.localDelivery;
+    const localDelivery = batch.uploadPolicy === 'local_folder' || Boolean(localFolder);
+    $('detailDeliveryPolicy').hidden = batch.status === 'cancelled';
+    $('detailDeliveryPolicy').textContent = localFolder?.completedAt
+      ? 'Folder complete: ' + (localFolder.folderName || batch.title) + '. Open this request’s folder from the owner’s Codex chat.'
+      : 'Images are generated one by one and saved in a folder named after this project. The owner receives it in chat. Previous website images remain in this owner archive.';
     $('detailStyle').textContent = batch.styleNotes || 'No shared style notes supplied.';
     $('detailNotes').hidden = !batch.notes;
     $('detailNotes').textContent = batch.notes ? 'Owner’s note: ' + batch.notes : '';
     $('ownerControls').hidden = role !== 'owner';
+    $('deliveryForm').hidden = metadata?.uploadPolicy === 'local_folder' || localDelivery;
     $('ownerStatus').value = batch.status;
     $('ownerNotes').value = batch.notes || '';
     message('detailMessage', '');
@@ -492,8 +524,8 @@
       card.append(element('h3', '', item.title));
       const job = item.generation;
       if (job) {
-        const labels = { pending: 'Queued', claimed: 'Queued', started: 'Generating', completed: 'Completed', failed: 'Needs attention', needs_attention: 'Needs attention' };
-        card.append(element('span', 'status-badge ' + (job.state === 'completed' ? 'completed' : job.state === 'started' ? 'in_progress' : ['failed', 'needs_attention'].includes(job.state) ? 'needs_attention' : 'queued'), labels[job.state] || 'Queued'));
+        const labels = { pending: 'Queued', claimed: 'Queued', started: 'Generating', completed: 'Completed', saved_locally: 'Saved in folder', local_saved: 'Saved in folder', failed: 'Needs attention', needs_attention: 'Needs attention' };
+        card.append(element('span', 'status-badge ' + (['completed', 'saved_locally', 'local_saved'].includes(job.state) ? 'completed' : job.state === 'started' ? 'in_progress' : ['failed', 'needs_attention'].includes(job.state) ? 'needs_attention' : 'queued'), labels[job.state] || 'Queued'));
         if (job.message) card.append(element('p', 'help', job.message));
       }
       card.append(details);
@@ -502,9 +534,9 @@
     $('detailReferences').replaceChildren();
     $('detailResults').replaceChildren();
     const references = batch.references || [], results = batch.results || [];
-    $('resultsEmpty').textContent = batch.status === 'cancelled' ? 'No images have been delivered to this stopped request.' : 'Images appear after the whole request has been generated and sent to Craftush. This page updates automatically.';
+    $('resultsEmpty').textContent = localDelivery || metadata?.uploadPolicy === 'local_folder' ? (localFolder?.completedAt ? 'These images are saved in the owner’s folder in chat. They are not uploaded to Craftush.' : 'New images are saved in the owner’s folder in chat. They will not appear here.') : batch.status === 'cancelled' ? 'No archived images for this stopped request.' : 'No archived website images for this request.';
     $('resultsEmpty').hidden = results.length > 0;
-    $('resultCount').textContent = results.length + (results.length === 1 ? ' image delivered' : ' images delivered');
+    $('resultCount').textContent = results.length + (results.length === 1 ? ' archived website image' : ' archived website images');
     $('bulkDownloadControls').hidden = results.length === 0;
     $('downloadAllResults').disabled = results.length === 0;
     $('downloadAllResults').textContent = 'Download all ' + results.length + ' (.zip)';
@@ -651,6 +683,39 @@
     $('stopConfirmation').hidden = false;
     $('confirmStop').focus();
   });
+
+  $('teamStopRequest').addEventListener('click', () => {
+    if (role !== 'team' || !teamSubmission || statusBusy) return;
+    $('teamStopRequest').hidden = true;
+    $('teamStopConfirmation').hidden = false;
+    $('teamConfirmStop').focus();
+  });
+  $('teamKeepRunning').addEventListener('click', () => {
+    if (statusBusy) return;
+    $('teamStopConfirmation').hidden = true;
+    $('teamStopRequest').hidden = false;
+  });
+  $('teamConfirmStop').addEventListener('click', async () => {
+    if (role !== 'team' || !teamSubmission || statusBusy) return;
+    const requestId = teamSubmission.id;
+    statusBusy = true;
+    $('teamConfirmStop').disabled = true;
+    $('teamKeepRunning').disabled = true;
+    message('teamStopMessage', 'Stopping this request…');
+    try {
+      const data = await request('cancel', { id: requestId });
+      if (data.acknowledgement?.id !== requestId || data.acknowledgement.stopped !== true) throw new Error('The stop was not confirmed.');
+      teamSubmission = null;
+      $('teamStopControls').hidden = true;
+      message('teamStopMessage', 'Request stopped. An image already generating may finish; the owner keeps any saved files.', 'success');
+    } catch (error) {
+      message('teamStopMessage', error.message + ' You can retry Stop for this same request.', 'error');
+    } finally {
+      statusBusy = false;
+      $('teamConfirmStop').disabled = false;
+      $('teamKeepRunning').disabled = false;
+    }
+  });
   $('keepRunning').addEventListener('click', () => {
     if (statusBusy) return;
     $('stopConfirmation').hidden = true;
@@ -720,7 +785,7 @@
   }
   $('deliveryFiles').addEventListener('change', () => {
     const files = [...$('deliveryFiles').files];
-    if (!currentRequest) return;
+    if (!currentRequest || role !== 'owner' || metadata?.uploadPolicy === 'local_folder' || currentRequest.uploadPolicy === 'local_folder') return;
     if (deliveryEntries.some(entry => entry.uncertain) && !window.confirm('One or more previous uploads were not confirmed. Check the finished images before replacing this selection. Continue?')) { $('deliveryFiles').value = ''; return; }
     try {
       if (files.length > 10) throw new Error('Select no more than 10 images per upload.');
@@ -735,7 +800,7 @@
 
   $('deliveryForm').addEventListener('submit', async event => {
     event.preventDefault();
-    if (role !== 'owner' || !currentRequest || deliveryBusy || statusBusy || bulkDownloadBusy || !deliveryEntries.length) return;
+    if (role !== 'owner' || !currentRequest || metadata?.uploadPolicy === 'local_folder' || currentRequest.uploadPolicy === 'local_folder' || deliveryBusy || statusBusy || bulkDownloadBusy || !deliveryEntries.length) return;
     deliveryBusy = true;
     const batchId = currentRequest.id;
     renderDelivery();
@@ -751,7 +816,7 @@
         entry.saved = true; entry.uncertain = false; confirmed++;
         displayDetail(data.request); renderDelivery();
       }
-      message('deliveryMessage', confirmed + (confirmed === 1 ? ' image recovered.' : ' images recovered.') + ' Your team can download the results now.', 'success');
+      message('deliveryMessage', confirmed + (confirmed === 1 ? ' archived image recovered.' : ' archived images recovered.'), 'success');
       await loadQueue();
     } catch (error) {
       message('deliveryMessage', confirmed + ' image(s) confirmed. ' + error.message + ' Keep this file selection to retry safely with the same image IDs. Uploaded images stay available.', 'error');

@@ -73,7 +73,8 @@ test('compiled native-image queue authorizes, coordinates and recovers through a
 
     await t.test('claim and start retries never authorize a second generation, and references stay scoped', async () => {
       const body = { ...brief('First Earth image'), reference: { ...image, name: 'benchmark.png' } };
-      firstRequest = (await value(body, team, '', 201)).request;
+      const accepted = await value(body, team, '', 201);assert.equal(accepted.acknowledgement.id, body.submissionId);
+      firstRequest = (await value(undefined, owner, '?action=detail&id=' + body.submissionId)).request;
       const claimId = crypto.randomUUID();
       const claimed = await value({ action: 'claim', claimId }, runner);
       firstJob = claimed.job;
@@ -95,30 +96,29 @@ test('compiled native-image queue authorizes, coordinates and recovers through a
     await t.test('team-controlled request UUIDs cannot reserve an existing native result UUID', async () => {
       const collision = { ...brief('Separate reference request'), submissionId: firstJob.jobId,
         reference: { ...image, assetId: firstJob.jobId } };
-      const saved = (await value(collision, team, '', 201)).request;
+      const accepted = await value(collision, team, '', 201);
+      const saved = (await value(undefined, owner, '?action=detail&id=' + accepted.acknowledgement.id)).request;
       assert.notEqual(saved.references[0].assetId, firstJob.jobId);
       await value({ action: 'status', id: saved.id, status: 'cancelled' }, owner);
     });
 
-    await t.test('completion retries save one result and team downloads the original raster', async () => {
+    await t.test('legacy completion calls cannot upload or expose any thumbnail to the team', async () => {
       const complete = { action: 'complete', jobId: firstJob.jobId, image };
-      const saved = await value(complete, runner);
-      assert.equal(saved.duplicate, false); assert.equal(saved.request.status, 'completed');
-      const retry = await value(complete, runner);
-      assert.equal(retry.duplicate, true); assert.equal(retry.request.results.length, 1);
+      assert.equal((await call(complete, runner)).status, 409);
+      assert.equal((await call(complete, runner)).status, 409);
       const terminal = await value(undefined, runner, '?action=runnerJob&jobId=' + firstJob.jobId);
-      assert.equal(terminal.job.state, 'completed'); assert.equal(terminal.job.requestStatus, 'completed');
+      assert.equal(terminal.job.state, 'started'); assert.equal(terminal.job.requestStatus, 'in_progress');
       const query = '?action=asset&id=' + firstRequest.id + '&assetId=' + firstJob.jobId;
       assert.equal((await call(undefined, {}, query)).status, 401);
       assert.equal((await call(undefined, runner, query)).status, 403);
       const asset = await call(undefined, team, query);
-      assert.equal(asset.status, 200); assert.equal(asset.headers.get('content-type'), 'image/png');
-      assert.equal(asset.headers.get('x-content-type-options'), 'nosniff');
-      assert.deepEqual(Buffer.from(await asset.arrayBuffer()), Buffer.from(PNG, 'base64'));
+      assert.equal(asset.status, 403);
+      assert.equal((await value(undefined, owner, '?action=detail&id=' + firstRequest.id)).request.results.length, 0);
+      await value({ action:'cancel', id:firstRequest.id }, owner);
     });
 
     await t.test('uncertain outcomes survive pairing rotation and owner cancellation releases other work', async () => {
-      interruptedRequest = (await value(brief('Interrupted image'), team, '', 201)).request;
+      interruptedRequest = (await value(brief('Interrupted image'), owner, '', 201)).request;
       interruptedJob = (await value({ action: 'claim', claimId: crypto.randomUUID() }, runner)).job;
       assert.equal(interruptedJob.requestId, interruptedRequest.id);
       assert.equal((await value({ action: 'start', jobId: interruptedJob.jobId }, runner)).canGenerate, true);
@@ -130,9 +130,9 @@ test('compiled native-image queue authorizes, coordinates and recovers through a
       assert.equal((await call(undefined, runner, '?action=runnerJob&jobId=' + interruptedJob.jobId)).status, 403);
       const blocked = await value({ action: 'claim', claimId: crypto.randomUUID() }, runner);
       assert.equal(blocked.job, null); assert.equal(blocked.blocked, 'needs_attention');
-      const nextRequest = (await value(brief('Next queued image'), team, '', 201)).request;
+      const nextRequest = (await value(brief('Next queued image'), owner, '', 201)).request;
       await value({ action: 'status', id: interruptedRequest.id, status: 'cancelled' }, owner);
-      const detail = (await value(undefined, team, '?action=detail&id=' + interruptedRequest.id)).request;
+      const detail = (await value(undefined, owner, '?action=detail&id=' + interruptedRequest.id)).request;
       assert.equal(detail.items[0].generation.state, 'needs_attention');
       const next = await value({ action: 'claim', claimId: crypto.randomUUID() }, runner);
       assert.equal(next.job.requestId, nextRequest.id);

@@ -69,6 +69,7 @@ function browser(fetch) {
       timers.delete(entry[0]);
       await entry[1].callback();
     },
+    scheduledPolls() { return [...timers.values()].filter(timer => timer.delay >= 15000).length; },
     event(id, type = 'submit') { $(id).dispatchEvent(new window.Event(type, { bubbles: true, cancelable: true })); },
     click(node) { node.dispatchEvent(new window.Event('click', { bubbles: true, cancelable: true })); },
     batch() {
@@ -90,7 +91,7 @@ function json(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 }
 
-test('automatic generator workflow pairs once, refreshes jobs, preserves uncertain IDs and downloads results', async () => {
+test('owner archive pairs once, refreshes jobs, preserves uncertain IDs and downloads prior results', async () => {
   const calls = [], creates = [], delivers = [];
   let saved = null;
   let failCreate = true;
@@ -108,7 +109,7 @@ test('automatic generator workflow pairs once, refreshes jobs, preserves uncerta
     }
     const teamCode = options.headers['X-Team-Code'];
     const adminPassword = options.headers['X-Admin-Password'];
-    if (teamCode === 'wrong') return json({ errors: [{ message: 'Wrong team code.' }] }, 403);
+    if (teamCode === 'wrong' || adminPassword === 'wrong') return json({ errors: [{ message: 'Wrong password.' }] }, 403);
     assert.ok(teamCode === 'team-secret' || adminPassword === 'owner-secret');
     assert.equal(options.redirect, 'error', 'credentials cannot follow redirects');
     if (action === 'list') return json({ requests: saved ? [{
@@ -154,14 +155,15 @@ test('automatic generator workflow pairs once, refreshes jobs, preserves uncerta
   });
   const { $, event, click } = app;
   await until(() => !$('accessButton').disabled, 'backend metadata');
+  $('accessRole').value = 'owner'; event('accessRole', 'change');
   $('credential').value = 'wrong'; event('accessForm');
-  await until(() => $('accessMessage').textContent === 'Wrong team code.', 'visible login error');
+  await until(() => $('accessMessage').textContent === 'Wrong password.', 'visible login error');
   assert.equal($('workspace').hidden, true);
-  $('credential').value = 'team-secret'; event('accessForm');
-  await until(() => !$('workspace').hidden, 'team workspace');
+  $('credential').value = 'owner-secret'; event('accessForm');
+  await until(() => !$('workspace').hidden, 'owner workspace');
   assert.equal($('credential').value, '', 'credential input is cleared after access');
   assert.equal($('generatorBadge').textContent, 'Not connected');
-  assert.equal($('pairingSection').hidden, true, 'only the owner can pair the generator');
+  assert.equal($('pairingSection').hidden, false, 'the owner can pair the generator');
 
   $('requesterName').value = 'Riya';
   $('projectTitle').value = '<img src=x onerror=alert(1)>';
@@ -184,9 +186,9 @@ test('automatic generator workflow pairs once, refreshes jobs, preserves uncerta
   assert.equal($('detailHeading').querySelector('img'), null);
   assert.equal($('detailItems').querySelector('svg'), null);
   assert.equal($('queueList').querySelector('img'), null);
-  assert.equal($('ownerControls').hidden, true);
-  assert.match($('requestMessage').textContent, /generated automatically/);
-  assert.match($('requestMessage').textContent, /whole request is generated first/);
+  assert.equal($('ownerControls').hidden, false);
+  assert.match($('requestMessage').textContent, /generated one by one/);
+  assert.match($('requestMessage').textContent, /folder named after your project in chat/);
   assert.ok($('detailItems').textContent.includes('Queued'));
   click($('copyBrief'));
   await until(() => app.copied.length === 1, 'complete generation brief');
@@ -203,7 +205,7 @@ test('automatic generator workflow pairs once, refreshes jobs, preserves uncerta
   await app.poll();
   assert.equal($('generatorBadge').textContent, 'Online');
   assert.match($('generatorStatus').textContent, /creating images/);
-  assert.match($('generatorStatus').textContent, /generated in full before/);
+  assert.match($('generatorStatus').textContent, /finished folder goes to the owner in chat/);
   assert.match($('generatorHeartbeat').textContent, /Last connected/);
   assert.match($('detailMeta').textContent, /Generating/);
   assert.ok($('detailItems').textContent.includes('Generating'));
@@ -237,7 +239,7 @@ test('automatic generator workflow pairs once, refreshes jobs, preserves uncerta
   assert.equal(config.apiPath, '/api/image-requests');
   assert.equal(config.version, 1);
   click($('queueList').querySelector('button'));
-  await until(() => !$('ownerControls').hidden, 'owner request controls');
+  await until(() => !$('detailSection').hidden && !$('ownerControls').hidden, 'owner request controls');
   assert.equal($('ownerControls').tagName, 'DETAILS');
   assert.equal($('ownerControls').hasAttribute('open'), false, 'recovery is not the normal generation flow');
   $('ownerStatus').value = 'in_progress'; $('ownerNotes').value = 'Generating in ChatGPT';
@@ -264,9 +266,88 @@ test('automatic generator workflow pairs once, refreshes jobs, preserves uncerta
   assert.ok($('detailResults').querySelector('a').href.startsWith('blob:'));
   event('lockButton', 'click');
   assert.ok(app.revoked.length > 0, 'locking releases authenticated image previews');
+  assert.equal($('detailHeading').textContent, '', 'locking clears private owner request details');
+  assert.equal($('detailItems').children.length, 0);
+  assert.equal($('detailResults').children.length, 0);
   assert.equal($('credential').value, '');
   assert.equal($('downloadPairing').hidden, true, 'the in-memory connection file is cleared when locked');
   assert.doesNotMatch(client, /localStorage|sessionStorage|innerHTML/, 'credentials stay in memory and untrusted text stays text');
+});
+
+test('team submits and stops its current acknowledgement without fetching, displaying or polling history', async () => {
+  const calls = [], creates = [], cancels = [];
+  let failCreate = true;
+  const app = browser(async (path, options) => {
+    const body = options.body ? JSON.parse(options.body) : null;
+    const action = body?.action ?? new URL('https://craftush.test' + path).searchParams.get('action');
+    calls.push(action);
+    if (action === 'meta') return json({ enabled: true, teamConfigured: true, uploadPolicy: 'local_folder', generator: { paired: true, connected: true } });
+    if (options.headers['X-Team-Code'] === 'wrong') return json({ errors: [{ message: 'Wrong team code.' }] }, 403);
+    assert.equal(options.headers['X-Team-Code'], 'team-secret');
+    if (action === 'access') return json({ role: 'team', historyVisibility: 'owner_only', uploadPolicy: 'local_folder' });
+    if (action === 'create') {
+      creates.push(body);
+      if (failCreate) { failCreate = false; throw new Error('Save response lost'); }
+      return json({ acknowledgement: { id: body.submissionId, accepted: true }, duplicate: true });
+    }
+    if (action === 'cancel') {
+      cancels.push(body);
+      return json({ acknowledgement: { id: body.id, stopped: true } });
+    }
+    assert.fail('Team must not fetch history, request details or assets: ' + action);
+  });
+  const { $, event } = app;
+  await until(() => !$('accessButton').disabled, 'backend ready');
+  $('credential').value = 'wrong'; event('accessForm');
+  await until(() => $('accessMessage').textContent === 'Wrong team code.', 'denied team access');
+  assert.equal($('workspace').hidden, true);
+  $('credential').value = 'team-secret'; event('accessForm');
+  await until(() => !$('workspace').hidden, 'team request form');
+  assert.equal($('queueSection').hidden, true);
+  assert.equal($('detailSection').hidden, true);
+  assert.equal($('queueList').children.length, 0);
+  assert.equal(app.scheduledPolls(), 0, 'team does not schedule background polling');
+  event('refreshQueue', 'click');
+  event('statusFilter', 'change');
+  app.document.dispatchEvent(new app.document.defaultView.Event('visibilitychange'));
+  assert.equal(app.scheduledPolls(), 0);
+
+  $('requesterName').value = 'Riya';
+  $('projectTitle').value = 'Share Market <b>Track</b>';
+  app.batch();
+  $('batchTitles').value = 'Episode one\nEpisode two';
+  $('imagePrompt').value = 'Thumbnail with centered English text.';
+  $('styleNotes').value = 'Match the supplied reference.';
+  $('referenceFile').files = [{ name: 'reference.png', type: 'image/png', size: 8 }];
+  event('requestForm');
+  await until(() => !$('pendingSubmission').hidden && !$('retrySubmission').disabled, 'uncertain submission');
+  assert.equal(creates.length, 1);
+  event('retrySubmission', 'click');
+  await until(() => !$('teamReceipt').hidden && $('pendingSubmission').hidden, 'accepted acknowledgement');
+  assert.equal(creates[0].submissionId, creates[1].submissionId, 'retry confirms exactly the same request');
+  assert.equal(creates[1].items.length, 2);
+  assert.equal(creates[1].reference.name, 'reference.png');
+  assert.equal(creates[1].styleNotes, 'Match the supplied reference.');
+  assert.match($('requestMessage').textContent, /one by one/);
+  assert.match($('requestMessage').textContent, /owner receives a folder named after your project in chat/);
+  assert.equal($('teamReceiptMessage').querySelector('b'), null, 'track names are literal text');
+  assert.match($('teamReceiptMessage').textContent, /Share Market <b>Track<\/b>/);
+  assert.equal($('detailSection').hidden, true);
+  assert.equal(app.scheduledPolls(), 0);
+
+  event('teamStopRequest', 'click');
+  assert.equal($('teamStopConfirmation').hidden, false);
+  event('teamKeepRunning', 'click');
+  assert.equal(cancels.length, 0);
+  event('teamStopRequest', 'click'); event('teamConfirmStop', 'click'); event('teamConfirmStop', 'click');
+  await until(() => $('teamStopControls').hidden, 'stopped acknowledgement');
+  assert.deepEqual(cancels, [{ action: 'cancel', id: creates[1].submissionId }]);
+  assert.match($('teamStopMessage').textContent, /Request stopped/);
+  assert.equal(calls.some(action => ['list', 'detail', 'asset', 'deliver'].includes(action)), false);
+  event('lockButton', 'click');
+  assert.equal($('teamReceipt').hidden, true);
+  assert.equal($('teamReceiptMessage').textContent, '', 'in-memory acknowledgement is cleared on lock');
+  assert.equal($('credential').value, '');
 });
 
 test('an undeployed backend disables access and explains why the queue is unavailable', async () => {
@@ -311,7 +392,7 @@ function unzipStored(buffer) {
   return entries;
 }
 
-test('full-request delivery explains all 132 images while retaining earlier downloads and Stop controls', async () => {
+test('owner sees local-folder completion while retaining prior downloads and Stop controls', async () => {
   const batch = {
     id: webcrypto.randomUUID(), title: '132 episodes', name: 'Editor', status: 'in_progress', width: 1080, height: 864,
     createdAt: '2026-10-15T12:00:00Z', updatedAt: '2026-10-15T12:00:00Z', references: [], results: [],
@@ -320,29 +401,30 @@ test('full-request delivery explains all 132 images while retaining earlier down
   const app = browser(async (path, options) => {
     const action = new URL('https://craftush.test' + path).searchParams.get('action');
     if (action === 'meta') return json({ enabled: true, teamConfigured: true, generator: { paired: true, connected: true, state: 'busy' } });
-    assert.equal(options.headers['X-Team-Code'], 'team-secret');
+    assert.equal(options.headers['X-Admin-Password'], 'owner-secret');
     if (action === 'list') return json({ requests: [{ ...batch, itemCount: batch.items.length, resultCount: batch.results.length }], total: 1 });
     if (action === 'detail') return json({ request: batch });
     assert.fail('Delivery messaging must not start or upload images: ' + action);
   });
   const { $, event, click } = app;
   await until(() => !$('accessButton').disabled, 'backend metadata');
-  assert.match($('requestDeliveryPolicy').textContent, /whole request first/);
-  $('credential').value = 'team-secret'; event('accessForm');
-  await until(() => !$('workspace').hidden, 'team workspace');
+  assert.match($('requestDeliveryPolicy').textContent, /generated one by one/);
+  $('accessRole').value = 'owner'; event('accessRole', 'change');
+  $('credential').value = 'owner-secret'; event('accessForm');
+  await until(() => !$('workspace').hidden, 'owner workspace');
   click($('queueList').querySelector('button'));
   await until(() => !$('detailSection').hidden, 'request details');
-  assert.match($('detailDeliveryPolicy').textContent, /All 132 images are generated first/);
+  assert.match($('detailDeliveryPolicy').textContent, /owner receives it in chat/);
   assert.equal($('detailDeliveryPolicy').hidden, false);
   assert.equal($('stopControls').hidden, false);
   assert.equal($('bulkDownloadControls').hidden, true);
-  assert.match($('resultsEmpty').textContent, /whole request has been generated/);
+  assert.match($('resultsEmpty').textContent, /No archived website images/);
 
   batch.results = [{ assetId: webcrypto.randomUUID(), itemId: '1', name: 'episode-1.png', mime: 'image/png', bytes: 8 }];
   batch.updatedAt = '2026-10-15T12:01:00Z';
   await app.poll();
-  assert.match($('detailDeliveryPolicy').textContent, /remaining images are generated first/);
-  assert.match($('detailDeliveryPolicy').textContent, /Previously delivered images remain available/);
+  assert.match($('detailDeliveryPolicy').textContent, /saved in a folder named after this project/);
+  assert.match($('detailDeliveryPolicy').textContent, /Previous website images remain in this owner archive/);
   assert.equal($('bulkDownloadControls').hidden, false);
   assert.equal($('downloadAllResults').disabled, false);
   assert.equal($('detailResults').querySelectorAll('.asset-card').length, 1);
@@ -354,11 +436,46 @@ test('full-request delivery explains all 132 images while retaining earlier down
   assert.equal($('bulkDownloadControls').hidden, false, 'earlier delivery remains downloadable after Stop');
 
   batch.status = 'completed'; batch.updatedAt = '2026-10-15T12:03:00Z';
+  batch.uploadPolicy = 'local_folder';
+  batch.localDelivery = { folderName: '132 episodes', itemCount: 132, completedAt: '2026-10-15T12:03:00Z' };
   await app.poll();
-  assert.equal($('detailDeliveryPolicy').hidden, true, 'a completed request does not show pending delivery instructions');
+  assert.equal($('detailDeliveryPolicy').hidden, false);
+  assert.match($('detailDeliveryPolicy').textContent, /Folder complete: 132 episodes/);
+  assert.equal($('deliveryForm').hidden, true, 'local folders do not have an upload flow');
+  assert.equal($('bulkDownloadControls').hidden, false, 'previous assets remain available to the owner');
 });
 
-test('team confirms stopping exactly the selected request and can keep it running without a mutation', async () => {
+test('a new local-folder request shows completion without missing-image warnings or website downloads', async () => {
+  const batch = {
+    id: webcrypto.randomUUID(), title: 'Share Market', name: 'Editor', status: 'completed', uploadPolicy: 'local_folder', width: 1080, height: 864,
+    references: [], results: [], items: [{ id: '1', title: 'Markets', prompt: 'Thumbnail', filename: 'markets.png', generation: { state: 'completed' } }],
+    localDelivery: { folderName: 'Share Market', itemCount: 1, completedAt: '2026-10-15T12:00:00Z' },
+  };
+  const app = browser(async (path, options) => {
+    const action = new URL('https://craftush.test' + path).searchParams.get('action');
+    if (action === 'meta') return json({ enabled: true, teamConfigured: true, uploadPolicy: 'local_folder', generator: {} });
+    assert.equal(options.headers['X-Admin-Password'], 'owner-secret');
+    if (action === 'list') return json({ requests: [{ ...batch, itemCount: 1, resultCount: 0, localResultCount: 1 }], total: 1 });
+    if (action === 'detail') return json({ request: batch });
+    assert.fail('A local-folder completion must not fetch or upload images: ' + action);
+  });
+  const { $, event, click } = app;
+  await until(() => !$('accessButton').disabled, 'backend ready');
+  $('accessRole').value = 'owner'; event('accessRole', 'change');
+  $('credential').value = 'owner-secret'; event('accessForm');
+  await until(() => !$('workspace').hidden, 'owner archive');
+  assert.match($('queueList').textContent, /1 saved in folder/);
+  click($('queueList').querySelector('button'));
+  await until(() => !$('detailSection').hidden, 'folder completion details');
+  assert.match($('detailDeliveryPolicy').textContent, /Folder complete: Share Market/);
+  assert.match($('resultsEmpty').textContent, /saved in the owner’s folder in chat/);
+  assert.equal($('bulkDownloadControls').hidden, true);
+  assert.equal($('deliveryForm').hidden, true);
+  assert.equal($('stopControls').hidden, true);
+  assert.doesNotMatch($('resultsEmpty').textContent, /missing|waiting|error/i);
+});
+
+test('owner confirms stopping exactly the selected request and can keep it running without a mutation', async () => {
   const batch = { id: webcrypto.randomUUID(), title: 'Stop fixture', name: 'Editor', status: 'in_progress', width: 1080, height: 864, createdAt: '2026-10-15T12:00:00Z', references: [], results: [], items: [{ id: '1', title: 'Earth', prompt: '', filename: 'earth.png' }] };
   const cancels = [];
   let release;
@@ -367,7 +484,7 @@ test('team confirms stopping exactly the selected request and can keep it runnin
     const body = options.body ? JSON.parse(options.body) : null;
     const action = body?.action ?? new URL('https://craftush.test' + path).searchParams.get('action');
     if (action === 'meta') return json({ enabled: true, teamConfigured: true, generator: {} });
-    assert.equal(options.headers['X-Team-Code'], 'team-secret');
+    assert.equal(options.headers['X-Admin-Password'], 'owner-secret');
     if (action === 'list') return json({ requests: [{ ...batch, itemCount: 1, resultCount: 0 }], total: 1 });
     if (action === 'detail') return json({ request: batch });
     assert.equal(action, 'cancel'); cancels.push(body); await waiting;
@@ -375,8 +492,9 @@ test('team confirms stopping exactly the selected request and can keep it runnin
   });
   const { $, event, click } = app;
   await until(() => !$('accessButton').disabled, 'ready backend');
-  $('credential').value = 'team-secret'; event('accessForm');
-  await until(() => !$('workspace').hidden, 'team access');
+  $('accessRole').value = 'owner'; event('accessRole', 'change');
+  $('credential').value = 'owner-secret'; event('accessForm');
+  await until(() => !$('workspace').hidden, 'owner access');
   click($('queueList').querySelector('button'));
   await until(() => !$('detailSection').hidden, 'request details');
   assert.equal($('stopControls').hidden, false);
@@ -391,7 +509,7 @@ test('team confirms stopping exactly the selected request and can keep it runnin
   assert.match($('stopMessage').textContent, /Request stopped/);
 });
 
-test('team downloads delivered images as one authenticated ZIP with safe unique names and releases its URL', async () => {
+test('owner downloads prior images as one authenticated ZIP with safe unique names and releases its URL', async () => {
   const requestID = webcrypto.randomUUID();
   const firstID = webcrypto.randomUUID(), secondID = webcrypto.randomUUID();
   const images = new Map([[firstID, new Uint8Array([137, 80, 78, 71, 1])], [secondID, new Uint8Array([255, 216, 255, 2])]]);
@@ -407,7 +525,7 @@ test('team downloads delivered images as one authenticated ZIP with safe unique 
   const app = browser(async (path, options) => {
     const url = new URL('https://craftush.test' + path), action = url.searchParams.get('action');
     if (action === 'meta') return json({ enabled: true, teamConfigured: true, generator: {} });
-    assert.equal(options.headers['X-Team-Code'], 'team-secret');
+    assert.equal(options.headers['X-Admin-Password'], 'owner-secret');
     assert.equal(options.credentials, 'omit');
     assert.equal(options.redirect, 'error');
     if (action === 'list') return json({ requests: [{ ...batch, itemCount: 3, resultCount: 2 }], total: 1 });
@@ -421,8 +539,9 @@ test('team downloads delivered images as one authenticated ZIP with safe unique 
   });
   const { $, event, click } = app;
   await until(() => !$('accessButton').disabled, 'ready backend');
-  $('credential').value = 'team-secret'; event('accessForm');
-  await until(() => !$('workspace').hidden, 'team access');
+  $('accessRole').value = 'owner'; event('accessRole', 'change');
+  $('credential').value = 'owner-secret'; event('accessForm');
+  await until(() => !$('workspace').hidden, 'owner access');
   click($('queueList').querySelector('button'));
   await until(() => !$('detailSection').hidden, 'request details');
   assert.equal($('bulkDownloadControls').hidden, false);

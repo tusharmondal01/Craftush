@@ -9,7 +9,7 @@ test('compiled SQLite queue reserves ten at once, authorizes a group exactly onc
   const runtime=new Miniflare(convertV4MiniflareOptions({modules:true,scriptPath:fileURLToPath(new URL('../dist-worker/worker.js',import.meta.url)),compatibilityDate:'2026-10-09',compatibilityFlags:['nodejs_compat'],durableObjects:{CRAFTUSH_DATA:{className:'CraftushStorage',useSQLite:true}},bindings:{ADMIN_PASSWORD:owner['x-admin-password'],ALLOWED_ORIGINS:origin,PUBLIC_SITE_URL:origin+'/Craftush',RATE_LIMIT_REQUESTS_MINUTE:'10000'},outboundService:()=>{throw Error('No provider calls permitted');}}));
   const call=(body,headers={},query='')=>runtime.dispatchFetch('https://fixture/api/image-requests'+query,{method:body===undefined?'GET':'POST',headers:{origin,'content-type':'application/json',...headers},...(body===undefined?{}:{body:JSON.stringify(body)})});
   const value=async(body,headers,query='',status=200)=>{const response=await call(body,headers,query);assert.equal(response.status,status,await response.clone().text());return response.json();};
-  const create=async(count,title)=> (await value({action:'create',submissionId:crypto.randomUUID(),name:'Fixture team',title,width:1080,height:864,styleNotes:'brown',items:Array.from({length:count},(_,i)=>({title:'Episode '+(i+1),prompt:'Native image content',filename:'episode-'+(i+1)+'.png'}))},team,'',201)).request;
+  const create=async(count,title)=> (await value({action:'create',submissionId:crypto.randomUUID(),name:'Fixture team',title,width:1080,height:864,styleNotes:'brown',items:Array.from({length:count},(_,i)=>({title:'Episode '+(i+1),prompt:'Native image content',filename:'episode-'+(i+1)+'.png'}))},owner,'',201)).request;
   try{
     const setup=await runtime.dispatchFetch('https://fixture/api/admin',{method:'POST',headers:{origin,'content-type':'application/json',...owner},body:JSON.stringify({action:'saveCode',code:team['x-team-code']})});assert.equal(setup.status,200);
     const paired=await value({action:'pair',name:'Fixture'},owner),runner={'x-image-runner':paired.runnerToken};
@@ -27,7 +27,7 @@ test('compiled SQLite queue reserves ten at once, authorizes a group exactly onc
     await t.test('one fresh group-start authorizes all ten while duplicate starts authorize none',async()=>{
       const started=await value({action:'startBatch',batchId},runner);assert.equal(started.canGenerate,true);assert(started.jobs.every(j=>j.state==='started'));
       const duplicate=await value({action:'startBatch',batchId},runner);assert.equal(duplicate.canGenerate,false);assert.equal(duplicate.duplicate,true);
-      const detail=(await value(undefined,team,'?action=detail&id='+first.id)).request;assert.equal(detail.results.length,0,'no upload is needed between native generations');
+      const detail=(await value(undefined,owner,'?action=detail&id='+first.id)).request;assert.equal(detail.results.length,0,'no upload is needed between native generations');
     });
     const stage=async current=>value({action:'stageBatch',batchId:current.batchId,images:current.jobs.map(job=>({jobId:job.jobId,name:image.name,mime:image.mime,bytes:Buffer.from(image.base64,'base64').length,fingerprint:createHash('sha256').update(Buffer.from(image.base64,'base64')).digest('hex')}))},runner);
     await t.test('the first ten originals are acknowledged without uploading before the entire request is saved',async()=>{
@@ -38,11 +38,12 @@ test('compiled SQLite queue reserves ten at once, authorizes a group exactly onc
     await t.test('the final short group never takes an item from another request',async()=>{
       const id=crypto.randomUUID(),last=await value({action:'claimBatch',batchId:id,requestId:first.id},runner);assert.equal(last.jobs.length,3);assert(last.jobs.every(j=>j.requestId===first.id));
       assert.equal((await value({action:'startBatch',batchId:id},runner)).canGenerate,true);
-      await stage(last);await value({action:'beginRequestUpload',requestId:first.id},runner);
-      let result;for(const job of [...group.jobs,...last.jobs])result=await value({action:'complete',jobId:job.jobId,image},runner);
-      assert.equal(result.request.status,'completed');assert.equal(result.request.results.length,13);
+      await stage(last);
+      const receipt={name:image.name,mime:image.mime,bytes:Buffer.from(image.base64,'base64').length,fingerprint:createHash('sha256').update(Buffer.from(image.base64,'base64')).digest('hex')};
+      const result=await value({action:'finishLocalRequest',requestId:first.id,folderName:first.title,files:[...group.jobs,...last.jobs].map(job=>({jobId:job.jobId,itemId:job.itemId,...receipt,name:job.title+'.png'}))},runner);
+      assert.equal(result.requestStatus,'completed');assert.equal(result.resultCount,13);assert.equal(result.uploadedCount,0);
       const none=await value({action:'claimBatch',batchId:crypto.randomUUID(),requestId:first.id},runner);assert.deepEqual(none.jobs,[]);
-      const untouched=(await value(undefined,team,'?action=detail&id='+other.id)).request;assert.equal(untouched.items[0].generation.state,'pending');
+      const untouched=(await value(undefined,owner,'?action=detail&id='+other.id)).request;assert.equal(untouched.items[0].generation.state,'pending');
     });
     await t.test('cancellation and pairing rotation do not allow stale group starts',async()=>{
       const id=crypto.randomUUID();await value({action:'claimBatch',batchId:id},runner);
