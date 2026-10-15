@@ -21,11 +21,22 @@ async function optionalJSON(path) {
   try { return JSON.parse(await readFile(path, 'utf8')); }
   catch (error) { if (error.code === 'ENOENT') return null; throw error; }
 }
-function imageType(bytes) {
+export function imageType(bytes) {
   if (bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) return { mime:'image/png', ext:'png' };
   if (bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255) return { mime:'image/jpeg', ext:'jpg' };
   if (bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP') return { mime:'image/webp', ext:'webp' };
   throw new Error('ImageGen result must be a PNG, JPG or WebP image.');
+}
+function requestProgress(job, request, saved = {}) {
+  if (request?.id && request.id !== job.requestId) throw new Error('The completion belongs to a different image request.');
+  const progress = { requestId: job.requestId };
+  const status = request?.status || job.requestStatus || saved.requestStatus;
+  if (['queued','in_progress','completed','needs_attention','cancelled'].includes(status)) progress.requestStatus = status;
+  const itemCount = Array.isArray(request?.items) ? request.items.length : saved.itemCount;
+  const resultCount = Array.isArray(request?.results) ? request.results.length : (!saved.requestStatus || status === saved.requestStatus ? saved.resultCount : undefined);
+  if (Number.isSafeInteger(itemCount) && itemCount >= 0) progress.itemCount = itemCount;
+  if (Number.isSafeInteger(resultCount) && resultCount >= 0) progress.resultCount = resultCount;
+  return progress;
 }
 export class ImageQueue {
   constructor(config, directory, { fetchImpl=fetch, now=()=>Date.now() }={}) {
@@ -41,10 +52,24 @@ export class ImageQueue {
     const response = await this.fetch(url, { method:body ? 'POST' : 'GET', redirect:'error', signal:AbortSignal.timeout(20000),
       headers:{ 'X-Image-Runner':this.config.runnerToken, ...(body ? {'Content-Type':'application/json'} : {}) },
       ...(body ? {body:JSON.stringify(body)} : {}) });
-    const result = await response.json();
+    let result;
+    try { result = await response.json(); }
+    catch {
+      // Edge/proxy HTML and malformed replies must retain useful HTTP metadata
+      // without echoing a response body or the JSON parser's body excerpt.
+      const declaredType = (response.headers.get('content-type') || '').split(';', 1)[0].trim().toLowerCase();
+      const contentType = ['application/json','application/problem+json','text/html','text/plain','application/octet-stream','application/xml','text/xml'].includes(declaredType) ? declaredType : 'unknown';
+      const error = new Error(`Craftush generator returned an invalid JSON response (HTTP ${response.status}; content type ${contentType}).`);
+      error.code = 'QUEUE_INVALID_RESPONSE'; error.status = response.status; error.contentType = contentType;
+      // Diagnostic only: callers must not repeat an uncertain start or native
+      // attempt, and saved-image retries still use the existing receipts.
+      const retryAfter = response.headers.get('retry-after') || '';
+      if (/^\d{1,5}$/.test(retryAfter) && Number(retryAfter) <= 86400) error.retryAfter = Number(retryAfter);
+      throw error;
+    }
     if (!response.ok) {
-      const error=new Error(result.errors?.[0]?.message || result.error?.message || 'Craftush generator request failed.');
-      error.code=result.errors?.[0]?.code || result.error?.code; error.status=response.status; throw error;
+      const error=new Error(result?.errors?.[0]?.message || result?.error?.message || 'Craftush generator request failed.');
+      error.code=result?.errors?.[0]?.code || result?.error?.code; error.status=response.status; throw error;
     }
     return result;
   }
@@ -83,39 +108,40 @@ export class ImageQueue {
         if(active.phase !== 'claimed' || error.code !== 'RUNNER_SCOPE_DENIED') throw error;
         // Only an unstarted expired claim can be released automatically.
         state.active=null; state.claimId=null; await this.save(state);
-        return {state:'claim_expired',canGenerate:false};
+        return {state:'claim_expired',...requestProgress(active.job,null,active.progress),canGenerate:false};
       }
       if (remote.job?.requestStatus === 'cancelled' || ['completed','failed'].includes(remote.job?.state)) {
         state.active = null; state.claimId = null; await this.save(state);
-        return {state:remote.job.requestStatus === 'cancelled' ? 'cancelled' : remote.job.state,jobId:active.job.jobId};
+        return {state:remote.job.requestStatus === 'cancelled' ? 'cancelled' : remote.job.state,jobId:active.job.jobId,...requestProgress(remote.job,null,active.progress),canGenerate:false};
       }
       if (active.phase === 'result_saved') return this.complete(active.job.jobId);
       if (active.phase === 'completed') {
         state.active = null; state.claimId = null; await this.save(state);
+        return {state:'completed',jobId:active.job.jobId,...requestProgress(remote.job || active.job,null,active.progress),canGenerate:false};
       } else if (['start_requested','generating','needs_attention','failed'].includes(active.phase)) {
         if (['start_requested','generating'].includes(active.phase) && this.now()-active.attemptAt > 30*60*1000) {
           return this.report(active.job.jobId,'needs_attention','Generation outcome is uncertain. Do not generate this item again automatically.');
         }
-        return {state:active.phase,jobId:active.job.jobId,canGenerate:false,message:'A previous native generation attempt exists. Do not repeat it.'};
+        return {state:active.phase,jobId:active.job.jobId,...requestProgress(remote.job || active.job,null,active.progress),canGenerate:false,message:'A previous native generation attempt exists. Do not repeat it.'};
       } else if (active.phase === 'claimed') {
         if (remote.job?.state !== 'claimed') {
           state.active = null; state.claimId = null; await this.save(state);
         } else {
           const referencePaths = await this.references(active.job);
-          return {state:'claimed',job:active.job,referencePaths,canGenerate:false,nextAction:'start'};
+          return {state:'claimed',job:active.job,...requestProgress(remote.job || active.job,null,active.progress),referencePaths,canGenerate:false,nextAction:'start'};
         }
       }
     }
     if (status.generator?.needsAttention) return {state:'needs_attention',canGenerate:false,generator:status.generator};
-    if (status.job && status.job.requestStatus !== 'cancelled' && ['started','needs_attention'].includes(status.job.state)) return {state:'needs_attention',canGenerate:false,jobId:status.job.jobId,message:'The server has a previous generation attempt. Do not repeat it.'};
+    if (status.job && status.job.requestStatus !== 'cancelled' && ['started','needs_attention'].includes(status.job.state)) return {state:'needs_attention',canGenerate:false,jobId:status.job.jobId,...requestProgress(status.job),message:'The server has a previous generation attempt. Do not repeat it.'};
     state.claimId ||= randomUUID(); await this.save(state);
     const result = await this.api({action:'claim',claimId:state.claimId});
     if (!result.job) {state.claimId=null; await this.save(state); return {state:'idle',generator:result.generator};}
     if (!uuid.test(result.job.jobId)) throw new Error('Invalid image job identifier.');
-    if (result.job.state !== 'claimed') return {state:result.job.state,jobId:result.job.jobId,canGenerate:false};
+    if (result.job.state !== 'claimed') return {state:result.job.state,jobId:result.job.jobId,...requestProgress(result.job),canGenerate:false};
     state.active = {phase:'claimed',job:result.job}; await this.save(state);
     const referencePaths = await this.references(result.job);
-    return {state:'claimed',job:result.job,referencePaths,canGenerate:false,nextAction:'start'};
+    return {state:'claimed',job:result.job,...requestProgress(result.job),referencePaths,canGenerate:false,nextAction:'start'};
   }
   async start(jobId) {
     if (!uuid.test(jobId)) throw new Error('Invalid image job identifier.');
@@ -134,7 +160,7 @@ export class ImageQueue {
     if (!uuid.test(jobId)) throw new Error('Invalid image job identifier.');
     const state = await this.state(); const active = state.active;
     if (!active || active.job.jobId !== jobId) throw new Error('This is not the locally active image job.');
-    if (active.phase === 'completed') return {state:'completed',duplicate:true,jobId};
+    if (active.phase === 'completed') return {state:'completed',duplicate:true,jobId,...requestProgress(active.job,null,active.progress),imagePath:active.result?.path,canGenerate:false};
     if (imagePath) {
       if (!['generating','needs_attention','result_saved'].includes(active.phase)) throw new Error('This job has no acknowledged native generation attempt.');
       const source=resolve(imagePath), info=await stat(source);
@@ -152,9 +178,12 @@ export class ImageQueue {
     const bytes=await readFile(active.result.path);
     if (createHash('sha256').update(bytes).digest('hex') !== active.result.fingerprint) throw new Error('The saved image changed.');
     const result=await this.api({action:'complete',jobId,image:{name:active.result.name,mime:active.result.mime,base64:bytes.toString('base64')}});
+    const completedJob = result.job?.jobId === jobId && result.job.requestId === active.job.requestId ? result.job : active.job;
+    active.progress=requestProgress(completedJob,result.request,active.progress);
+    active.job={...completedJob,...(active.progress.requestStatus ? {requestStatus:active.progress.requestStatus} : {})};
     active.phase='completed'; await this.save(state);
-    await atomicJSON(join(this.directory,'history',jobId+'.json'),{jobId,requestId:active.job.requestId,itemId:active.job.itemId,completedAt:new Date(this.now()).toISOString(),imagePath:active.result.path,fingerprint:active.result.fingerprint});
-    return {state:'completed',jobId,requestId:active.job.requestId,imagePath:active.result.path,duplicate:!!result.duplicate};
+    await atomicJSON(join(this.directory,'history',jobId+'.json'),{jobId,...active.progress,itemId:active.job.itemId,completedAt:new Date(this.now()).toISOString(),imagePath:active.result.path,fingerprint:active.result.fingerprint});
+    return {state:'completed',jobId,...active.progress,imagePath:active.result.path,duplicate:!!result.duplicate,canGenerate:false};
   }
   async report(jobId, phase, message) {
     if (!uuid.test(jobId)) throw new Error('Invalid image job identifier.');
