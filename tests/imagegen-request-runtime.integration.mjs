@@ -1,0 +1,43 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {fileURLToPath} from 'node:url';
+import {createHash} from 'node:crypto';
+import {Miniflare,convertV4MiniflareOptions} from 'miniflare';
+const base64='iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEklEQVR4nGOUq7jEwMDAxAAGABBWAWw4iy1UAAAAAElFTkSuQmCC';
+const image={name:'episode.png',mime:'image/png',base64};
+const receipt={name:image.name,mime:image.mime,bytes:Buffer.from(base64,'base64').length,fingerprint:createHash('sha256').update(Buffer.from(base64,'base64')).digest('hex')};
+test('SQLite queue holds every group until whole-request delivery, enforces original receipts and cancellation',{timeout:45000},async t=>{
+  const origin='https://tusharmondal01.github.io',owner={'x-admin-password':'fixture-deferred-owner'},team={'x-team-code':'fixture-deferred-team'};
+  const runtime=new Miniflare(convertV4MiniflareOptions({modules:true,scriptPath:fileURLToPath(new URL('../dist-worker/worker.js',import.meta.url)),compatibilityDate:'2026-10-09',compatibilityFlags:['nodejs_compat'],durableObjects:{CRAFTUSH_DATA:{className:'CraftushStorage',useSQLite:true}},bindings:{ADMIN_PASSWORD:owner['x-admin-password'],ALLOWED_ORIGINS:origin,PUBLIC_SITE_URL:origin+'/Craftush',RATE_LIMIT_REQUESTS_MINUTE:'10000'},outboundService:()=>{throw Error('No provider calls permitted');}}));
+  const call=(body,headers={},query='')=>runtime.dispatchFetch('https://fixture/api/image-requests'+query,{method:body===undefined?'GET':'POST',headers:{origin,'content-type':'application/json',...headers},...(body===undefined?{}:{body:JSON.stringify(body)})});
+  const value=async(body,headers,query='',status=200)=>{const response=await call(body,headers,query);assert.equal(response.status,status,await response.clone().text());return response.json();};
+  const create=async(count,title)=>(await value({action:'create',submissionId:crypto.randomUUID(),name:'Fixture team',title,width:1080,height:864,items:Array.from({length:count},(_,i)=>({title:'Episode '+(i+1),prompt:'Fixture art',filename:'episode.png'}))},team,'',201)).request;
+  const claim=async(requestId,runner)=>value({action:'claimBatch',batchId:crypto.randomUUID(),requestId,uploadPolicy:'after_request'},runner);
+  const stage=async(group,runner,alter)=>value({action:'stageBatch',batchId:group.batchId,images:group.jobs.map(job=>({jobId:job.jobId,...receipt,...alter}))},runner);
+  try{
+    const setup=await runtime.dispatchFetch('https://fixture/api/admin',{method:'POST',headers:{origin,'content-type':'application/json',...owner},body:JSON.stringify({action:'saveCode',code:team['x-team-code']})});assert.equal(setup.status,200);
+    const paired=await value({action:'pair',name:'Fixture'},owner),runner={'x-image-runner':paired.runnerToken};
+    const request=await create(13,'Thirteen deferred episodes'),other=await create(1,'Unrelated request');
+    const first=await claim(request.id,runner);assert.equal(first.jobs.length,10);
+    await value({action:'startBatch',batchId:first.batchId},runner);
+    assert.equal((await call({action:'complete',jobId:first.jobs[0].jobId,image},runner)).status,409,'a started image cannot upload early');
+    const staged=await stage(first,runner);assert(staged.jobs.every(job=>job.state==='staged'));assert.equal(staged.requestProgress.stagedCount,10);assert.equal(staged.resultCount,0);
+    assert.equal((await call({action:'beginRequestUpload',requestId:request.id},runner)).status,409,'ten of thirteen cannot start final delivery');
+    assert.equal((await call({action:'claimBatch',batchId:crypto.randomUUID(),requestId:other.id,uploadPolicy:'after_request'},runner)).status,409,'staged originals pin one request');
+    assert.equal((await call({action:'claim',claimId:crypto.randomUUID()},runner)).status,409,'legacy transport cannot bypass the pinned request');
+    const repeat=await stage(first,runner);assert.equal(repeat.requestProgress.stagedCount,10);
+    assert.equal((await call({action:'stageBatch',batchId:first.batchId,images:first.jobs.map(job=>({jobId:job.jobId,...receipt,fingerprint:'a'.repeat(64)}))},runner)).status,409,'saved originals cannot be replaced');
+    const last=await claim(request.id,runner);assert.equal(last.jobs.length,3);await value({action:'startBatch',batchId:last.batchId},runner);await stage(last,runner);
+    const detail=(await value(undefined,team,'?action=detail&id='+request.id)).request;assert.equal(detail.results.length,0,'all thirteen generated images are still local');assert(detail.items.every(item=>item.generation.state==='staged'));
+    const ready=await value({action:'beginRequestUpload',requestId:request.id},runner);assert.equal(ready.readyToUpload,true);assert.equal(ready.stagedCount,13);
+    assert.equal((await call({action:'complete',jobId:first.jobs[0].jobId,image:{...image,name:'replacement.png'}},runner)).status,409,'delivery is bound to its exact metadata');
+    for(const job of [...first.jobs,...last.jobs])await value({action:'complete',jobId:job.jobId,image},runner);
+    const retry=await value({action:'complete',jobId:first.jobs[0].jobId,image},runner);assert.equal(retry.duplicate,true);assert.equal(retry.request.status,'completed');assert.equal(retry.request.results.length,13);
+    const final=await value(undefined,runner,'?action=runnerRequest&requestId='+request.id);assert.equal(final.deliveryPhase,'completed');
+    const restaged=await stage(first,runner);assert.equal(restaged.requestProgress.deliveryPhase,'completed','an idempotent old staging receipt cannot reopen a completed delivery');
+    const cancel=await claim(other.id,runner);await value({action:'startBatch',batchId:cancel.batchId},runner);await stage(cancel,runner);await value({action:'cancel',id:other.id},team);
+    assert.equal((await call({action:'beginRequestUpload',requestId:other.id},runner)).status,409);assert.equal((await call({action:'stageBatch',batchId:cancel.batchId,images:cancel.jobs.map(job=>({jobId:job.jobId,...receipt}))},runner)).status,409);
+    assert.equal((await value(undefined,{},'?action=meta')).uploadPolicy,'after_request');
+    const replacement=await value({action:'pair',name:'Replacement'},owner);assert.equal((await call(undefined,{'x-image-runner':replacement.runnerToken},'?action=runnerRequest&requestId='+request.id)).status,403,'rotating the pairing does not inherit staged originals');
+  }finally{await runtime.dispose();}
+});

@@ -35,6 +35,9 @@ export class CraftushStorage {
     this.sql.exec('CREATE TABLE IF NOT EXISTS image_request_runner (singleton INTEGER PRIMARY KEY CHECK(singleton = 1), token_digest TEXT NOT NULL, runner_id TEXT NOT NULL, name TEXT NOT NULL, paired_at TEXT NOT NULL, heartbeat_at TEXT)');
     this.sql.exec('CREATE TABLE IF NOT EXISTS image_request_generation (job_id TEXT PRIMARY KEY, request_id TEXT NOT NULL, item_id TEXT NOT NULL, state TEXT NOT NULL, runner_id TEXT, claim_id TEXT UNIQUE, claimed_at TEXT, started_at TEXT, updated_at TEXT NOT NULL, message TEXT NOT NULL DEFAULT \'\', UNIQUE(request_id, item_id))');
     this.sql.exec('CREATE INDEX IF NOT EXISTS image_request_generation_state ON image_request_generation (state, request_id)');
+    this.sql.exec('CREATE TABLE IF NOT EXISTS image_request_generation_batches (batch_id TEXT PRIMARY KEY, runner_id TEXT NOT NULL, request_id TEXT NOT NULL, job_ids TEXT NOT NULL, claimed_at TEXT NOT NULL)');
+    this.sql.exec('CREATE TABLE IF NOT EXISTS image_request_staged_results (job_id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, mime TEXT NOT NULL, name TEXT NOT NULL, bytes INTEGER NOT NULL, staged_at TEXT NOT NULL)');
+    this.sql.exec('CREATE TABLE IF NOT EXISTS image_request_deliveries (request_id TEXT PRIMARY KEY, runner_id TEXT NOT NULL, phase TEXT NOT NULL, updated_at TEXT NOT NULL)');
     initializeRateLimits(this.sql);
   }
 
@@ -116,7 +119,7 @@ export class CraftushStorage {
     const runner = this.sql.exec('SELECT runner_id, heartbeat_at FROM image_request_runner WHERE singleton = 1').toArray()[0];
     const connected = !!runner?.heartbeat_at && Date.parse(stamp) - Date.parse(runner.heartbeat_at) <= IMAGE_RUNNER_LIMITS.heartbeatMs;
     const needsAttention = this.sql.exec("SELECT COUNT(*) AS total FROM image_request_generation j JOIN image_request_records r ON r.id = j.request_id WHERE j.state = 'needs_attention' AND r.status != 'cancelled'").toArray()[0].total;
-    const busy = this.sql.exec("SELECT COUNT(*) AS total FROM image_request_generation WHERE state IN ('claimed', 'started')").toArray()[0].total > 0;
+    const busy = this.sql.exec("SELECT COUNT(*) AS total FROM image_request_generation j JOIN image_request_records r ON r.id = j.request_id WHERE j.state IN ('claimed', 'started', 'staged') AND r.status != 'cancelled'").toArray()[0].total > 0;
     return { paired: !!runner, connected, lastSeenAt: runner?.heartbeat_at || null,
       state: needsAttention ? 'needs_attention' : !connected ? 'offline' : busy ? 'busy' : 'connected', needsAttention };
   }
@@ -139,6 +142,26 @@ export class CraftushStorage {
     this.sql.exec('UPDATE image_request_records SET status = ?, updated_at = ?, document = ? WHERE id = ?', document.status, stamp, JSON.stringify(document), record.id);
   }
 
+  runnerBatch(batchId, runnerId) {
+    const batch = this.sql.exec('SELECT * FROM image_request_generation_batches WHERE batch_id = ?', batchId).toArray()[0];
+    if (!batch || batch.runner_id !== runnerId) throw queueError('This image group does not belong to the paired generator.', 403, 'RUNNER_SCOPE_DENIED');
+    const jobs = JSON.parse(batch.job_ids).map(jobId => this.jobBrief(this.scopedJob(jobId, runnerId)));
+    const record = this.requestRecord(batch.request_id);
+    return { batchId, requestId: batch.request_id, requestStatus: record.status, itemCount: record.item_count, resultCount: record.result_count, jobs, canGenerate: false };
+  }
+
+  runnerRequest(requestId, runnerId) {
+    const jobs = this.sql.exec('SELECT * FROM image_request_generation WHERE request_id = ?', requestId).toArray();
+    if (!jobs.some(job => job.runner_id === runnerId)) throw queueError('This request does not belong to the paired generator.', 403, 'RUNNER_SCOPE_DENIED');
+    const record = this.requestRecord(requestId), delivery = this.sql.exec('SELECT * FROM image_request_deliveries WHERE request_id = ?', requestId).toArray()[0];
+    if (delivery && delivery.runner_id !== runnerId) throw queueError('This request belongs to another generator connection.', 403, 'RUNNER_SCOPE_DENIED');
+    const stagedCount = jobs.filter(job => job.state === 'staged').length;
+    return { requestId, requestStatus: record.status, itemCount: record.item_count, resultCount: record.result_count, stagedCount,
+      uploadPolicy: delivery ? 'after_request' : 'after_group', deliveryPhase: delivery?.phase || null,
+      readyToUpload: jobs.length === record.item_count && jobs.every(job => job.state === 'completed' || (job.state === 'staged' && job.runner_id === runnerId)),
+      jobs: jobs.map(job => ({ jobId: job.job_id, itemId: job.item_id, state: job.state })), canGenerate: false };
+  }
+
   runnerOperation(operation, payload) {
     const stamp = payload.now;
     this.expireGenerationJobs(stamp);
@@ -159,11 +182,81 @@ export class CraftushStorage {
       return { generator: this.generatorMeta(stamp), job: active ? this.jobBrief(active) : null };
     };
     if (operation === 'runner-meta') return summary();
-    if (['runner-heartbeat', 'runner-claim'].includes(operation)) this.sql.exec('UPDATE image_request_runner SET heartbeat_at = ? WHERE singleton = 1', stamp);
+    if (['runner-heartbeat', 'runner-claim', 'runner-claim-batch'].includes(operation)) this.sql.exec('UPDATE image_request_runner SET heartbeat_at = ? WHERE singleton = 1', stamp);
     if (operation === 'runner-heartbeat') return summary();
+    if (operation === 'runner-batch') return this.runnerBatch(payload.batchId, runner.runner_id);
+    if (operation === 'runner-request') return this.runnerRequest(payload.requestId, runner.runner_id);
+    if (operation === 'runner-stage-batch') {
+      const batch = this.runnerBatch(payload.batchId, runner.runner_id);
+      if (batch.requestStatus === 'cancelled') throw queueError('This image request was cancelled.', 409, 'REQUEST_CANCELLED');
+      const supplied = new Map(payload.images.map(image => [image.jobId, image]));
+      if (supplied.size !== batch.jobs.length || payload.images.length !== batch.jobs.length || batch.jobs.some(job => !supplied.has(job.jobId) || !['started','needs_attention','staged','completed'].includes(job.state))) throw queueError('Saved receipts must match every started group item.', 409, 'STAGED_GROUP_MISMATCH');
+      const delivery = this.sql.exec('SELECT * FROM image_request_deliveries WHERE request_id = ?', batch.requestId).toArray()[0];
+      if (delivery && delivery.runner_id !== runner.runner_id) throw queueError('This request belongs to another generator connection.', 403, 'RUNNER_SCOPE_DENIED');
+      for (const job of batch.jobs) {
+        const image = supplied.get(job.jobId), saved = this.sql.exec('SELECT * FROM image_request_staged_results WHERE job_id = ?', job.jobId).toArray()[0];
+        const existing = this.sql.exec('SELECT * FROM image_request_assets WHERE asset_id = ?', job.jobId).toArray()[0];
+        if ((saved && ['fingerprint','mime','name','bytes'].some(key => saved[key] !== image[key])) || (existing && ['fingerprint','mime','name','bytes'].some(key => existing[key] !== image[key]))) throw queueError('A different saved result already exists for this image.', 409, 'ASSET_ID_CONFLICT');
+        if (!saved) this.sql.exec('INSERT INTO image_request_staged_results (job_id, fingerprint, mime, name, bytes, staged_at) VALUES (?, ?, ?, ?, ?, ?)', job.jobId, image.fingerprint, image.mime, image.name, image.bytes, stamp);
+        if (job.state !== 'completed') this.sql.exec("UPDATE image_request_generation SET state = 'staged', message = '', updated_at = ? WHERE job_id = ?", stamp, job.jobId);
+      }
+      if (!delivery) this.sql.exec("INSERT INTO image_request_deliveries (request_id, runner_id, phase, updated_at) VALUES (?, ?, 'collecting', ?)", batch.requestId, runner.runner_id, stamp);
+      const progress = this.runnerRequest(batch.requestId, runner.runner_id);
+      if (progress.requestStatus === 'completed') this.sql.exec("UPDATE image_request_deliveries SET phase = 'completed', updated_at = ? WHERE request_id = ?", stamp, batch.requestId);
+      else if (progress.readyToUpload && delivery?.phase !== 'uploading') this.sql.exec("UPDATE image_request_deliveries SET phase = 'ready_to_upload', updated_at = ? WHERE request_id = ?", stamp, batch.requestId);
+      return { ...this.runnerBatch(payload.batchId, runner.runner_id), requestProgress: this.runnerRequest(batch.requestId, runner.runner_id), staged: true };
+    }
+    if (operation === 'runner-begin-request-upload') {
+      const progress = this.runnerRequest(payload.requestId, runner.runner_id);
+      if (progress.requestStatus === 'cancelled') throw queueError('This image request was cancelled.', 409, 'REQUEST_CANCELLED');
+      if (progress.uploadPolicy !== 'after_request' || !progress.readyToUpload) throw queueError('Save every image in this request before starting delivery.', 409, 'REQUEST_NOT_READY');
+      this.sql.exec("UPDATE image_request_deliveries SET phase = ?, updated_at = ? WHERE request_id = ?", progress.requestStatus === 'completed' ? 'completed' : 'uploading', stamp, payload.requestId);
+      return this.runnerRequest(payload.requestId, runner.runner_id);
+    }
+    if (operation === 'runner-claim-batch') {
+      const repeated = this.sql.exec('SELECT * FROM image_request_generation_batches WHERE batch_id = ?', payload.batchId).toArray()[0];
+      if (repeated) {
+        if (payload.requestId && payload.requestId !== repeated.request_id) throw queueError('The image group belongs to a different request.', 409, 'BATCH_REQUEST_MISMATCH');
+        return { ...this.runnerBatch(payload.batchId, runner.runner_id), duplicate: true };
+      }
+      const delivery = this.sql.exec("SELECT d.* FROM image_request_deliveries d JOIN image_request_records r ON r.id = d.request_id WHERE r.status IN ('queued', 'in_progress') AND d.phase != 'completed' LIMIT 1").toArray()[0];
+      if (delivery && (delivery.runner_id !== runner.runner_id || payload.requestId !== delivery.request_id)) throw queueError('Finish the pinned image request before claiming another.', 409, 'REQUEST_PINNED');
+      if (this.sql.exec("SELECT j.job_id FROM image_request_generation j JOIN image_request_records r ON r.id = j.request_id WHERE j.state IN ('claimed', 'started') AND r.status != 'cancelled' LIMIT 1").toArray().length) throw queueError('The generator already has an active image group.', 409, 'RUNNER_BUSY');
+      if (this.generatorMeta(stamp).needsAttention) return { jobs: [], blocked: 'needs_attention', canGenerate: false };
+      const legacy = this.sql.exec("SELECT r.* FROM image_request_records r WHERE r.status IN ('queued', 'in_progress') AND NOT EXISTS (SELECT 1 FROM image_request_generation j WHERE j.request_id = r.id) ORDER BY r.created_at, r.id LIMIT 1").toArray()[0];
+      if (legacy) this.ensureGenerationJobs(legacy);
+      const first = payload.requestId
+        ? this.sql.exec("SELECT j.* FROM image_request_generation j JOIN image_request_records r ON r.id = j.request_id WHERE j.request_id = ? AND j.state = 'pending' AND r.status IN ('queued', 'in_progress') ORDER BY CAST(j.item_id AS INTEGER) LIMIT 1", payload.requestId).toArray()[0]
+        : this.sql.exec("SELECT j.* FROM image_request_generation j JOIN image_request_records r ON r.id = j.request_id WHERE j.state = 'pending' AND r.status IN ('queued', 'in_progress') ORDER BY r.created_at, r.id, CAST(j.item_id AS INTEGER) LIMIT 1").toArray()[0];
+      if (!first) {
+        if (payload.requestId) {
+          const record = this.requestRecord(payload.requestId);
+          return { jobs: [], requestId: record.id, requestStatus: record.status, itemCount: record.item_count, resultCount: record.result_count, canGenerate: false };
+        }
+        return { jobs: [], requestId: null, canGenerate: false };
+      }
+      const pending = this.sql.exec("SELECT * FROM image_request_generation WHERE request_id = ? AND state = 'pending' ORDER BY CAST(item_id AS INTEGER) LIMIT ?", first.request_id, IMAGE_RUNNER_LIMITS.batchSize).toArray();
+      for (const job of pending) this.sql.exec("UPDATE image_request_generation SET state = 'claimed', runner_id = ?, claim_id = ?, claimed_at = ?, updated_at = ? WHERE job_id = ?", runner.runner_id, crypto.randomUUID(), stamp, stamp, job.job_id);
+      this.sql.exec('INSERT INTO image_request_generation_batches (batch_id, runner_id, request_id, job_ids, claimed_at) VALUES (?, ?, ?, ?, ?)', payload.batchId, runner.runner_id, first.request_id, JSON.stringify(pending.map(job => job.job_id)), stamp);
+      const record = this.requestRecord(first.request_id), document = JSON.parse(record.document);
+      // Every newly reserved bulk request uses whole-request delivery. Existing
+      // batch receipts without a delivery record retain their recovery path.
+      if (!delivery) this.sql.exec("INSERT INTO image_request_deliveries (request_id, runner_id, phase, updated_at) VALUES (?, ?, 'collecting', ?)", first.request_id, runner.runner_id, stamp);
+      document.status = 'in_progress'; this.saveRequestDocument(record, document, stamp);
+      return { ...this.runnerBatch(payload.batchId, runner.runner_id), duplicate: false };
+    }
+    if (operation === 'runner-start-batch') {
+      const batch = this.runnerBatch(payload.batchId, runner.runner_id);
+      if (batch.requestStatus === 'cancelled') throw queueError('This image request was cancelled.', 409, 'REQUEST_CANCELLED');
+      if (!batch.jobs.length || batch.jobs.some(job => job.state !== 'claimed')) return { ...batch, duplicate: true, canGenerate: false };
+      for (const job of batch.jobs) this.sql.exec("UPDATE image_request_generation SET state = 'started', started_at = ?, updated_at = ? WHERE job_id = ?", stamp, stamp, job.jobId);
+      this.sql.exec('UPDATE image_request_runner SET heartbeat_at = ? WHERE singleton = 1', stamp);
+      return { ...this.runnerBatch(payload.batchId, runner.runner_id), duplicate: false, canGenerate: true };
+    }
     if (operation === 'runner-claim') {
       const repeated = this.sql.exec('SELECT * FROM image_request_generation WHERE claim_id = ? AND runner_id = ?', payload.claimId, runner.runner_id).toArray()[0];
       if (repeated) return { job: this.jobBrief(repeated), duplicate: true, generator: this.generatorMeta(stamp) };
+      if (this.sql.exec("SELECT d.request_id FROM image_request_deliveries d JOIN image_request_records r ON r.id = d.request_id WHERE d.phase != 'completed' AND r.status IN ('queued', 'in_progress') LIMIT 1").toArray().length) throw queueError('Finish the pinned image request before claiming another.', 409, 'REQUEST_PINNED');
       if (this.sql.exec("SELECT job_id FROM image_request_generation WHERE state IN ('claimed', 'started') LIMIT 1").toArray().length) throw queueError('The generator already has an active image job.', 409, 'RUNNER_BUSY');
       if (this.generatorMeta(stamp).needsAttention) return { job: null, blocked: 'needs_attention', generator: this.generatorMeta(stamp) };
       const legacy = this.sql.exec("SELECT r.* FROM image_request_records r WHERE r.status IN ('queued', 'in_progress') AND NOT EXISTS (SELECT 1 FROM image_request_generation j WHERE j.request_id = r.id) ORDER BY r.created_at LIMIT 1").toArray()[0];
@@ -186,7 +279,7 @@ export class CraftushStorage {
     }
     if (operation === 'runner-report') {
       if (job.state === 'completed') throw queueError('This image already has a completed result.', 409, 'JOB_COMPLETED');
-      if (!['claimed', 'started', 'needs_attention', 'failed'].includes(job.state)) throw queueError('This image job is not active.', 409, 'JOB_NOT_ACTIVE');
+      if (!['claimed', 'started', 'staged', 'needs_attention', 'failed'].includes(job.state)) throw queueError('This image job is not active.', 409, 'JOB_NOT_ACTIVE');
       this.sql.exec('UPDATE image_request_generation SET state = ?, message = ?, updated_at = ? WHERE job_id = ?', payload.state, payload.message, stamp, job.job_id);
       return { job: this.jobBrief(this.scopedJob(job.job_id, runner.runner_id)), generator: this.generatorMeta(stamp) };
     }
@@ -196,7 +289,11 @@ export class CraftushStorage {
       if (job.state !== 'completed' || existing.request_id !== job.request_id || existing.item_id !== job.item_id || existing.fingerprint !== asset.fingerprint || existing.mime !== asset.mime || existing.name !== asset.name) throw queueError('A different result already exists for this image job.', 409, 'ASSET_ID_CONFLICT');
       return { request: this.requestDetail(this.requestRecord(job.request_id)), job: this.jobBrief(job), duplicate: true };
     }
-    if (!['started', 'needs_attention'].includes(job.state)) throw queueError('Durably start the claimed job before generating and uploading an image.', 409, 'JOB_NOT_STARTED');
+    const delivery = this.sql.exec('SELECT * FROM image_request_deliveries WHERE request_id = ?', job.request_id).toArray()[0];
+    const staged = this.sql.exec('SELECT * FROM image_request_staged_results WHERE job_id = ?', job.job_id).toArray()[0];
+    if (delivery && (delivery.runner_id !== runner.runner_id || delivery.phase !== 'uploading' || !staged)) throw queueError('Save the whole request and begin its delivery before uploading.', 409, 'REQUEST_NOT_READY');
+    if (staged && ['fingerprint','mime','name','bytes'].some(key => staged[key] !== asset[key])) throw queueError('The uploaded bytes do not match the saved original receipt.', 409, 'ASSET_ID_CONFLICT');
+    if (!['started', 'staged', 'needs_attention'].includes(job.state)) throw queueError('Durably start the claimed job before generating and uploading an image.', 409, 'JOB_NOT_STARTED');
     const record = this.requestRecord(job.request_id);
     if (record.result_count >= IMAGE_REQUEST_LIMITS.results) throw queueError('This request has reached its result limit.', 413, 'RESULT_LIMIT');
     this.checkAssetCapacity(record.asset_bytes, asset.bytes);
@@ -206,6 +303,7 @@ export class CraftushStorage {
     const document = JSON.parse(record.document), ready = new Set(this.sql.exec('SELECT item_id FROM image_request_assets WHERE request_id = ? AND kind = ?', job.request_id, 'result').toArray().map(row => row.item_id));
     if (document.status !== 'cancelled') document.status = document.items.every(item => ready.has(item.id)) ? 'completed' : 'in_progress';
     this.saveRequestDocument(record, document, stamp);
+    if (delivery && document.status === 'completed') this.sql.exec("UPDATE image_request_deliveries SET phase = 'completed', updated_at = ? WHERE request_id = ?", stamp, job.request_id);
     return { request: this.requestDetail(this.requestRecord(job.request_id)), job: this.jobBrief(this.scopedJob(job.job_id, runner.runner_id)), duplicate: false };
   }
 
@@ -257,6 +355,15 @@ export class CraftushStorage {
           this.insertAssets(incoming.id, assets, incoming.createdAt);
           this.ensureGenerationJobs(this.requestRecord(incoming.id));
           result = { request: this.requestDetail(this.requestRecord(incoming.id)), duplicate: false }; return;
+        }
+        if (operation === 'cancel') {
+          const record = this.requestRecord(payload.id), document = JSON.parse(record.document);
+          if (document.status === 'completed') throw queueError('This request has already finished.', 409, 'REQUEST_COMPLETED');
+          if (document.status !== 'cancelled') {
+            document.status = 'cancelled';
+            this.saveRequestDocument(record, document, payload.updatedAt);
+          }
+          result = { request: this.requestDetail(this.requestRecord(payload.id)) }; return;
         }
         if (!['status', 'deliver'].includes(operation)) throw queueError('Unknown image storage operation.');
         const record = this.requestRecord(payload.id), document = JSON.parse(record.document);

@@ -21,8 +21,8 @@
       <section class="intro" aria-labelledby="heading">
         <span class="eyebrow">06 / Image Generator</span>
         <h1 id="heading">Your ideas.<br><span>One shared image queue.</span></h1>
-        <p>Submit a prompt or a batch. Images are generated automatically and will appear here.</p>
-        <div class="steps" aria-label="How it works"><span><b>1</b> Add your ideas</span><span><b>2</b> Images generate</span><span><b>3</b> Download results</span></div>
+        <p>Submit a prompt or a batch. The whole request is generated first, then its images are sent to Craftush together.</p>
+        <div class="steps" aria-label="How it works"><span><b>1</b> Add your ideas</span><span><b>2</b> Generate all images</span><span><b>3</b> Download results</span></div>
       </section>
 
       <div id="connectionNotice" class="notice" role="status">Checking the shared queue…</div>
@@ -63,6 +63,7 @@
         <section id="requestSection" class="card" aria-labelledby="requestHeading">
           <div class="section-head"><div><span class="eyebrow">Create a brief</span><h2 id="requestHeading">Generate new images</h2></div><span class="pill">Automatic generation</span></div>
           <p class="help">Send one image prompt or paste a batch of titles. Your connected generator will use the prompt, style notes and optional reference.</p>
+          <p id="requestDeliveryPolicy" class="help">Delivery: generate the whole request first, then send all its images to Craftush together.</p>
           <form id="requestForm">
             <div class="form-grid">
               <label class="field">Your name <input id="requesterName" required maxlength="80" autocomplete="name" placeholder="e.g. Riya"></label>
@@ -98,7 +99,7 @@
 
         <section id="detailSection" class="card detail" aria-labelledby="detailHeading" hidden>
           <div class="section-head"><div><span class="eyebrow">Request details</span><h2 id="detailHeading" tabindex="-1"></h2></div><button id="closeDetail" type="button">Close details</button></div>
-          <p id="detailMeta" class="help"></p><p id="detailMessage" class="message" role="status" aria-live="polite"></p>
+          <p id="detailMeta" class="help"></p><p id="detailDeliveryPolicy" class="help"></p><p id="detailMessage" class="message" role="status" aria-live="polite"></p>
           <div id="stopControls" class="stop-controls" hidden>
             <button id="stopRequest" type="button" class="danger">Stop request</button>
             <div id="stopConfirmation" hidden>
@@ -114,7 +115,7 @@
           <div id="detailItems" class="item-list"></div>
           <div class="results-head"><div><h3>Finished images</h3><span id="resultCount" class="help"></span></div><div id="bulkDownloadControls" hidden><button id="downloadAllResults" type="button" disabled>Download all (.zip)</button></div></div>
           <p id="bulkDownloadMessage" class="message" role="status" aria-live="polite"></p>
-          <p id="resultsEmpty" class="help">Finished images appear automatically. This page refreshes while the generator works.</p>
+          <p id="resultsEmpty" class="help">Images appear after the whole request has been generated and sent to Craftush. This page updates automatically.</p>
           <div id="detailResults" class="asset-grid"></div>
 
           <details id="ownerControls" class="owner-controls" hidden>

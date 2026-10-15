@@ -48,6 +48,76 @@ function fixture(settings = { teamCode: 'fixture-team' }) {
   return f;
 }
 
+test('staged request originals remain safe beyond the native-start timeout while later groups are generated', async () => {
+  const f = fixture();
+  try {
+    const { request } = await f.create({ items: Array.from({ length: 13 }, (_, index) => ({ title: 'Episode ' + (index + 1), prompt: 'Fixture art' })) });
+    const runner = await pairRunner(f), batchId = crypto.randomUUID();
+    const claimed = await runner.call({ action: 'claimBatch', batchId, requestId: request.id });assert.equal(claimed.status, 200);
+    const group = await claimed.json();await runner.call({ action: 'startBatch', batchId });
+    const bytes = Buffer.from(PNG, 'base64'), fingerprint = Buffer.from(await crypto.subtle.digest('SHA-256', bytes)).toString('hex');
+    const staged = await runner.call({ action: 'stageBatch', batchId, images: group.jobs.map(job => ({ jobId: job.jobId, fingerprint, mime: 'image/png', name: 'example.png', bytes: bytes.length })) });assert.equal(staged.status, 200);
+    f.now = '2026-10-14T12:00:00.000Z';
+    const heartbeat = await runner.call({ action: 'runnerHeartbeat' });assert.equal(heartbeat.status, 200);assert.equal((await heartbeat.json()).generator.needsAttention, 0);
+    const stored = f.database.prepare("SELECT state FROM image_request_generation WHERE request_id = ? AND state != 'pending'").all(request.id);assert.equal(stored.length, 10);assert(stored.every(job => job.state === 'staged'));
+    const last = await runner.call({ action: 'claimBatch', batchId: crypto.randomUUID(), requestId: request.id });assert.equal(last.status, 200);assert.equal((await last.json()).jobs.length, 3);
+    assert.equal((await f.detail(request.id)).results.length, 0);
+  } finally { f.close(); }
+});
+
+test('authenticated team cancellation is scoped, idempotent and preserves finished images and owner notes', async () => {
+  const f = fixture();
+  try {
+    const { request } = await f.create({ items: [{ title: 'Earth', prompt: 'Earth' }, { title: 'Mars', prompt: 'Mars' }] });
+    await f.call({ action: 'deliver', id: request.id, notes: 'Keep this note', images: [{ ...upload(), assetId: crypto.randomUUID(), itemId: '1' }] }, OWNER);
+    assert.equal((await f.call({ action: 'cancel', id: request.id }, {})).status, 401);
+    const response = await f.call({ action: 'cancel', id: request.id, status: 'completed', notes: 'Cannot replace owner note' });
+    assert.equal(response.status, 200);
+    const stopped = (await response.json()).request;
+    assert.equal(stopped.status, 'cancelled'); assert.equal(stopped.notes, 'Keep this note');
+    assert.equal(stopped.results.length, 1);
+    assert.equal((await f.call({ action: 'cancel', id: request.id })).status, 200);
+    assert.equal((await f.call({ action: 'status', id: request.id, status: 'queued' })).status, 401);
+    const completed = await f.create();
+    await f.call({ action: 'deliver', id: completed.request.id, status: 'completed', images: [{ ...upload(), assetId: crypto.randomUUID(), itemId: '1' }] }, OWNER);
+    assert.equal((await f.call({ action: 'cancel', id: completed.request.id })).status, 409);
+    assert.equal((await f.detail(completed.request.id)).status, 'completed');
+  } finally { f.close(); }
+});
+
+test('stopping a claimed bulk request prevents its acknowledged group from starting', async () => {
+  const f = fixture();
+  try {
+    const { request } = await f.create();
+    const runner = await pairRunner(f), batchId = crypto.randomUUID();
+    const response = await runner.call({ action: 'claimBatch', batchId, requestId: request.id });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).jobs.length, 1);
+    assert.equal((await f.call({ action: 'cancel', id: request.id })).status, 200);
+    const start = await runner.call({ action: 'startBatch', batchId });
+    assert.equal(start.status, 409);
+    assert.equal((await start.json()).errors[0].code, 'REQUEST_CANCELLED');
+    const saved = f.database.prepare('SELECT state FROM image_request_generation WHERE request_id = ?').get(request.id);
+    assert.equal(saved.state, 'claimed', 'stop preserves attempt receipts without authorizing a native call');
+  } finally { f.close(); }
+});
+
+test('an image already started can finish after stop without restarting the cancelled request', async () => {
+  const f = fixture();
+  try {
+    const { request } = await f.create();
+    const runner = await pairRunner(f), { job } = await claim(runner);
+    assert.equal((await runner.call({ action: 'start', jobId: job.jobId })).status, 200);
+    assert.equal((await f.call({ action: 'cancel', id: request.id })).status, 200);
+    const finished = await runner.call({ action: 'complete', jobId: job.jobId, image: upload() });
+    assert.equal(finished.status, 200);
+    const saved = (await finished.json()).request;
+    assert.equal(saved.status, 'cancelled'); assert.equal(saved.results.length, 1);
+    const asset = await f.call(undefined, TEAM, '?action=asset&id=' + request.id + '&assetId=' + saved.results[0].assetId);
+    assert.equal(asset.status, 200); assert.equal(Buffer.from(await asset.arrayBuffer()).toString('base64'), PNG);
+  } finally { f.close(); }
+});
+
 test('public metadata has no credentials and team access requires a configured code', async () => {
   const f = fixture({});
   const originalFetch = globalThis.fetch; let providerCalls = 0;

@@ -144,7 +144,7 @@
     const attention = Number(generator.needsAttention || 0);
     $('generatorBadge').className = 'status-badge ' + (attention ? 'needs_attention' : online ? 'completed' : 'queued');
     $('generatorBadge').textContent = attention ? 'Needs attention' : online ? 'Online' : generator.paired ? 'Offline' : 'Not connected';
-    $('generatorStatus').textContent = !generator.paired ? 'The owner needs to connect the background generator once.' : !online ? 'The generator is offline. Requests stay queued until the generator computer and Codex are running.' : attention ? 'Generator online. ' + attention + (attention === 1 ? ' image needs' : ' images need') + ' attention; check the affected request for details.' : generator.state === 'busy' ? 'Your generator is creating images. Results appear here as they finish.' : 'Generator online. New requests will run automatically.';
+    $('generatorStatus').textContent = !generator.paired ? 'The owner needs to connect the background generator once.' : !online ? 'The generator is offline. Requests stay queued until the generator computer and Codex are running.' : attention ? 'Generator online. ' + attention + (attention === 1 ? ' image needs' : ' images need') + ' attention; check the affected request for details.' : generator.state === 'busy' ? 'Your generator is creating images. Each request is generated in full before its images are sent to Craftush together.' : 'Generator online. New requests will run automatically.';
     $('generatorHeartbeat').textContent = generator.lastSeenAt ? 'Last connected: ' + date(generator.lastSeenAt) + '. This page updates automatically.' : 'Waiting for the first connection from your generator computer.';
     if (role === 'owner') $('pairGenerator').textContent = pairingConfig ? 'Replace connection file' : generator.paired ? 'Create replacement connection file' : 'Create connection file';
   }
@@ -314,7 +314,7 @@
       $('batchTitles').required = false;
       $('batchCount').textContent = '0 titles';
       clearReference();
-      message('requestMessage', (data.duplicate ? 'Your existing request was confirmed.' : 'Request saved.') + ' ' + saved.items.length + (saved.items.length === 1 ? ' image is queued.' : ' images are queued.') + ' Images are generated automatically and will appear here.', 'success');
+      message('requestMessage', (data.duplicate ? 'Your existing request was confirmed.' : 'Request saved.') + ' ' + saved.items.length + (saved.items.length === 1 ? ' image is queued.' : ' images are queued.') + ' Images are generated automatically. The whole request is generated first, then its images are sent to Craftush together.', 'success');
       offset = 0;
       await loadQueue();
       await showDetail(saved.id);
@@ -465,6 +465,11 @@
     $('stopConfirmation').hidden = true;
     message('stopMessage', batch.status === 'cancelled' ? 'Request stopped. Images already generating may finish; finished images remain available.' : '');
     $('detailMeta').textContent = 'By ' + batch.name + ' · ' + (STATUS_LABELS[batch.status] || batch.status) + ' · ' + batch.items.length + ' requested · ' + batch.width + ' × ' + batch.height + ' px · ' + date(batch.createdAt);
+    $('detailDeliveryPolicy').hidden = ['completed', 'cancelled'].includes(batch.status);
+    $('detailDeliveryPolicy').textContent = batch.results?.length
+      ? 'The remaining images are generated first, then sent to Craftush together. Previously delivered images remain available.'
+      : batch.items.length === 1 ? 'Your image is generated first, then sent to Craftush.'
+      : 'All ' + batch.items.length + ' images are generated first, then sent to Craftush together. Download all results as one ZIP after delivery.';
     $('detailStyle').textContent = batch.styleNotes || 'No shared style notes supplied.';
     $('detailNotes').hidden = !batch.notes;
     $('detailNotes').textContent = batch.notes ? 'Owner’s note: ' + batch.notes : '';
@@ -497,6 +502,7 @@
     $('detailReferences').replaceChildren();
     $('detailResults').replaceChildren();
     const references = batch.references || [], results = batch.results || [];
+    $('resultsEmpty').textContent = batch.status === 'cancelled' ? 'No images have been delivered to this stopped request.' : 'Images appear after the whole request has been generated and sent to Craftush. This page updates automatically.';
     $('resultsEmpty').hidden = results.length > 0;
     $('resultCount').textContent = results.length + (results.length === 1 ? ' image delivered' : ' images delivered');
     $('bulkDownloadControls').hidden = results.length === 0;

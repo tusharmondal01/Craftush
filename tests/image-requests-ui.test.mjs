@@ -186,6 +186,7 @@ test('automatic generator workflow pairs once, refreshes jobs, preserves uncerta
   assert.equal($('queueList').querySelector('img'), null);
   assert.equal($('ownerControls').hidden, true);
   assert.match($('requestMessage').textContent, /generated automatically/);
+  assert.match($('requestMessage').textContent, /whole request is generated first/);
   assert.ok($('detailItems').textContent.includes('Queued'));
   click($('copyBrief'));
   await until(() => app.copied.length === 1, 'complete generation brief');
@@ -202,6 +203,7 @@ test('automatic generator workflow pairs once, refreshes jobs, preserves uncerta
   await app.poll();
   assert.equal($('generatorBadge').textContent, 'Online');
   assert.match($('generatorStatus').textContent, /creating images/);
+  assert.match($('generatorStatus').textContent, /generated in full before/);
   assert.match($('generatorHeartbeat').textContent, /Last connected/);
   assert.match($('detailMeta').textContent, /Generating/);
   assert.ok($('detailItems').textContent.includes('Generating'));
@@ -308,6 +310,86 @@ function unzipStored(buffer) {
   assert.equal(offset + 22, bytes.length, 'archive has no extra or missing bytes');
   return entries;
 }
+
+test('full-request delivery explains all 132 images while retaining earlier downloads and Stop controls', async () => {
+  const batch = {
+    id: webcrypto.randomUUID(), title: '132 episodes', name: 'Editor', status: 'in_progress', width: 1080, height: 864,
+    createdAt: '2026-10-15T12:00:00Z', updatedAt: '2026-10-15T12:00:00Z', references: [], results: [],
+    items: Array.from({ length: 132 }, (_, index) => ({ id: String(index + 1), title: 'Episode ' + (index + 1), prompt: '', filename: 'episode-' + (index + 1) + '.png', generation: { state: 'pending' } })),
+  };
+  const app = browser(async (path, options) => {
+    const action = new URL('https://craftush.test' + path).searchParams.get('action');
+    if (action === 'meta') return json({ enabled: true, teamConfigured: true, generator: { paired: true, connected: true, state: 'busy' } });
+    assert.equal(options.headers['X-Team-Code'], 'team-secret');
+    if (action === 'list') return json({ requests: [{ ...batch, itemCount: batch.items.length, resultCount: batch.results.length }], total: 1 });
+    if (action === 'detail') return json({ request: batch });
+    assert.fail('Delivery messaging must not start or upload images: ' + action);
+  });
+  const { $, event, click } = app;
+  await until(() => !$('accessButton').disabled, 'backend metadata');
+  assert.match($('requestDeliveryPolicy').textContent, /whole request first/);
+  $('credential').value = 'team-secret'; event('accessForm');
+  await until(() => !$('workspace').hidden, 'team workspace');
+  click($('queueList').querySelector('button'));
+  await until(() => !$('detailSection').hidden, 'request details');
+  assert.match($('detailDeliveryPolicy').textContent, /All 132 images are generated first/);
+  assert.equal($('detailDeliveryPolicy').hidden, false);
+  assert.equal($('stopControls').hidden, false);
+  assert.equal($('bulkDownloadControls').hidden, true);
+  assert.match($('resultsEmpty').textContent, /whole request has been generated/);
+
+  batch.results = [{ assetId: webcrypto.randomUUID(), itemId: '1', name: 'episode-1.png', mime: 'image/png', bytes: 8 }];
+  batch.updatedAt = '2026-10-15T12:01:00Z';
+  await app.poll();
+  assert.match($('detailDeliveryPolicy').textContent, /remaining images are generated first/);
+  assert.match($('detailDeliveryPolicy').textContent, /Previously delivered images remain available/);
+  assert.equal($('bulkDownloadControls').hidden, false);
+  assert.equal($('downloadAllResults').disabled, false);
+  assert.equal($('detailResults').querySelectorAll('.asset-card').length, 1);
+
+  batch.status = 'cancelled'; batch.updatedAt = '2026-10-15T12:02:00Z';
+  await app.poll();
+  assert.equal($('detailDeliveryPolicy').hidden, true, 'a stopped request does not promise further delivery');
+  assert.equal($('stopControls').hidden, true);
+  assert.equal($('bulkDownloadControls').hidden, false, 'earlier delivery remains downloadable after Stop');
+
+  batch.status = 'completed'; batch.updatedAt = '2026-10-15T12:03:00Z';
+  await app.poll();
+  assert.equal($('detailDeliveryPolicy').hidden, true, 'a completed request does not show pending delivery instructions');
+});
+
+test('team confirms stopping exactly the selected request and can keep it running without a mutation', async () => {
+  const batch = { id: webcrypto.randomUUID(), title: 'Stop fixture', name: 'Editor', status: 'in_progress', width: 1080, height: 864, createdAt: '2026-10-15T12:00:00Z', references: [], results: [], items: [{ id: '1', title: 'Earth', prompt: '', filename: 'earth.png' }] };
+  const cancels = [];
+  let release;
+  const waiting = new Promise(resolve => { release = resolve; });
+  const app = browser(async (path, options) => {
+    const body = options.body ? JSON.parse(options.body) : null;
+    const action = body?.action ?? new URL('https://craftush.test' + path).searchParams.get('action');
+    if (action === 'meta') return json({ enabled: true, teamConfigured: true, generator: {} });
+    assert.equal(options.headers['X-Team-Code'], 'team-secret');
+    if (action === 'list') return json({ requests: [{ ...batch, itemCount: 1, resultCount: 0 }], total: 1 });
+    if (action === 'detail') return json({ request: batch });
+    assert.equal(action, 'cancel'); cancels.push(body); await waiting;
+    batch.status = 'cancelled'; return json({ request: batch });
+  });
+  const { $, event, click } = app;
+  await until(() => !$('accessButton').disabled, 'ready backend');
+  $('credential').value = 'team-secret'; event('accessForm');
+  await until(() => !$('workspace').hidden, 'team access');
+  click($('queueList').querySelector('button'));
+  await until(() => !$('detailSection').hidden, 'request details');
+  assert.equal($('stopControls').hidden, false);
+  event('stopRequest', 'click'); assert.equal($('stopConfirmation').hidden, false);
+  assert.match($('stopConfirmation').textContent, /already generating may finish/);
+  event('keepRunning', 'click'); assert.equal(cancels.length, 0);
+  event('stopRequest', 'click'); event('confirmStop', 'click');
+  event('confirmStop', 'click'); event('closeDetail', 'click'); event('lockButton', 'click');
+  assert.equal(cancels.length, 1); assert.equal($('workspace').hidden, false); assert.equal($('detailSection').hidden, false);
+  assert.deepEqual(cancels[0], { action: 'cancel', id: batch.id });
+  release(); await until(() => $('stopControls').hidden, 'request stopped');
+  assert.match($('stopMessage').textContent, /Request stopped/);
+});
 
 test('team downloads delivered images as one authenticated ZIP with safe unique names and releases its URL', async () => {
   const requestID = webcrypto.randomUUID();

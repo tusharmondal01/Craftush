@@ -8,7 +8,7 @@ export const IMAGE_REQUEST_LIMITS = Object.freeze({
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const STATUSES = new Set(['queued', 'in_progress', 'completed', 'cancelled']);
 const encoder = new TextEncoder();
-export const IMAGE_RUNNER_LIMITS = Object.freeze({ heartbeatMs: 10 * 60 * 1000, claimMs: 10 * 60 * 1000, startedMs: 30 * 60 * 1000 });
+export const IMAGE_RUNNER_LIMITS = Object.freeze({ heartbeatMs: 10 * 60 * 1000, claimMs: 10 * 60 * 1000, startedMs: 30 * 60 * 1000, batchSize: 10 });
 const issue = (message, status = 400, code = 'INVALID_REQUEST') => Object.assign(new Error(message), { status, code });
 const text = (value, limit, label, required = false) => {
   if (value !== undefined && typeof value !== 'string') throw issue(`${label} must be text.`);
@@ -160,7 +160,7 @@ export function createImageRequestsHandler({ openStore, readSettings, env, safeE
       if (method === 'GET' && url.searchParams.get('action') === 'meta') {
         const { generator } = await store.imageRequests('generator-meta', { now: now() });
         return json({ enabled, codeRequired: true, teamConfigured: !!teamCode, limits: IMAGE_REQUEST_LIMITS,
-          generator, generatorConnected: generator.connected, generatorHeartbeatAt: generator.lastSeenAt });
+          generator, generatorConnected: generator.connected, generatorHeartbeatAt: generator.lastSeenAt, generationBatchSize: IMAGE_RUNNER_LIMITS.batchSize, uploadPolicy: 'after_request' });
       }
       if (!['GET', 'POST'].includes(method)) throw issue('Method not allowed.', 405, 'METHOD_NOT_ALLOWED');
       if (request.headers.has('x-image-runner')) {
@@ -173,6 +173,8 @@ export function createImageRequestsHandler({ openStore, readSettings, env, safeE
           const action = url.searchParams.get('action');
           if (action === 'runnerMeta') return json(await store.imageRequests('runner-meta', runnerPayload));
           if (action === 'runnerJob') return json(await store.imageRequests('runner-job', { ...runnerPayload, jobId: id(url.searchParams.get('jobId')) }));
+          if (action === 'runnerBatch') return json(await store.imageRequests('runner-batch', { ...runnerPayload, batchId: id(url.searchParams.get('batchId')) }));
+          if (action === 'runnerRequest') return json(await store.imageRequests('runner-request', { ...runnerPayload, requestId: id(url.searchParams.get('requestId')) }));
           if (action === 'runnerAsset') {
             const jobId = id(url.searchParams.get('jobId')), assetId = id(url.searchParams.get('assetId'));
             const { job } = await store.imageRequests('runner-job', { ...runnerPayload, jobId });
@@ -185,6 +187,17 @@ export function createImageRequestsHandler({ openStore, readSettings, env, safeE
         if (!body || typeof body !== 'object' || Array.isArray(body)) throw issue('A request object is required.');
         if (body.action === 'runnerHeartbeat') return json(await store.imageRequests('runner-heartbeat', runnerPayload));
         if (body.action === 'claim') return json(await store.imageRequests('runner-claim', { ...runnerPayload, claimId: id(body.claimId) }));
+        if (body.action === 'claimBatch') return json(await store.imageRequests('runner-claim-batch', { ...runnerPayload, batchId: id(body.batchId), ...(body.requestId ? { requestId: id(body.requestId) } : {}), ...(body.uploadPolicy === 'after_request' ? { uploadPolicy: 'after_request' } : {}) }));
+        if (body.action === 'startBatch') return json(await store.imageRequests('runner-start-batch', { ...runnerPayload, batchId: id(body.batchId) }));
+        if (body.action === 'stageBatch') {
+          if (!Array.isArray(body.images) || !body.images.length || body.images.length > IMAGE_RUNNER_LIMITS.batchSize) throw issue('Stage one acknowledged image group.');
+          const images = body.images.map(image => {
+            if (!/^[a-f0-9]{64}$/.test(image?.fingerprint || '') || !['image/png','image/jpeg','image/webp'].includes(image?.mime) || !Number.isSafeInteger(image?.bytes) || image.bytes < 1 || image.bytes > IMAGE_REQUEST_LIMITS.assetBytes) throw issue('An exact saved-image receipt is required.');
+            return { jobId: id(image.jobId), fingerprint: image.fingerprint, mime: image.mime, bytes: image.bytes, name: imageFilename(text(image.name, 150, 'Saved image name', true)) };
+          });
+          return json(await store.imageRequests('runner-stage-batch', { ...runnerPayload, batchId: id(body.batchId), images }));
+        }
+        if (body.action === 'beginRequestUpload') return json(await store.imageRequests('runner-begin-request-upload', { ...runnerPayload, requestId: id(body.requestId) }));
         if (!['start', 'report', 'complete'].includes(body.action)) throw issue('This connection can only claim, start, finish or report image jobs.', 403, 'RUNNER_SCOPE_DENIED');
         const jobId = id(body.jobId);
         if (body.action === 'start') return json(await store.imageRequests('runner-start', { ...runnerPayload, jobId }));
@@ -225,6 +238,7 @@ export function createImageRequestsHandler({ openStore, readSettings, env, safeE
         const fingerprint = await hash(JSON.stringify({ brief, reference: reference ? { name: reference.name, mime: reference.mime, fingerprint: reference.fingerprint } : null }));
         return json(await store.imageRequests('create', { request: { ...brief, status: 'queued', notes: '', createdAt: now(), updatedAt: now() }, fingerprint, assets: reference ? [reference] : [] }), 201);
       }
+      if (body.action === 'cancel') return json(await store.imageRequests('cancel', { id: id(body.id), updatedAt: now() }));
       if (!admin) throw issue('Owner sign-in is required to update or deliver images.', 401, 'ADMIN_REQUIRED');
       if (body.action === 'pair') {
         const tokenBytes = crypto.getRandomValues(new Uint8Array(32));
