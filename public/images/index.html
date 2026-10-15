@@ -99,6 +99,14 @@
         <section id="detailSection" class="card detail" aria-labelledby="detailHeading" hidden>
           <div class="section-head"><div><span class="eyebrow">Request details</span><h2 id="detailHeading" tabindex="-1"></h2></div><button id="closeDetail" type="button">Close details</button></div>
           <p id="detailMeta" class="help"></p><p id="detailMessage" class="message" role="status" aria-live="polite"></p>
+          <div id="stopControls" class="stop-controls" hidden>
+            <button id="stopRequest" type="button" class="danger">Stop request</button>
+            <div id="stopConfirmation" hidden>
+              <p>Stop the remaining images in this request? Images already generating may finish. Finished images stay available.</p>
+              <div class="actions"><button id="confirmStop" type="button" class="danger">Yes, stop request</button><button id="keepRunning" type="button">Keep running</button></div>
+            </div>
+          </div>
+          <p id="stopMessage" class="message" role="status" aria-live="polite"></p>
           <details class="brief-tools"><summary>Export request briefs</summary><div class="actions"><button id="copyBrief" type="button">Copy full brief</button><button id="downloadBrief" type="button">Download brief .txt</button></div></details>
           <details><summary>Shared style notes</summary><p id="detailStyle" class="preserve"></p></details>
           <div id="detailNotes" class="notice" hidden></div>
