@@ -617,6 +617,6 @@ test('every image UI control exists and GitHub Pages adapts both authenticated A
   assert.equal((output.match(/window\.craftushAPI\('/g) || []).length, 2);
   assert.doesNotMatch(output, /fetch\(['"]\/api\//);
   const page = adaptPagesText(html, '/Craftush', 'html', 'https://backend.example');
-  assert.match(page, /src="\/Craftush\/images\/app\.js"/);
-  assert.match(page, /href="\/Craftush\/images\/style\.css"/);
+  assert.match(page, /src="\/Craftush\/images\/app\.js\?v=20261015-local-folder"/);
+  assert.match(page, /href="\/Craftush\/images\/style\.css\?v=20261015-local-folder"/);
 });
