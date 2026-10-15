@@ -59,6 +59,9 @@ function browser(fetch) {
   });
   return {
     $, document, copied, revoked, blobDownloads,
+    cleanupDownloads() {
+      for (const [id, timer] of timers) if (timer.delay === 1000) { timers.delete(id); timer.callback(); }
+    },
     async poll() {
       const entry = [...timers].find(([, timer]) => timer.delay >= 15000);
       assert.ok(entry, 'workspace schedules automatic refresh');
@@ -269,6 +272,140 @@ test('an undeployed backend disables access and explains why the queue is unavai
   await until(() => app.$('connectionNotice').textContent.includes('deployed Craftush backend'), 'deployment notice');
   assert.equal(app.$('accessButton').disabled, true);
   assert.match(app.$('connectionNotice').textContent, /deployment settings/);
+});
+
+function unzipStored(buffer) {
+  const bytes = new Uint8Array(buffer), view = new DataView(buffer), entries = [];
+  let offset = 0;
+  while (view.getUint32(offset, true) === 0x04034b50) {
+    assert.equal(view.getUint16(offset + 8, true), 0, 'original images use ZIP store mode');
+    const size = view.getUint32(offset + 18, true);
+    const nameLength = view.getUint16(offset + 26, true);
+    const extraLength = view.getUint16(offset + 28, true);
+    const start = offset + 30 + nameLength + extraLength;
+    const data = bytes.slice(start, start + size);
+    let crc = 0xffffffff;
+    for (const byte of data) {
+      crc ^= byte;
+      for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+    }
+    assert.equal(view.getUint32(offset + 14, true), (crc ^ 0xffffffff) >>> 0, 'ZIP checksum matches original image bytes');
+    entries.push({ name: new TextDecoder().decode(bytes.slice(offset + 30, offset + 30 + nameLength)), data });
+    offset = start + size;
+  }
+  const directoryOffset = offset;
+  for (const entry of entries) {
+    assert.equal(view.getUint32(offset, true), 0x02014b50, 'central directory entry exists');
+    const nameLength = view.getUint16(offset + 28, true);
+    assert.equal(new TextDecoder().decode(bytes.slice(offset + 46, offset + 46 + nameLength)), entry.name);
+    assert.equal(view.getUint32(view.getUint32(offset + 42, true), true), 0x04034b50, 'central directory points to a local file header');
+    offset += 46 + nameLength;
+  }
+  assert.equal(view.getUint32(offset, true), 0x06054b50);
+  assert.equal(view.getUint16(offset + 10, true), entries.length);
+  assert.equal(view.getUint32(offset + 12, true), offset - directoryOffset);
+  assert.equal(view.getUint32(offset + 16, true), directoryOffset);
+  assert.equal(offset + 22, bytes.length, 'archive has no extra or missing bytes');
+  return entries;
+}
+
+test('team downloads delivered images as one authenticated ZIP with safe unique names and releases its URL', async () => {
+  const requestID = webcrypto.randomUUID();
+  const firstID = webcrypto.randomUUID(), secondID = webcrypto.randomUUID();
+  const images = new Map([[firstID, new Uint8Array([137, 80, 78, 71, 1])], [secondID, new Uint8Array([255, 216, 255, 2])]]);
+  const batch = {
+    id: requestID, title: '../../Stock market', name: 'Riya', status: 'in_progress', width: 1080, height: 864,
+    createdAt: '2026-10-15T12:00:00Z', references: [],
+    items: [{ id: '1', title: 'One', prompt: '', filename: 'same.png' }, { id: '2', title: 'Two', prompt: '', filename: 'same.png' }, { id: '3', title: 'Pending', prompt: '', filename: 'pending.png' }],
+    results: [{ assetId: secondID, itemId: '2', name: '../../same.png' }, { assetId: firstID, itemId: '1', name: '../../same.png' }],
+  };
+  const assets = [];
+  let releaseFirst;
+  const waitFirst = new Promise(resolve => { releaseFirst = resolve; });
+  const app = browser(async (path, options) => {
+    const url = new URL('https://craftush.test' + path), action = url.searchParams.get('action');
+    if (action === 'meta') return json({ enabled: true, teamConfigured: true, generator: {} });
+    assert.equal(options.headers['X-Team-Code'], 'team-secret');
+    assert.equal(options.credentials, 'omit');
+    assert.equal(options.redirect, 'error');
+    if (action === 'list') return json({ requests: [{ ...batch, itemCount: 3, resultCount: 2 }], total: 1 });
+    if (action === 'detail') return json({ request: batch });
+    assert.equal(action, 'asset');
+    assert.equal(url.searchParams.get('id'), requestID);
+    const assetID = url.searchParams.get('assetId');
+    assets.push(assetID);
+    if (assets.length === 1) await waitFirst;
+    return new Response(images.get(assetID), { headers: { 'Content-Type': assetID === firstID ? 'image/png' : 'image/jpeg' } });
+  });
+  const { $, event, click } = app;
+  await until(() => !$('accessButton').disabled, 'ready backend');
+  $('credential').value = 'team-secret'; event('accessForm');
+  await until(() => !$('workspace').hidden, 'team access');
+  click($('queueList').querySelector('button'));
+  await until(() => !$('detailSection').hidden, 'request details');
+  assert.equal($('bulkDownloadControls').hidden, false);
+  assert.match($('bulkDownloadMessage').textContent, /2 finished images available now/);
+  assert.equal(assets.length, 0, 'no result images are fetched until download');
+  event('downloadAllResults', 'click');
+  await until(() => assets.length === 1, 'first image download');
+  assert.equal($('downloadAllResults').disabled, true);
+  assert.equal($('bulkDownloadControls').getAttribute('aria-busy'), 'true');
+  assert.match($('bulkDownloadMessage').textContent, /1 of 2/);
+  event('downloadAllResults', 'click');
+  event('closeDetail', 'click'); event('lockButton', 'click');
+  assert.equal($('workspace').hidden, false, 'session stays open during the authenticated download');
+  assert.equal($('detailSection').hidden, false);
+  releaseFirst();
+  await until(() => app.blobDownloads.length === 1 && !$('downloadAllResults').disabled, 'complete ZIP download');
+  assert.deepEqual(assets, [firstID, secondID], 'each available result is fetched once in request order');
+  const downloaded = app.blobDownloads[0];
+  assert.equal(downloaded.name, 'Stock-market-images.zip');
+  assert.equal(downloaded.blob.type, 'application/zip');
+  const entries = unzipStored(await downloaded.blob.arrayBuffer());
+  assert.deepEqual(entries.map(entry => entry.name), ['001-same.png', '002-same.jpg']);
+  assert.deepEqual(entries.map(entry => [...entry.data]), [[...images.get(firstID)], [...images.get(secondID)]]);
+  assert.equal($('bulkDownloadControls').hasAttribute('aria-busy'), false);
+  assert.match($('bulkDownloadMessage').textContent, /ZIP ready: 2 images.*still pending/);
+  app.cleanupDownloads();
+  assert.equal(app.revoked.length, 1, 'the archive object URL is released');
+  event('lockButton', 'click');
+  assert.equal($('workspace').hidden, true);
+});
+
+test('ZIP download never presents a partial success after one image fails and can be retried', async () => {
+  let failImage = true;
+  const batch = {
+    id: webcrypto.randomUUID(), title: 'Results', name: 'Riya', status: 'completed', width: 1080, height: 864,
+    items: [{ id: '1', title: 'One', prompt: '', filename: 'one.png' }, { id: '2', title: 'Two', prompt: '', filename: 'two.png' }],
+    results: [{ assetId: 'first', itemId: '1', name: 'one.png' }, { assetId: 'second', itemId: '2', name: 'two.png' }], references: [],
+  };
+  const app = browser(async (path, options) => {
+    const url = new URL('https://craftush.test' + path), action = url.searchParams.get('action');
+    if (action === 'meta') return json({ enabled: true, teamConfigured: true, generator: {} });
+    assert.equal(options.headers['X-Admin-Password'], 'owner-secret');
+    if (action === 'list') return json({ requests: [{ ...batch, itemCount: 2, resultCount: 2 }], total: 1 });
+    if (action === 'detail') return json({ request: batch });
+    assert.equal(action, 'asset');
+    if (url.searchParams.get('assetId') === 'second' && failImage) return new Response('Unavailable', { status: 500 });
+    return new Response(new Uint8Array([137, 80, 78, 71]), { headers: { 'Content-Type': 'image/png' } });
+  });
+  const { $, event, click } = app;
+  await until(() => !$('accessButton').disabled, 'ready backend');
+  $('accessRole').value = 'owner'; event('accessRole', 'change');
+  $('credential').value = 'owner-secret'; event('accessForm');
+  await until(() => !$('workspace').hidden, 'owner access');
+  click($('queueList').querySelector('button'));
+  await until(() => !$('detailSection').hidden, 'request details');
+  event('downloadAllResults', 'click');
+  await until(() => $('bulkDownloadMessage').classList.contains('error'), 'failed image notice');
+  assert.match($('bulkDownloadMessage').textContent, /No ZIP was downloaded/);
+  assert.equal(app.blobDownloads.length, 0);
+  assert.equal($('downloadAllResults').disabled, false);
+  assert.equal($('bulkDownloadControls').hasAttribute('aria-busy'), false);
+  failImage = false;
+  event('downloadAllResults', 'click');
+  await until(() => app.blobDownloads.length === 1, 'ZIP retry');
+  assert.equal(unzipStored(await app.blobDownloads[0].blob.arrayBuffer()).length, 2);
 });
 
 test('every image UI control exists and GitHub Pages adapts both authenticated API calls', () => {
