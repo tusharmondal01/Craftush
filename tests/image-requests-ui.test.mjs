@@ -9,8 +9,9 @@ import { adaptPagesText } from '../scripts/build-github-pages.mjs';
 const html = await readFile(new URL('../public/images/index.html', import.meta.url), 'utf8');
 const client = await readFile(new URL('../public/images/app.js', import.meta.url), 'utf8');
 
-function browser(fetch) {
+function browser(fetch, { checkMode } = {}) {
   const { document, window } = parseHTML(html);
+  if (checkMode) document.body.dataset.checkMode = checkMode;
   const $ = id => document.getElementById(id);
   // linkedom supplies DOM and event dispatch, but lacks native select setters,
   // scrolling, file selection, clipboard and FileReader implementations.
@@ -91,6 +92,63 @@ function json(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 }
 
+test('manual checks show standby honestly and archive refresh never contacts the runner', async () => {
+  const actions = [];
+  const generator = { paired: true, connected: false, lastSeenAt: '2026-10-16T07:03:00Z', state: 'offline', needsAttention: 0 };
+  const app = browser(async (path, options) => {
+    const action = options.body ? JSON.parse(options.body).action : new URL('https://craftush.test' + path).searchParams.get('action');
+    actions.push(action);
+    if (action === 'meta') return json({ enabled: true, teamConfigured: true, generator });
+    if (action === 'list') return json({ requests: [], total: 0 });
+    assert.fail('Manual standby must not contact the generator: ' + action);
+  });
+  const { $, event } = app;
+  await until(() => !$('accessButton').disabled, 'manual standby metadata');
+  assert.equal(app.document.body.dataset.checkMode, 'manual', 'the site explicitly configures manual checks');
+  assert.equal($('generatorHeading').textContent, 'Thumbnail generator');
+  assert.equal($('generatorBadge').textContent, 'Manual checks');
+  assert.match($('generatorStatus').textContent, /wait until the owner starts a manual check in chat/);
+  assert.match($('generatorStatus').textContent, /Checking every five minutes is off/);
+  assert.doesNotMatch($('generatorStatus').textContent, /offline|Generator online/);
+  assert.match($('generatorHeartbeat').textContent, /^Last checked: /);
+  assert.doesNotMatch($('generatorHeartbeat').textContent, /updates automatically/);
+  assert.match($('connectionNotice').textContent, /Requests wait until the owner starts a manual check/);
+  assert.equal(generator.connected, false, 'manual standby never changes actual heartbeat freshness');
+  $('accessRole').value = 'owner'; event('accessRole', 'change');
+  $('credential').value = 'owner-secret'; event('accessForm');
+  await until(() => !$('workspace').hidden, 'owner archive access');
+  await app.poll();
+  assert.equal($('generatorBadge').textContent, 'Manual checks');
+  assert.deepEqual(actions, ['meta', 'list', 'meta', 'list']);
+  assert.ok(actions.every(action => !/runner|claim|start|pair/i.test(action)), 'archive refresh cannot heartbeat, claim, start or pair');
+});
+
+for (const scenario of [
+  { name: 'unpaired setup', generator: { paired: false, connected: false, state: 'offline', lastSeenAt: null }, badge: 'Not connected', status: /connect the generator computer once/ },
+  { name: 'earlier interrupted request', generator: { paired: true, connected: false, state: 'needs_attention', needsAttention: 1 }, badge: 'Needs attention', status: /owner’s review before generation can continue/ },
+  { name: 'busy request with a fresh heartbeat', generator: { paired: true, connected: true, state: 'busy', needsAttention: 0 }, badge: 'Generating', status: /creating images one by one/ },
+  { name: 'busy receipt with a stale heartbeat', generator: { paired: true, connected: false, state: 'busy', needsAttention: 0 }, badge: 'Manual checks', status: /wait until the owner starts a manual check/ },
+  { name: 'idle request with a fresh heartbeat', generator: { paired: true, connected: true, state: 'connected', needsAttention: 0 }, badge: 'Manual checks', status: /wait until the owner starts a manual check/ },
+]) {
+  test('manual status preserves ' + scenario.name, async () => {
+    const app = browser(async (path, options) => {
+      assert.equal(options.body, undefined);
+      assert.equal(new URL('https://craftush.test' + path).searchParams.get('action'), 'meta');
+      return json({ enabled: true, teamConfigured: true, generator: scenario.generator });
+    });
+    await until(() => !app.$('accessButton').disabled, scenario.name);
+    assert.equal(app.$('generatorBadge').textContent, scenario.badge);
+    assert.match(app.$('generatorStatus').textContent, scenario.status);
+  });
+}
+
+test('server manual check metadata is explicit even on a legacy automatic page', async () => {
+  const app = browser(async () => json({ enabled: true, teamConfigured: true, checkMode: 'manual', generator: { paired: true, connected: false } }), { checkMode: 'automatic' });
+  await until(() => !app.$('accessButton').disabled, 'server manual mode');
+  assert.equal(app.$('generatorBadge').textContent, 'Manual checks');
+  assert.match(app.$('generatorStatus').textContent, /owner starts a manual check/);
+});
+
 test('owner archive pairs once, refreshes jobs, preserves uncertain IDs and downloads prior results', async () => {
   const calls = [], creates = [], delivers = [];
   let saved = null;
@@ -152,7 +210,7 @@ test('owner archive pairs once, refreshes jobs, preserves uncertain IDs and down
     }
     if (action === 'asset') return new Response(new Uint8Array([137, 80, 78, 71]), { headers: { 'Content-Type': 'image/png' } });
     assert.fail('Unexpected request action: ' + action);
-  });
+  }, { checkMode: 'automatic' });
   const { $, event, click } = app;
   await until(() => !$('accessButton').disabled, 'backend metadata');
   $('accessRole').value = 'owner'; event('accessRole', 'change');
@@ -195,7 +253,8 @@ test('owner archive pairs once, refreshes jobs, preserves uncertain IDs and down
   assert.match(app.copied[0], /1080 × 864/);
   assert.match(app.copied[0], /Forest at dawn/);
   assert.match(app.copied[0], /benchmark\.png/);
-  assert.match(app.copied[0], /background generator processes this brief automatically/);
+  assert.match(app.copied[0], /Native ChatGPT ImageGen creates the images one by one/);
+  assert.doesNotMatch(app.copied[0], /processes this brief automatically/);
   await until(() => !$('submitRequest').disabled, 'submission save to finish before polling');
 
   generator = { paired: true, connected: true, lastSeenAt: '2026-10-14T10:10:00Z', state: 'busy', needsAttention: 0 };
@@ -215,7 +274,7 @@ test('owner archive pairs once, refreshes jobs, preserves uncertain IDs and down
   saved.updatedAt = '2026-10-14T10:20:00Z';
   await app.poll();
   assert.equal($('generatorBadge').textContent, 'Needs attention');
-  assert.match($('generatorStatus').textContent, /offline/);
+  assert.match($('generatorStatus').textContent, /owner’s review before generation can continue/);
   assert.match($('detailMeta').textContent, /Needs attention/);
   assert.equal($('detailItems').querySelector('img'), null, 'job messages are plain text');
 
@@ -617,6 +676,6 @@ test('every image UI control exists and GitHub Pages adapts both authenticated A
   assert.equal((output.match(/window\.craftushAPI\('/g) || []).length, 2);
   assert.doesNotMatch(output, /fetch\(['"]\/api\//);
   const page = adaptPagesText(html, '/Craftush', 'html', 'https://backend.example');
-  assert.match(page, /src="\/Craftush\/images\/app\.js\?v=20261015-local-folder"/);
+  assert.match(page, /src="\/Craftush\/images\/app\.js\?v=20261016-manual-checks"/);
   assert.match(page, /href="\/Craftush\/images\/style\.css\?v=20261015-local-folder"/);
 });

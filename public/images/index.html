@@ -7,9 +7,9 @@
   <title>Image Generator · Craftush</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="stylesheet" href="/images/style.css?v=20261015-local-folder">
-  <script src="/images/app.js?v=20261015-local-folder" defer></script>
+  <script src="/images/app.js?v=20261016-manual-checks" defer></script>
 </head>
-<body>
+<body data-check-mode="manual">
   <a class="skip" href="#main">Skip to image generator</a>
   <div class="background" aria-hidden="true"></div>
   <div class="wrap">
@@ -21,7 +21,7 @@
       <section class="intro" aria-labelledby="heading">
         <span class="eyebrow">06 / Image Generator</span>
         <h1 id="heading">Your ideas.<br><span>A folder for every project.</span></h1>
-        <p>Submit your thumbnail brief. Images are generated one by one, then saved in a project folder for the owner in chat.</p>
+        <p>Submit your thumbnail brief. The owner starts a manual check in chat. Images are then generated one by one and saved in a project folder for the owner.</p>
         <div class="steps" aria-label="How it works"><span><b>1</b> Add your ideas</span><span><b>2</b> Generate one by one</span><span><b>3</b> Owner gets the folder</span></div>
       </section>
 
@@ -48,13 +48,13 @@
       <div id="workspace" hidden>
         <div class="workspace-bar"><div><span id="sessionLabel" class="eyebrow"></span><p id="sessionHelp" class="help">Submit a brief. The owner receives the finished folder in chat.</p></div><button id="lockButton" type="button">Lock this page</button></div>
         <section class="generator-health" aria-labelledby="generatorHeading">
-          <div><h2 id="generatorHeading">Background generator</h2><p id="generatorStatus" role="status">Checking generator connection…</p><p id="generatorHeartbeat" class="help"></p></div>
+          <div><h2 id="generatorHeading">Thumbnail generator</h2><p id="generatorStatus" role="status">Checking generator setup…</p><p id="generatorHeartbeat" class="help"></p></div>
           <span id="generatorBadge" class="status-badge">Checking</span>
         </section>
         <section id="pairingSection" class="card pairing" aria-labelledby="pairingHeading" hidden>
-          <span class="eyebrow">One-time owner setup</span><h2 id="pairingHeading">Connect your background generator</h2>
-          <p class="help">Connect the computer running Codex once. Your team's requests will then run in the background.</p>
-          <ol class="pairing-steps"><li>Create and download the connection file below.</li><li>Give the downloaded file to Codex in your chat for the one-time connection.</li><li>Keep Codex open and your computer awake. This page shows when your generator comes online.</li></ol>
+          <span class="eyebrow">One-time owner setup</span><h2 id="pairingHeading">Connect your generator computer</h2>
+          <p class="help">Connect the computer running Codex once. Requests wait until the owner starts a manual check in chat.</p>
+          <ol class="pairing-steps"><li>Create and download the connection file below.</li><li>Give the downloaded file to Codex in your chat for the one-time connection.</li><li>Keep Codex open and your computer awake during an owner check. New requests do not start generation automatically.</li></ol>
           <p class="help">No ChatGPT password or paid image API key is needed.</p>
           <div class="actions"><button id="pairGenerator" class="primary" type="button">Create connection file <span aria-hidden="true">↗</span></button><button id="downloadPairing" type="button" hidden>Download connection file</button></div>
           <p id="pairingMessage" class="message" role="status" aria-live="polite"></p>
@@ -62,8 +62,8 @@
         </section>
         <section id="requestSection" class="card" aria-labelledby="requestHeading">
           <div class="section-head"><div><span class="eyebrow">Create a brief</span><h2 id="requestHeading">Request thumbnails</h2></div><span class="pill">One project, one folder</span></div>
-          <p class="help">Send one image prompt or paste a batch of titles. Your connected generator will use the prompt, style notes and optional reference.</p>
-          <p id="requestDeliveryPolicy" class="help">Images are generated one by one. The owner receives all finished files in a folder named after your project, in chat.</p>
+          <p class="help">Send one image prompt or paste a batch of titles. When the owner starts a manual check, the generator uses your prompt, style notes and optional reference.</p>
+          <p id="requestDeliveryPolicy" class="help">Requests wait for an owner check in chat. Images are generated one by one. The owner receives all finished files in a folder named after your project, in chat.</p>
           <form id="requestForm">
             <div class="form-grid">
               <label class="field">Your name <input id="requesterName" required maxlength="80" autocomplete="name" placeholder="e.g. Riya"></label>

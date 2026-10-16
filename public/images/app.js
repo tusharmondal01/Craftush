@@ -29,6 +29,9 @@
   let detailRevision = 0;
   let queueRevision = 0;
 
+  const manualChecks = () => document.body.dataset.checkMode === 'manual' || metadata?.checkMode === 'manual';
+  const checkTiming = () => manualChecks() ? ' Requests wait until the owner starts a manual check in chat.' : '';
+
   function element(tag, className, value) {
     const node = document.createElement(tag);
     if (className) node.className = className;
@@ -84,7 +87,7 @@
       metadata = await request('meta');
       if (typeof metadata.teamConfigured !== 'boolean') throw new Error('The image request backend is not deployed at this address yet.');
       connected = true;
-      $('connectionNotice').textContent = !metadata.enabled ? 'The Image Generator is turned off. The owner can still open the archive.' : metadata.teamConfigured ? 'Ready for thumbnail requests. Images are generated one by one and saved in a folder for the owner in chat.' : 'The owner must set a team access code in Admin to enable requests.';
+      $('connectionNotice').textContent = !metadata.enabled ? 'The Image Generator is turned off. The owner can still open the archive.' : metadata.teamConfigured ? 'Ready for thumbnail requests.' + checkTiming() + ' Images are generated one by one and saved in a folder for the owner in chat.' : 'The owner must set a team access code in Admin to enable requests.';
       renderGenerator();
     } catch (error) {
       connected = false;
@@ -115,7 +118,7 @@
       $('requestSection').hidden = !metadata.enabled;
       $('pairingSection').hidden = role !== 'owner';
       $('queueSection').hidden = role !== 'owner';
-      $('sessionHelp').textContent = role === 'owner' ? 'Your private request archive. Previous images remain available here.' : 'Submit a brief. The owner receives the finished folder in chat.';
+      $('sessionHelp').textContent = role === 'owner' ? 'Your private request archive. Previous images remain available here.' : 'Submit a brief.' + checkTiming() + ' The owner receives the finished folder in chat.';
       renderGenerator();
       message('accessMessage', '');
       $(role === 'owner' ? 'queueHeading' : 'requestHeading').scrollIntoView({ block: 'start' });
@@ -157,10 +160,13 @@
     const generator = metadata?.generator || {};
     const online = generator.connected === true;
     const attention = Number(generator.needsAttention || 0);
-    $('generatorBadge').className = 'status-badge ' + (attention ? 'needs_attention' : online ? 'completed' : 'queued');
-    $('generatorBadge').textContent = attention ? 'Needs attention' : online ? 'Online' : generator.paired ? 'Offline' : 'Not connected';
-    $('generatorStatus').textContent = !generator.paired ? 'The owner needs to connect the background generator once.' : !online ? 'The generator is offline. Requests stay queued until the generator computer and Codex are running.' : attention ? 'Generator online. The owner can check requests that need attention.' : generator.state === 'busy' ? 'Your generator is creating images one by one. The finished folder goes to the owner in chat.' : 'Generator online. Requests are generated one by one and saved for the owner in chat.';
-    $('generatorHeartbeat').textContent = generator.lastSeenAt ? 'Last connected: ' + date(generator.lastSeenAt) + (role === 'owner' ? '. This archive updates automatically.' : '.') : 'Waiting for the first connection from your generator computer.';
+    const manual = manualChecks();
+    const generating = online && generator.state === 'busy';
+    $('generatorHeading').textContent = manual ? 'Thumbnail generator' : 'Background generator';
+    $('generatorBadge').className = 'status-badge ' + (attention ? 'needs_attention' : online && (!manual || generating) ? 'completed' : 'queued');
+    $('generatorBadge').textContent = attention ? 'Needs attention' : !generator.paired ? 'Not connected' : manual ? generating ? 'Generating' : 'Manual checks' : online ? 'Online' : 'Offline';
+    $('generatorStatus').textContent = !generator.paired ? 'The owner needs to connect the generator computer once.' : attention ? 'A thumbnail request needs the owner’s review before generation can continue.' : generating ? 'Your generator is creating images one by one. The finished folder goes to the owner in chat.' : manual ? 'Requests wait until the owner starts a manual check in chat. Checking every five minutes is off.' : !online ? 'The generator is offline. Requests stay queued until the generator computer and Codex are running.' : 'Generator online. Requests are generated one by one and saved for the owner in chat.';
+    $('generatorHeartbeat').textContent = generator.lastSeenAt ? (manual ? 'Last checked: ' : 'Last connected: ') + date(generator.lastSeenAt) + (role === 'owner' && !manual ? '. This archive updates automatically.' : '.') : manual ? 'No owner check has connected this generator yet.' : 'Waiting for the first connection from your generator computer.';
     if (role === 'owner') $('pairGenerator').textContent = pairingConfig ? 'Replace connection file' : generator.paired ? 'Create replacement connection file' : 'Create connection file';
   }
 
@@ -330,7 +336,7 @@
       $('batchTitles').required = false;
       $('batchCount').textContent = '0 titles';
       clearReference();
-      message('requestMessage', (data.duplicate ? 'Your existing request was confirmed.' : 'Request accepted.') + ' ' + submitted.items.length + (submitted.items.length === 1 ? ' image is queued.' : ' images are queued.') + ' Images are generated one by one. The owner receives a folder named after your project in chat.', 'success');
+      message('requestMessage', (data.duplicate ? 'Your existing request was confirmed.' : 'Request accepted.') + ' ' + submitted.items.length + (submitted.items.length === 1 ? ' image is queued.' : ' images are queued.') + checkTiming() + ' Images are generated one by one. The owner receives a folder named after your project in chat.', 'success');
       if (role === 'owner') {
         offset = 0;
         await loadQueue();
@@ -435,7 +441,7 @@
     ].join('\n');
   }
   function fullBrief(batch = currentRequest) {
-    return ['CRAFTUSH IMAGE REQUEST', 'Project: ' + batch.title, 'Requested by: ' + batch.name, 'Request ID: ' + batch.id, 'Images requested: ' + batch.items.length, '', 'The connected background generator processes this brief automatically with native ChatGPT ImageGen. Use the supplied benchmark reference if present.', '', ...batch.items.flatMap((item, index) => ['— IMAGE ' + (index + 1) + ' —', generationPrompt(item, batch), ''])].join('\n');
+    return ['CRAFTUSH IMAGE REQUEST', 'Project: ' + batch.title, 'Requested by: ' + batch.name, 'Request ID: ' + batch.id, 'Images requested: ' + batch.items.length, '', (manualChecks() ? 'The owner starts a manual check in chat before this brief is processed. ' : '') + 'Native ChatGPT ImageGen creates the images one by one, and the owner receives the finished project folder in chat. Use the supplied benchmark reference if present.', '', ...batch.items.flatMap((item, index) => ['— IMAGE ' + (index + 1) + ' —', generationPrompt(item, batch), ''])].join('\n');
   }
   function downloadText(text, name, mime = 'text/plain;charset=utf-8') {
     downloadBlob(new Blob([text], { type: mime }), name);
