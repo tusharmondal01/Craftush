@@ -676,6 +676,42 @@ test('every image UI control exists and GitHub Pages adapts both authenticated A
   assert.equal((output.match(/window\.craftushAPI\('/g) || []).length, 2);
   assert.doesNotMatch(output, /fetch\(['"]\/api\//);
   const page = adaptPagesText(html, '/Craftush', 'html', 'https://backend.example');
-  assert.match(page, /src="\/Craftush\/images\/app\.js\?v=20261016-manual-checks"/);
+  assert.match(page, /src="\/Craftush\/images\/app\.js\?v=20261022-owner-controls"/);
   assert.match(page, /href="\/Craftush\/images\/style\.css\?v=20261015-local-folder"/);
+});
+
+test('owner archive exposes cancellation confirmation and next-check selection without starting generation',async()=>{
+  const saved={id:'chosen-request',name:'Ayush',title:'How Algorithms Work',status:'queued',itemCount:75,resultCount:0,width:1080,height:864,createdAt:'2026-10-22T05:00:00Z',items:[{id:'1',title:'Topic',prompt:'Art',filename:'Topic.png'}],references:[],results:[],uploadPolicy:'local_folder'};
+  const calls=[];
+  const app=browser(async(path,options)=>{
+    const body=options.body?JSON.parse(options.body):null;
+    const action=body?.action||new URL('https://fixture'+path).searchParams.get('action');
+    calls.push({action,body});
+    if(action==='meta')return json({enabled:true,teamConfigured:true,generator:{paired:true,connected:false}});
+    if(action==='list')return json({requests:[{...saved}],total:1});
+    if(action==='selectNext'){saved.nextManualCheck=true;return json({request:{...saved},startsAutomatically:false});}
+    if(action==='detail')return json({request:{...saved}});
+    if(action==='cancel'){saved.status='cancelled';saved.nextManualCheck=false;return json({request:{...saved}});}
+    assert.fail('Unexpected action: '+action);
+  });
+  const {$,event,click}=app;
+  await until(()=>!$('accessButton').disabled,'ready');
+  $('accessRole').value='owner';event('accessRole','change');$('credential').value='owner-fixture';event('accessForm');
+  await until(()=>!$('workspace').hidden,'owner archive');
+  const find=label=>$('queueList').querySelector('[aria-label="'+label+'"]');
+  assert.ok(find('Use next: How Algorithms Work'));
+  click(find('Use next: How Algorithms Work'));
+  await until(()=>$('queueMessage').classList.contains('success'),'selection acknowledgement');
+  assert.match($('queueMessage').textContent,/manual check/);
+  assert.ok(find('Chosen next: How Algorithms Work').disabled);
+  assert.equal(calls.filter(c=>c.action==='selectNext').length,1);
+  assert.equal(saved.items[0].title,'Topic');
+  click(find('Cancel request: How Algorithms Work'));
+  await until(()=>!$('stopConfirmation').hidden,'explicit cancellation confirmation');
+  assert.equal(calls.filter(c=>c.action==='cancel').length,0);
+  event('confirmStop','click');
+  await until(()=>saved.status==='cancelled'&&$('stopControls').hidden,'cancelled request');
+  assert.equal(calls.filter(c=>c.action==='cancel').length,1);
+  assert.ok(!find('Use next: How Algorithms Work'));
+  assert.ok(!calls.some(c=>/claim|start|runner/i.test(c.action)));
 });

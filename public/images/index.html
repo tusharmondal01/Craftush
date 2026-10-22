@@ -7,7 +7,7 @@
   <title>Image Generator · Craftush</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="stylesheet" href="/images/style.css?v=20261015-local-folder">
-  <script src="/images/app.js?v=20261016-manual-checks" defer></script>
+  <script src="/images/app.js?v=20261022-owner-controls" defer></script>
 </head>
 <body data-check-mode="manual">
   <a class="skip" href="#main">Skip to image generator</a>
@@ -103,6 +103,7 @@
         <section id="queueSection" class="card" aria-labelledby="queueHeading" hidden>
           <div class="section-head"><div><span class="eyebrow">Owner only</span><h2 id="queueHeading">Request archive</h2></div><button id="refreshQueue" type="button">Refresh</button></div>
           <div class="queue-toolbar"><label class="field">Show on this page <select id="statusFilter"><option value="all">All statuses</option><option value="queued">Queued</option><option value="in_progress">Generating</option><option value="completed">Completed</option><option value="needs_attention">Needs attention</option><option value="cancelled">Cancelled</option></select></label><span id="queueTotal" class="help"></span></div>
+          <p class="help">Choose “Use next” for a queued request, then send your manual check code in the owner’s Codex chat. “Cancel request” stops the remaining work and keeps saved files. Choosing a request does not start generation automatically.</p>
           <p id="queueMessage" class="message" role="status" aria-live="polite"></p>
           <div id="queueList" class="queue-list"></div>
           <div class="pagination"><button id="previousPage" type="button" disabled>Previous</button><span id="pageLabel" class="help"></span><button id="nextPage" type="button" disabled>Next</button></div>

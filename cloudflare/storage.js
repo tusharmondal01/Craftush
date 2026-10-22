@@ -258,7 +258,7 @@ export class CraftushStorage {
       if (legacy) this.ensureGenerationJobs(legacy);
       const first = payload.requestId
         ? this.sql.exec("SELECT j.* FROM image_request_generation j JOIN image_request_records r ON r.id = j.request_id WHERE j.request_id = ? AND j.state = 'pending' AND r.status IN ('queued', 'in_progress') ORDER BY CAST(j.item_id AS INTEGER) LIMIT 1", payload.requestId).toArray()[0]
-        : this.sql.exec("SELECT j.* FROM image_request_generation j JOIN image_request_records r ON r.id = j.request_id WHERE j.state = 'pending' AND r.status IN ('queued', 'in_progress') ORDER BY r.created_at, r.id, CAST(j.item_id AS INTEGER) LIMIT 1").toArray()[0];
+        : this.sql.exec("SELECT j.* FROM image_request_generation j JOIN image_request_records r ON r.id = j.request_id WHERE j.state = 'pending' AND r.status IN ('queued', 'in_progress') ORDER BY CASE WHEN json_extract(r.document, '$.nextManualCheck') = 1 THEN 0 ELSE 1 END, r.created_at, r.id, CAST(j.item_id AS INTEGER) LIMIT 1").toArray()[0];
       if (!first) {
         if (payload.requestId) {
           const record = this.requestRecord(payload.requestId);
@@ -274,6 +274,7 @@ export class CraftushStorage {
       // and staging receipts remain intact when a legacy request continues.
       document.uploadPolicy = 'local_folder';
       if (!delivery) this.sql.exec("INSERT INTO image_request_deliveries (request_id, runner_id, phase, updated_at) VALUES (?, ?, 'collecting', ?)", first.request_id, runner.runner_id, stamp);
+      document.nextManualCheck = false;
       document.status = 'in_progress'; this.saveRequestDocument(record, document, stamp);
       return { ...this.runnerBatch(payload.batchId, runner.runner_id), duplicate: false };
     }
@@ -350,7 +351,7 @@ export class CraftushStorage {
           const limit = Math.min(100, Math.max(1, Math.floor(Number(payload.limit) || 50))), offset = Math.max(0, Math.floor(Number(payload.offset) || 0));
           const requests = this.sql.exec('SELECT id, title, name, status, item_count AS itemCount, result_count AS resultCount, created_at AS createdAt, updated_at AS updatedAt, document FROM image_request_records ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?', limit, offset).toArray().map(({ document, ...row }) => {
             const saved = JSON.parse(document);
-            return { ...row, uploadPolicy: saved.uploadPolicy || 'after_request', ...(saved.localDelivery ? { localDelivery: saved.localDelivery, localResultCount: saved.localDelivery.itemCount } : {}) };
+            return { ...row, nextManualCheck: saved.nextManualCheck === true && row.status === 'queued', uploadPolicy: saved.uploadPolicy || 'after_request', ...(saved.localDelivery ? { localDelivery: saved.localDelivery, localResultCount: saved.localDelivery.itemCount } : {}) };
           });
           result = { requests, total: this.sql.exec('SELECT COUNT(*) AS total FROM image_request_records').toArray()[0].total, limit, offset };
           return;
@@ -371,11 +372,27 @@ export class CraftushStorage {
           this.ensureGenerationJobs(this.requestRecord(incoming.id));
           result = { request: this.requestDetail(this.requestRecord(incoming.id)), duplicate: false }; return;
         }
+        if (operation === 'select-next') {
+          const record = this.requestRecord(payload.id), document = JSON.parse(record.document);
+          if (record.status !== 'queued') throw queueError('Only a queued request can be chosen for the next manual check.', 409, 'REQUEST_NOT_QUEUED');
+          // Choosing work never interrupts a pinned request or resets an attempt.
+          if (this.sql.exec("SELECT r.id FROM image_request_records r WHERE r.status = 'in_progress' LIMIT 1").toArray().length ||
+              this.sql.exec("SELECT j.job_id FROM image_request_generation j JOIN image_request_records r ON r.id = j.request_id WHERE r.status != 'cancelled' AND j.state IN ('claimed', 'started', 'staged', 'needs_attention') LIMIT 1").toArray().length)
+            throw queueError('Finish or cancel the current request before choosing another. Saved images and uncertain attempts are kept.', 409, 'REQUEST_PINNED');
+          for (const previous of this.sql.exec("SELECT * FROM image_request_records WHERE json_extract(document, '$.nextManualCheck') = 1").toArray()) {
+            const saved = JSON.parse(previous.document); saved.nextManualCheck = false;
+            this.saveRequestDocument(previous, saved, payload.updatedAt);
+          }
+          document.nextManualCheck = true;
+          this.saveRequestDocument(record, document, payload.updatedAt);
+          result = { request: this.requestDetail(this.requestRecord(payload.id)), startsAutomatically: false }; return;
+        }
         if (operation === 'cancel') {
           const record = this.requestRecord(payload.id), document = JSON.parse(record.document);
           if (document.status === 'completed') throw queueError('This request has already finished.', 409, 'REQUEST_COMPLETED');
           if (document.status !== 'cancelled') {
             document.status = 'cancelled';
+            document.nextManualCheck = false;
             this.saveRequestDocument(record, document, payload.updatedAt);
           }
           result = { request: this.requestDetail(this.requestRecord(payload.id)) }; return;
