@@ -257,6 +257,7 @@ export function createImageRequestsHandler({ openStore, readSettings, env, safeE
         return json(admin ? result : { acknowledgement: { id: requestId, stopped: true } });
       }
       if (!admin) throw issue('Owner sign-in is required to update or deliver images.', 401, 'ADMIN_REQUIRED');
+      if (body.action === 'selectNext') return json(await store.imageRequests('select-next', { id: id(body.id), updatedAt: now() }));
       if (body.action === 'pair') {
         const tokenBytes = crypto.getRandomValues(new Uint8Array(32));
         const runnerToken = 'ir_' + Array.from(tokenBytes, byte => byte.toString(16).padStart(2, '0')).join('');

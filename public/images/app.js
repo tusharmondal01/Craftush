@@ -397,6 +397,23 @@
       open.type = 'button';
       open.addEventListener('click', () => showDetail(item.id));
       actions.append(badge(item.status), open);
+      if (item.status === 'queued') {
+        const next = element('button', '', item.nextManualCheck ? 'Chosen next' : 'Use next');
+        next.type = 'button'; next.setAttribute('aria-label', (item.nextManualCheck ? 'Chosen next: ' : 'Use next: ') + item.title);
+        next.disabled = statusBusy || item.nextManualCheck === true;
+        next.addEventListener('click', () => chooseNext(item.id, item.title));
+        actions.append(next);
+      }
+      if (!['completed', 'cancelled'].includes(item.status)) {
+        const cancel = element('button', 'danger', 'Cancel request');
+        cancel.type = 'button'; cancel.setAttribute('aria-label', 'Cancel request: ' + item.title);
+        cancel.disabled = statusBusy || deliveryBusy || bulkDownloadBusy;
+        cancel.addEventListener('click', async () => {
+          await showDetail(item.id);
+          if (currentRequest?.id === item.id && !$('stopControls').hidden) $('stopRequest').click();
+        });
+        actions.append(cancel);
+      }
       row.append(copy, actions);
       list.append(row);
     }
@@ -404,6 +421,18 @@
     $('pageLabel').textContent = total ? (offset + 1) + '–' + Math.min(offset + requests.length, total) + ' of ' + total : 'No requests yet';
     $('previousPage').disabled = offset === 0;
     $('nextPage').disabled = offset + LIMIT >= total;
+  }
+  async function chooseNext(id, title) {
+    if (role !== 'owner' || statusBusy || deliveryBusy || bulkDownloadBusy) return;
+    statusBusy = true; renderQueue();
+    message('queueMessage', 'Choosing the next request…');
+    try {
+      const data = await request('selectNext', { id });
+      if (data.request?.id !== id || data.request.status !== 'queued' || data.request.nextManualCheck !== true || data.startsAutomatically !== false) throw new Error('The next request was not confirmed. Refresh to check its selection.');
+      await loadQueue(true);
+      message('queueMessage', title + ' is chosen for your next manual check. Send your check code in the owner’s Codex chat to begin.', 'success');
+    } catch (error) { message('queueMessage', error.message, 'error'); }
+    finally { statusBusy = false; renderQueue(); }
   }
   async function loadQueue(throwErrors = false, quiet = false) {
     if (role !== 'owner') return;

@@ -550,3 +550,48 @@ test('team-selected submission and reference IDs cannot reserve a native job res
     assert.equal((await runner.call(undefined, '?action=runnerJob&jobId=' + otherJob)).status, 403);
   } finally { f.close(); }
 });
+
+test('owner selects the next queued request without starting or bypassing pinned work', async () => {
+  const f = fixture();
+  try {
+    const first = (await f.create({title:'Older request'})).request;
+    f.now = '2026-10-14T10:01:00.000Z';
+    const next = (await f.create({title:'Chosen request'})).request;
+    assert.equal((await f.call({action:'selectNext',id:next.id},TEAM)).status,401);
+    const selectedResponse = await f.call({action:'selectNext',id:next.id},OWNER);
+    assert.equal(selectedResponse.status,200);
+    const selected = await selectedResponse.json();
+    assert.equal(selected.startsAutomatically,false);
+    assert.equal(selected.request.nextManualCheck,true);
+    assert.equal(selected.request.items[0].generation.state,'pending');
+    const list = await (await f.call(undefined,OWNER,'?action=list')).json();
+    assert.equal(list.requests.find(r=>r.id===next.id).nextManualCheck,true);
+    const runner=await pairRunner(f);
+    assert.equal((await runner.call({action:'selectNext',id:first.id})).status,403);
+    const batchId=crypto.randomUUID(),group=await (await runner.call({action:'claimBatch',batchId})).json();
+    assert.equal(group.requestId,next.id);
+    assert.equal((await f.detail(next.id)).nextManualCheck,false);
+    assert.equal((await f.call({action:'selectNext',id:first.id},OWNER)).status,409);
+    assert.equal((await f.detail(first.id)).items[0].generation.state,'pending');
+    const cancelled=await f.call({action:'cancel',id:next.id},OWNER);
+    assert.equal(cancelled.status,200);
+    assert.equal((await runner.call({action:'startBatch',batchId})).status,409);
+    assert.equal((await f.call({action:'selectNext',id:next.id},OWNER)).status,409);
+    assert.equal((await f.call({action:'selectNext',id:first.id},OWNER)).status,200);
+    assert.equal((await f.detail(first.id)).items[0].generation.state,'pending');
+  } finally { f.close(); }
+});
+
+test('choosing another queued request atomically replaces the previous choice and cancellation clears it',async()=>{
+  const f=fixture();
+  try {
+    const a=(await f.create({title:'A'})).request,b=(await f.create({title:'B'})).request;
+    await f.call({action:'selectNext',id:a.id},OWNER);
+    await f.call({action:'selectNext',id:b.id},OWNER);
+    assert.equal((await f.detail(a.id)).nextManualCheck,false);
+    assert.equal((await f.detail(b.id)).nextManualCheck,true);
+    await f.call({action:'cancel',id:b.id},OWNER);
+    assert.equal((await f.detail(b.id)).nextManualCheck,false);
+    assert.equal((await f.detail(a.id)).status,'queued');
+  } finally { f.close(); }
+});
