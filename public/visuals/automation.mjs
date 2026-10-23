@@ -56,7 +56,7 @@ function snapshot(){return {phase:job.phase||0,script:el('script').value,title:e
 function checkpoint(){
  if(!job)return Promise.resolve();const data=snapshot();
  // Serialize checkpoints so a slow earlier response cannot overwrite later work.
- lastCheckpoint=lastCheckpoint.catch(()=>{}).then(()=>api('checkpoint',{checkpoint:data}));return lastCheckpoint;
+ lastCheckpoint=lastCheckpoint.catch(()=>{}).then(()=>api('checkpoint',{checkpoint:data})).then(result=>{if(result.job&&job?.id===result.job.id)job.cost=result.job.cost;return result;});return lastCheckpoint;
 }
 function remember(){try{localStorage.setItem(storageKey,JSON.stringify({...inputData(),jobId:job.id,projectToken}));}catch{}el('autoResume').hidden=false;}
 function showHandoff(token){
@@ -130,6 +130,6 @@ el('autoStart').onclick=()=>run(false);el('autoResume').onclick=()=>run(true);
 el('autoStop').onclick=()=>{stopped=true;if(job)api('stop').catch(error=>display('Stop could not reach the server. Stop the ChatGPT run too. '+error.message,true));state.cancel=true;voiceLoadTicket++;state.voiceLoading=false;stopNarrationWorker();lock();display('Stopping after the current submitted task. Saved work will be retained.');};
 el('autoCopy').onclick=async()=>{try{await navigator.clipboard.writeText(el('autoCommand').value);el('autoCopy').textContent='Copied — paste in ChatGPT';}catch{el('autoCommand').focus();el('autoCommand').select();display('Select and copy the project command, then paste it into ChatGPT.');}};
 window.addEventListener('beforeunload',e=>{if(running){e.preventDefault();e.returnValue='';}});
-window.CraftushAutomation={get running(){return running;},get sharedSettings(){return running&&job?job.config:config;},relay:relayAutomation,lock,checkpoint,metadata:()=>job&&el('script').value===job.script?{episode:job.episode,research:job.research,script:job.script,hookType:job.hookType,settings:job.config}:null};
+window.CraftushAutomation={get running(){return running;},get sharedSettings(){return running&&job?job.config:config;},relay:relayAutomation,lock,checkpoint,reportedCost:()=>job&&el('script').value===job.script?Number(job.cost||0):null,metadata:()=>job&&el('script').value===job.script?{episode:job.episode,research:job.research,script:job.script,hookType:job.hookType,settings:job.config}:null};
 try{const saved=JSON.parse(localStorage.getItem(storageKey)||'{}');el('autoSheet').value=saved.sheetURL||'';el('autoTab').value=saved.tab||'';el('autoRow').value=saved.row||2;el('autoResume').hidden=!saved.jobId;projectToken=saved.projectToken||'';}catch{}
 loadConfig().catch(error=>{display(error.message,true);el('autoStart').disabled=true;});

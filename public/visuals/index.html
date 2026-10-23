@@ -1766,7 +1766,9 @@ function updateCost(){
   } else if (n){
     parts.push('The price per image shows after the first one. To check it before a full batch, press Generate on a single image card');
   }
-  if (c.images + c.prompts > 0) parts.push(`spent this session: ${money(c.images + c.prompts)}`);
+  const reported = window.CraftushAutomation?.reportedCost?.();
+  if (reported !== null && reported !== undefined) parts.push(`reported automation cost: ${money(reported)}`);
+  else if (c.images + c.prompts > 0) parts.push(`spent this session: ${money(c.images + c.prompts)}`);
   el.textContent = parts.map(p => p.replace(/^./, m => m.toUpperCase()) + '.').join(' ');
 }
 
