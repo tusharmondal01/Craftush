@@ -422,10 +422,10 @@ NARRATION: "${it.text}"
 PREVIOUS LINE: ${state.items[state.items.indexOf(it) - 1]?.text || 'start'}
 NEXT LINE: ${state.items[state.items.indexOf(it) + 1]?.text || 'end'}
 RESOLVED MEANING: ${sc.narration_meaning || it.text}
-REQUIRED VISUAL EVIDENCE: ${sc.visual_evidence || it.prompt}
+INTENDED IMAGE PROMPT: ${it.prompt}
 FACTUAL CONSTRAINTS: ${JSON.stringify(sc.factual_constraints || [])}
 PEOPLE EXPECTED: ${noPeople(it) ? 'NO - the image must not show any person, face, hand or body' : 'yes, as described'}
-INTENDED SCENE: ${it.scene ? JSON.stringify({ visual_concept: sc.visual_concept, people: sc.people, main_subject: sc.main_subject, action: sc.action, environment: sc.environment, shot: sc.shot, composition: sc.composition }) : it.prompt.slice(0, 900)}
+The current image prompt may deliberately improve an earlier scene plan. Judge it against the narration, without requiring a superseded planned prop or readable institutional label.
 
 Check: is it a believable real photograph (not cartoon, illustration, anime, 3D or CGI, no plastic skin)? Correct subject, action and environment? Any readable or garbled text, captions, logos or watermarks? Any distorted face, hands, fingers or body? Correct composition? Consistent professional photo style?
 
@@ -450,6 +450,7 @@ async function qcAfterGenerate(i, first){
     try { r = await checkImage(it, current.b64, current.imageSourceURL); }
     catch (e){
       if (e.auth) throw e;
+      if(window.CraftushAutomation?.running&&state.cancel)throw e;
       // The model or account can't check images: keep going without checks, and say so once.
       if (e.runware && !qc.disabled){ qc.disabled = true; setStatus('#s3', 'Image checking isn’t available on this Runware account (' + cleanMsg(e.message) + '). Images are generated without checks.', 'err'); }
       it.qc = null; return current;

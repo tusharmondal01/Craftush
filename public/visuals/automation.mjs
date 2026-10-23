@@ -82,7 +82,7 @@ async function restore(saved){
  for(const [key,value] of Object.entries(cp.controls||{})){const input=el(key);if(input){if(input.tagName==='SELECT'&&![...input.options].some(o=>o.value===value))input.add(new Option(value,value));input.value=value;}}
  TEXT_MODEL=saved.textModel;state.cost=cp.cost||{images:0,prompts:0,per:{}};state.transitionSeed=cp.transitionSeed||uuidSeed();
  state.items=cp.items||[];
- for(const it of state.items){if(it.imageSourceURL){const response=await fetch(it.imageSourceURL);if(!response.ok)throw new Error('A saved image URL expired. Export each completed episode promptly.');const blob=await response.blob();it.b64=await blobToB64(blob);it.url=URL.createObjectURL(blob);it.status='done';}else {it.status='idle';it.b64=null;it.url=null;}}
+ for(const it of state.items){if(it.imageSourceURL&&!(saved.config.qcOn&&!it.qc)){const response=await fetch(it.imageSourceURL);if(!response.ok)throw new Error('A saved image URL expired. Export each completed episode promptly.');const blob=await response.blob();it.b64=await blobToB64(blob);it.url=URL.createObjectURL(blob);it.status='done';}else {it.status='idle';it.b64=null;it.url=null;}}
  renderAll();
 }
 function researchLinks(research){el('autoSources').hidden=false;const list=el('autoSources').querySelector('ul');list.replaceChildren();for(const source of research.sources){const li=document.createElement('li'),a=document.createElement('a');a.textContent=source.title;a.href=source.url;a.target='_blank';a.rel='noopener noreferrer';li.append(a);list.append(li);}}

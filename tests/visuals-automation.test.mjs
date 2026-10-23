@@ -41,6 +41,19 @@ test('atomic ChatGPT handoff dispatches once, preserves uncertain UUIDs and coun
   await assert.rejects(()=>bridge('record',{taskUUID:pending.taskUUID,result:{...result,cost:9}}),/different result/);
  }finally{global.fetch=original;f.db.close();}
 });
+test('image-stage dispatch respects shared concurrency and never resubmits an uncertain UUID',async()=>{
+ const f=fixture();try{
+  const bridge=await connected(f);
+  await f.store.automation('checkpoint',{id:sample.id,checkpoint:{phase:4,items:[]}});
+  for(let i=0;i<4;i++)await invoke(f,body('task',{task:{taskType:'imageInference',model:'openai:gpt-image@2',positivePrompt:'Grassland view '+i}}));
+  const prepared=await Promise.all(Array.from({length:4},()=>bridge('prepare')));
+  const submitted=prepared.filter(p=>p.submissionRequired);assert.equal(submitted.length,3);assert.equal(new Set(submitted.map(p=>p.taskUUID)).size,3);
+  assert.equal(prepared[3].submissionRequired,false);assert.equal(prepared[3].taskUUID,submitted[0].taskUUID);
+  assert.equal(prepared[0].maxInFlight,3);
+  await bridge('record',{taskUUID:submitted[0].taskUUID,result:{taskUUID:submitted[0].taskUUID,text:JSON.stringify({imageURL:'https://im.runware.ai/image/complete.jpg'}),cost:.1}});
+  const fourth=await bridge('prepare');assert.equal(fourth.submissionRequired,true);assert(!submitted.some(p=>p.taskUUID===fourth.taskUUID));
+ }finally{f.db.close();}
+});
 test('complete research, script and male narration preserve models and use only recorded ChatGPT outputs',async()=>{
  const f=fixture();try{
   const bridge=await connected(f),calls=[];

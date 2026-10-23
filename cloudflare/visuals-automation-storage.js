@@ -44,7 +44,9 @@ export function automationStorage(storage,sql,operation,payload){
    const tasks=rows.map(row=>({key:row.key,...JSON.parse(row.document)}));
    if(operation==='queue')return {tasks};
    if(job.stopped||Date.parse(job.expiresAt)<=Date.now())throw new Error('This project is stopped or its connection expired. Resume on Craftush.');
-   const task=tasks.find(t=>t.state==='pending'&&t.dispatchedAt)||tasks.find(t=>t.state==='pending');
+   const active=tasks.filter(t=>t.state==='pending'&&t.dispatchedAt);
+   const limit=job.checkpoint?.phase===4?Math.min(3,Math.max(1,Number(job.config?.conc)||1)):1;
+   const task=(active.length<limit&&tasks.find(t=>t.state==='pending'&&!t.dispatchedAt))||active[0];
    if(!task)return {task:null};
    const submissionRequired=!task.dispatchedAt;
    if(submissionRequired){task.dispatchedAt=new Date().toISOString();const {key,...record}=task;sql.exec('UPDATE visuals_tasks SET document = ? WHERE key = ?',JSON.stringify(record),key);}
