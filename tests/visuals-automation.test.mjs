@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { generateKeyPairSync } from 'node:crypto';
-import { DEFAULTS, validateSettings, sheetSelection, episodeFromRow, validateScript, scriptPrompt } from '../public/visuals/automation-config.mjs';
+import { DEFAULTS, validateSettings, sheetSelection, episodeFromRow, validateScript, scriptPrompt, researchPrompt } from '../public/visuals/automation-config.mjs';
 import adminHandler from '../netlify/edge-functions/admin.js';
 import handler, { cleanTask, validateResearch, readEpisode, validateGoogleCredential } from '../netlify/lib/visuals-automation.js';
 import { withRuntime } from '../netlify/lib/runtime-context.js';
@@ -29,3 +29,5 @@ const call=action=>withRuntime(env,f.store,()=>adminHandler(new Request('https:/
 const first=await (await call('get')).json();assert.equal(first.usage.cost,.1);assert.equal(first.visualsAutomationUsage.audio,1);assert.equal(first.visualsGoogle.email,'reader@project.iam.gserviceaccount.com');assert(!JSON.stringify(first).includes('private-key-must-never-leak'));
 const reset=await (await call('resetUsage')).json();assert.equal(reset.usage.cost,0);assert.equal((await f.store.automation('get',{id:sample.id})).job.cost,.1);
 }finally{f.db.close();}});
+
+test('research date is frozen across an overnight Resume',()=>{assert.match(researchPrompt(sample.episode,[],'2026-10-23'),/as of 2026-10-23/);});

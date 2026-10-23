@@ -107,7 +107,9 @@ export default async function visualsAutomation(req){
    return json(await store.automation('checkpoint',{id:job.id,checkpoint}));
   }
   let task,kind=body.action;
-  if(kind==='research')task={taskType:'textInference',model:job.config.researchModel,includeCost:true,deliveryMethod:'sync',settings:{maxTokens:5000},tools:[{type:'search'}],toolChoice:{type:'any'},messages:[{role:'user',content:researchPrompt(job.episode,job.usedSources)}]};
+  if(kind==='research'&&job.research)return json({research:job.research,cached:true});
+  if(kind==='script'&&job.script)return json({script:job.script,hookType:job.hookType,words:job.words,cached:true});
+  if(kind==='research')task={taskType:'textInference',model:job.config.researchModel,includeCost:true,deliveryMethod:'sync',settings:{maxTokens:5000},tools:[{type:'search'}],toolChoice:{type:'any'},messages:[{role:'user',content:researchPrompt(job.episode,job.usedSources,job.createdAt.slice(0,10))}]};
   else if(kind==='script'){
    if(!job.research)throw bad('Complete source research first.');
    task={taskType:'textInference',model:job.textModel,includeCost:true,deliveryMethod:'sync',settings:{maxTokens:5000},messages:[{role:'user',content:scriptPrompt(job.episode,job.research,job.config,job.previousHook)}]};

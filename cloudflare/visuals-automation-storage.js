@@ -22,6 +22,7 @@ export function automationStorage(storage,sql,operation,payload){
   if(operation==='get')return {job:read(payload.id)};
   if(['checkpoint','research','script'].includes(operation)){
    const job=read(payload.id);
+   if((operation==='research'&&job.research)||(operation==='script'&&job.script))return {job};
    if(operation==='checkpoint')job.checkpoint=payload.checkpoint;
    if(operation==='research'){
     for(const s of payload.research.sources){const row=sql.exec('SELECT job_id FROM visuals_sources WHERE url = ?',s.url).toArray()[0];if(row&&row.job_id!==job.id)throw new Error('A source was already used by another script.');}
