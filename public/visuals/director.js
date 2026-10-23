@@ -150,7 +150,8 @@ async function planScenes(onProgress){
   for (let start = 0; start < items.length; start += PLAN_CHUNK){
     if (state.cancel) break;
     const lines = items.slice(start, start + PLAN_CHUNK).map(it => it.text);
-    let scenes = null;
+    let scenes = window.CraftushAutomation?.running && items.slice(start,start+PLAN_CHUNK).every(it=>it.scene)
+      ? items.slice(start,start+PLAN_CHUNK).map(it=>it.scene) : null;
     for (let attempt = 0; attempt < 2 && !scenes; attempt++){
       try {
         const arr = parseJSONLoose(await askClaude(planPrompt(lines, start, prev), { maxTokens: Math.min(8000, 800 + lines.length * 900), temperature: 0.35 }));
@@ -173,6 +174,7 @@ async function planScenes(onProgress){
       .map((it, k) => it.scene ? { ...it.scene, n: prevStart + k + 1 } : null).filter(Boolean);
     onProgress(Math.min(start + PLAN_CHUNK, items.length));
     renderPrompts();
+    if(window.CraftushAutomation?.running)await window.CraftushAutomation.checkpoint();
   }
   return { planned, failed, error: track.last };
 }
@@ -244,11 +246,14 @@ async function reviewPrompts(batch, prompts){
 TITLE: ${videoTitle()}
 FULL SCRIPT: ${scriptText()}
 ${creatorNotes()}${SEMANTIC_DIRECTION}
-Review each numbered beat with its neighbours and planned intent. Fail images that merely repeat the headline animal/person/product instead of showing the line's actual cause, evidence, process, result or context. A meaningful continuation of the SAME subject is allowed; do not impose arbitrary quotas or replace relevant subjects just for variety.
+Review each numbered beat with its neighbours. Fail images that merely repeat the headline animal/person/product instead of showing the line's actual cause, evidence, process, result or context. A meaningful continuation of the SAME subject is allowed; do not impose arbitrary quotas or replace relevant subjects just for variety.
 Verify facts, species, place, life stage, pronoun meaning and continuity. The image must be useful WHILE this beat is spoken, without captions. When uncertain, require a less specific depiction rather than inventing facts.
-${JSON.stringify(batch.map(({ it, i }, k) => ({ line: i + 1, narration: it.text, previous_line: all[i - 1]?.text || '', next_line: all[i + 1]?.text || '', scene: it.scene || null, prompt: prompts[k] })))}
+Judge supporting illustrations, not visual proof of every spoken claim. Statistics, dates, scientific names and legal classifications can use accurate, relevant context without displaying numbers or readable labels. Do not fail a relevant landscape merely because it cannot prove a population count. A printed copy of an online report is plausible. Corrections must remain photorealistic with no readable text, diagrams, infographics or invented official signage. Do not add factual requirements or anatomical claims absent from the narration. Keep each issue and correction brief, at most two sentences.
+The narration supplies identities, exact numbers, event names and dates. A relevant conference interior is valid for an international agreement even without identifying that exact conference. Documents, a globe or a conference setting are valid supporting context for international recognition. A bird is NOT required for that beat. The planned scene is a suggestion, not a requirement: accept a different prompt when it supports the actual narration. Do not mark meaning_ok, facts_ok or continuity_ok false solely because an image cannot prove an abstract or institutional claim, because an identifying label is absent, or because relevant context anticipates the next sentence. Reserve failures for genuinely unrelated subjects, contradictions, misleading invented events or violations of the visual requirements.
+Score 7 or higher when the image gives coherent, accurate supporting context. Minor preferences for a different composition or a more specific prop belong in suggestions, not failed booleans. facts_ok=false requires an actual factual contradiction or invented event in the prompt, not a missing identity label or the impossibility of proving a spoken fact with a photograph.
+${JSON.stringify(batch.map(({ it, i }, k) => ({ line: i + 1, narration: it.text, previous_line: all[i - 1]?.text || '', next_line: all[i + 1]?.text || '', prompt: prompts[k] })))}
 Return ONLY a JSON array, one object per supplied line:
-[{"line": 1, "meaning_ok": true, "subject_ok": true, "facts_ok": true, "continuity_ok": true, "score": 9, "issue": "", "replacement_direction": ""}]`, { maxTokens: 300 + batch.length * 240, temperature: 0 });
+[{"line": 1, "meaning_ok": true, "subject_ok": true, "facts_ok": true, "continuity_ok": true, "score": 9, "issue": "", "replacement_direction": ""}]`, { maxTokens: 500 + batch.length * 450, temperature: 0 });
   const arr = parseJSONLoose(txt);
   if (!Array.isArray(arr)) throw new Error('Relevance review returned an unexpected format');
   return batch.map(({ i }) => {
@@ -306,6 +311,7 @@ async function writeStrictPrompts(indexes, onProgress){
     }
     batch.forEach(({ it }, k) => { if (out && out[k]) it.prompt = out[k]; else { it.prompt = ''; failed++; } });
     done += batch.length; onProgress(done, list.length); renderPrompts();
+    if(window.CraftushAutomation?.running)await window.CraftushAutomation.checkpoint();
   }
   // Repetition pass: a prompt too close to one of the 6 before it, or opening with the same words, is rewritten once.
   const dupes = [];
@@ -325,7 +331,7 @@ async function writeStrictPrompts(indexes, onProgress){
 }
 
 async function writeScenePrompts(onProgress){
-  return writeStrictPrompts(state.items.map((_, i) => i), onProgress);
+  return writeStrictPrompts(state.items.map((it,i)=>({it,i})).filter(({it})=>!window.CraftushAutomation?.running||!it.prompt?.trim()).map(({i})=>i), onProgress);
 }
 
 /* "Direct" writer: same writer, without the scene-planning step (the video concept is still read first). */
@@ -423,7 +429,7 @@ INTENDED SCENE: ${it.scene ? JSON.stringify({ visual_concept: sc.visual_concept,
 
 Check: is it a believable real photograph (not cartoon, illustration, anime, 3D or CGI, no plastic skin)? Correct subject, action and environment? Any readable or garbled text, captions, logos or watermarks? Any distorted face, hands, fingers or body? Correct composition? Consistent professional photo style?
 
-Reject a picture of the general topic that fails to illustrate this particular narration beat. Check species and life stage when specified. Missing physical evidence is a relevance failure.
+Reject a picture of the general topic that fails to illustrate this particular narration beat. Check species and life stage when specified. Supporting documentary imagery is valid for statistics, dates, scientific names and legal classifications; a photograph need not prove the entire spoken claim or display readable labels. Do not demand diagrams, captions, official signage, or anatomical facts absent from the intended scene. A printed copy of an online report is plausible. Corrections must respect the no-readable-text and photorealistic style requirements.
 Return ONLY JSON: {"photorealistic": true, "cartoon_or_cgi": false, "unexpected_person": false, "meaning_ok": true, "facts_ok": true, "subject_ok": true, "action_ok": true, "environment_ok": true, "unwanted_text": false, "distortion": false, "composition_ok": true, "score": 0-10, "issues": ["short issue"], "fix": "one or two sentences to add to the prompt that would fix the issues"}`,
     { maxTokens: 500, temperature: 0, images: [window.CraftushAutomation?.running && imageSourceURL ? imageSourceURL : await shrinkForCheck(b64)] });
   const r = parseJSONLoose(txt);

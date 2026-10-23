@@ -111,7 +111,10 @@ export default async function visualsAutomation(req){
   }else if(kind==='speech'){
    if(!job.script)throw bad('Complete the script first.');
    task={taskType:'audioInference',model:job.config.audioModel,speech:{text:job.script,voice:job.config.voice},settings:{languageBoost:'hi',turbo:job.config.turbo},includeCost:true,outputType:'URL',outputFormat:'MP3',deliveryMethod:'async'};
-  }else if(kind==='task')task=cleanTask(body.task);
+  }else if(kind==='task'){
+   task=cleanTask(body.task);
+   if(task.taskType==='imageInference'&&task.model==='openai:gpt-image@2')task.settings={...task.settings,quality:job.config.quality==='high'?'high':'medium'};
+  }
   else throw bad('Unknown automation action.');
   const result=await providerTask(store,job,task,kind,body.retry===true);
   if(result.blocked)return result.blocked;

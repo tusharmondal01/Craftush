@@ -31,6 +31,7 @@ test('atomic ChatGPT handoff dispatches once, preserves uncertain UUIDs and coun
   const bridge=await connected(f),task={taskType:'imageInference',model:'openai:gpt-image@2',positivePrompt:'A bustard in grassland'};
   const pending=await (await invoke(f,body('task',{task}))).json();assert.equal(pending.pending,true);
   const preparations=await Promise.all([bridge('prepare'),bridge('prepare')]);assert.equal(preparations.filter(p=>p.submissionRequired).length,1);
+  assert.equal(preparations.find(p=>p.submissionRequired).request[0].settings.quality,'high','Shared admin quality reaches GPT Image 2');
   assert.equal(preparations[0].taskUUID,preparations[1].taskUUID);assert.equal(preparations[0].taskUUID,pending.taskUUID);
   const result={taskUUID:pending.taskUUID,text:JSON.stringify({imageURL:'https://im.runware.ai/image/test.jpg'}),cost:.05};
   await bridge('record',{taskUUID:pending.taskUUID,result});await bridge('record',{taskUUID:pending.taskUUID,result});

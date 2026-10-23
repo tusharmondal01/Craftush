@@ -77,6 +77,13 @@ test('compiled v17 Worker runs with actual Cloudflare SQLite storage and preserv
       const start = await call('/api/visuals-automation', { action: 'start', sheetURL: 'https://docs.google.com/spreadsheets/d/example', tab: 'Rare & Endangered Animals', row: 2 }, { 'x-team-code': 'runtime-fixture-team' });
       assert.equal(start.status, 200);
       const queued=await start.json();assert.equal(queued.job.selection.row,2);assert.equal(queued.projectToken.length,64);assert(!queued.job.tokenHash);
+      const mcp=async args=>{
+        const response=await runtime.dispatchFetch('https://worker.example/api/chatgpt-mcp',{method:'POST',headers:{'content-type':'application/json',accept:'application/json, text/event-stream'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'craftush_project',arguments:{projectToken:queued.projectToken,...args}}})});
+        assert.equal(response.status,200);const envelope=await response.json();assert(!envelope.result.isError,JSON.stringify(envelope));return envelope.result.structuredContent;
+      };
+      const sheet=await mcp({action:'prepare'});assert.equal(sheet.kind,'sheetRead');assert.equal(sheet.selection.range,"'Rare & Endangered Animals'!C2:G2");
+      const delivered=await mcp({action:'record',taskUUID:sheet.taskUUID,result:{taskUUID:sheet.taskUUID,text:JSON.stringify({values:[['Wildlife','India','','','Great Indian Bustard']]})}});
+      assert.equal(delivered.recorded,true);assert.equal((await mcp({action:'read'})).title,'Great Indian Bustard');
       assert.equal(providerCalls.length, 1);
     });
     await t.test('large uploaded thumbnail HTML survives chunked SQLite storage', async () => {
