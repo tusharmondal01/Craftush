@@ -19,9 +19,9 @@ test('shared settings validate choices and never accept credential or model subs
 test('script constraints and source checks stop unsupported output before narration',()=>{assert.throws(()=>validateScript({script:'too short',hookType:'Myth Buster'}));assert.throws(()=>validateScript({script:'word '.repeat(451),hookType:'Myth Buster'}));assert.throws(()=>validateScript({script:'word '.repeat(100)+'—',hookType:'Myth Buster'}));assert.equal(validateScript({script:'word '.repeat(100),hookType:'Myth Buster'}).words,100);assert.equal(validateResearch(research).sources.length,2);assert.throws(()=>validateResearch(research,['https://example.org/species']));assert.throws(()=>validateResearch({sources:[{url:'javascript:alert(1)'}],facts:[]}));assert.match(scriptPrompt(sample.episode,research,DEFAULTS),/Great Indian Bustard/);});
 test('automatic provider task sanitization preserves image model and strips caller secrets and tools',()=>{const t=cleanTask({taskType:'imageInference',model:'openai:gpt-image@2',positivePrompt:'bird',numberResults:100,apiKey:'private',webhookURL:'https://evil.test',uploadEndpoint:'https://evil.test'});assert.equal(t.numberResults,1);assert.equal(t.model,'openai:gpt-image@2');assert.equal(t.outputType,'URL');assert(!t.apiKey&&!t.webhookURL&&!t.uploadEndpoint);const text=cleanTask({taskType:'textInference',model:'anthropic:claude@sonnet-4.6',messages:[{role:'user',content:'script'}],tools:[{type:'search'}],settings:{temperature:1,maxTokens:9000}});assert.equal(text.settings.maxTokens,8000);assert(!('temperature' in text.settings));assert(!text.tools);assert.throws(()=>cleanTask({taskType:'authentication'}));});
 test('private Google connection reads only named tab C–G and uses readonly scope',async()=>{const original=global.fetch;const {privateKey}=generateKeyPairSync('rsa',{modulusLength:2048});const credential={type:'service_account',client_email:'reader@project.iam.gserviceaccount.com',private_key:privateKey.export({format:'pem',type:'pkcs8'})};const calls=[];global.fetch=async(url,opts)=>{calls.push(String(url));if(String(url).includes('oauth2.googleapis.com')){const jwt=new URLSearchParams(opts.body).get('assertion');const payload=JSON.parse(Buffer.from(jwt.split('.')[1],'base64url'));assert.equal(payload.scope,'https://www.googleapis.com/auth/spreadsheets.readonly');return Response.json({access_token:'fixture-token'});}assert.equal(opts.headers.authorization,'Bearer fixture-token');if(String(url).includes('/values/')){assert.match(decodeURIComponent(String(url)),/Rare & Endangered Animals.*C2:G2/);return Response.json({values:[['Rare & Endangered Animals',"India's Endangered Animals",null,null,'Great Indian Bustard']]});}return Response.json({sheets:[{properties:{title:'Rare & Endangered Animals',sheetId:42}}]});};try{const selection=sheetSelection({sheetURL:'https://docs.google.com/spreadsheets/d/example',tab:'Rare & Endangered Animals',row:2});assert.equal((await readEpisode(selection,credential)).title,'Great Indian Bustard');assert.equal(calls.length,3);await assert.rejects(()=>readEpisode(selection,null),/Connect Google Sheets/);assert.throws(()=>validateGoogleCredential({...credential,type:'authorized_user'}));}finally{global.fetch=original;}});
-async function connected(f){
+async function connected(f,conc=DEFAULTS.conc){
  const settings={teamCode:'team',visualsAutomation:{...DEFAULTS,enabled:true}};await f.store.setJSON('settings',settings);
- const token='c'.repeat(64);await f.store.automation('start',{...sample,tokenHash:await digest(token),expiresAt:new Date(Date.now()+86400000).toISOString(),connection:'chatgpt'});
+ const token='c'.repeat(64);await f.store.automation('start',{...sample,config:{...sample.config,conc},tokenHash:await digest(token),expiresAt:new Date(Date.now()+86400000).toISOString(),connection:'chatgpt'});
  const bridge=(action,extra={})=>handleVisualProject(f.store,{action,projectToken:token,...extra},settings);
  return bridge;
 }
@@ -41,15 +41,15 @@ test('atomic ChatGPT handoff dispatches once, preserves uncertain UUIDs and coun
   await assert.rejects(()=>bridge('record',{taskUUID:pending.taskUUID,result:{...result,cost:9}}),/different result/);
  }finally{global.fetch=original;f.db.close();}
 });
-test('image-stage dispatch respects shared concurrency and never resubmits an uncertain UUID',async()=>{
+for(const conc of [1,3,5,8])test(`image-stage dispatch respects shared concurrency ${conc} and never resubmits an uncertain UUID`,async()=>{
  const f=fixture();try{
-  const bridge=await connected(f);
+  const bridge=await connected(f,conc);
   await f.store.automation('checkpoint',{id:sample.id,checkpoint:{phase:4,items:[]}});
-  for(let i=0;i<4;i++)await invoke(f,body('task',{task:{taskType:'imageInference',model:'openai:gpt-image@2',positivePrompt:'Grassland view '+i}}));
-  const prepared=await Promise.all(Array.from({length:4},()=>bridge('prepare')));
-  const submitted=prepared.filter(p=>p.submissionRequired);assert.equal(submitted.length,3);assert.equal(new Set(submitted.map(p=>p.taskUUID)).size,3);
-  assert.equal(prepared[3].submissionRequired,false);assert.equal(prepared[3].taskUUID,submitted[0].taskUUID);
-  assert.equal(prepared[0].maxInFlight,3);
+  for(let i=0;i<=conc;i++)await invoke(f,body('task',{task:{taskType:'imageInference',model:'openai:gpt-image@2',positivePrompt:'Grassland view '+i}}));
+  const prepared=await Promise.all(Array.from({length:conc+1},()=>bridge('prepare')));
+  const submitted=prepared.filter(p=>p.submissionRequired);assert.equal(submitted.length,conc);assert.equal(new Set(submitted.map(p=>p.taskUUID)).size,conc);
+  const polling=prepared.find(p=>!p.submissionRequired);assert(polling);assert(submitted.some(p=>p.taskUUID===polling.taskUUID));
+  assert.equal(prepared[0].maxInFlight,conc);
   await bridge('record',{taskUUID:submitted[0].taskUUID,result:{taskUUID:submitted[0].taskUUID,text:JSON.stringify({imageURL:'https://im.runware.ai/image/complete.jpg'}),cost:.1}});
   const fourth=await bridge('prepare');assert.equal(fourth.submissionRequired,true);assert(!submitted.some(p=>p.taskUUID===fourth.taskUUID));
  }finally{f.db.close();}

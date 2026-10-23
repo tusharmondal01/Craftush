@@ -19,7 +19,7 @@ const brief=(job,tasks=[])=>({projectType:'stunning-visuals',title:job.episode?.
  complete:job.checkpoint?.phase===7,readyImages:(job.checkpoint?.items||[]).filter(i=>i.imageSourceURL).length,
  sceneCount:job.checkpoint?.items?.length||0,pendingTasks:tasks.filter(t=>t.state==='pending').length,
  next:job.stopped?'resume_on_website':tasks.some(t=>t.state==='pending')?'prepare':job.checkpoint?.phase===7?'review_export':'waiting_browser',
- maxInFlight:job.checkpoint?.phase===4?Math.min(3,Math.max(1,Number(job.config?.conc)||1)):1,
+ maxInFlight:job.checkpoint?.phase===4?Math.min(8,Math.max(1,Number(job.config?.conc)||1)):1,
  instructions:'Keep the Craftush tab open. Call prepare without kind. sheetRead means read the exact sheet range using Google Drive and record JSON {values:[[C,D,E,F,G]]} in result.text. Call Runware once with each prepared request[0]; keep every UUID. During images, prepare and run up to maxInFlight tasks concurrently. Record exact text; image/audio use result.text JSON {imageURL:...} or {audioURL:...}. Include actual cost. Native output fields may be in separate text blocks. Never send credentials. Poll uncertain UUIDs instead of resubmitting.'});
 
 // Returns null for documentary tokens, preserving the existing documentary bridge.
