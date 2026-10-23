@@ -15,4 +15,7 @@ if (response.headers.get('access-control-allow-origin') !== 'https://tusharmonda
 if (metadata.rateLimiting?.enabled !== true) {
   throw new Error('The rate-limited v17 backend is not deployed yet. Wait for the Cloudflare Git build before publishing the frontend.');
 }
-console.log('Cloudflare backend ready: v17, private storage, admin, rate limiting and GitHub CORS verified.');
+const automation=await fetch(origin+'/api/visuals-automation',{headers:{Origin:'https://tusharmondal01.github.io'},cache:'no-store',redirect:'error',signal:AbortSignal.timeout(15000)});
+const config=await automation.json().catch(()=>({}));
+if(!automation.ok||config.version!=='visuals-chatgpt-1'||config.connection!=='chatgpt'||config.keyRequired!==false)throw new Error('Deploy the ChatGPT-connected Visuals backend before publishing this frontend.');
+console.log('Cloudflare backend ready: v17, storage, admin, rate limiting, GitHub CORS and keyless Visuals automation verified.');
