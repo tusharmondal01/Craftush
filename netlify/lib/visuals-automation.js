@@ -1,6 +1,6 @@
-import { openStore, readSettings, activeKey, safeEqual, json, fail, RUNWARE_URL, MODEL_ID, textModel, cleanMessage } from './shared.js';
-import { limitRunwareTasks } from './runtime-context.js';
-import { validateSettings, sheetSelection, episodeFromRow, researchPrompt, scriptPrompt, validateScript, parseObject } from '../../public/visuals/automation-config.mjs';
+import { openStore, readSettings, safeEqual, json, fail, MODEL_ID, textModel, cleanMessage } from './shared.js';
+import { rejectVisualSecrets, randomCode, publicVisualJob } from './visuals-chatgpt.js';
+import { validateSettings, sheetSelection, episodeFromRow, researchPrompt, scriptPrompt, scriptReviewPrompt, validateReviewedScript, validateScript, parseObject } from '../../public/visuals/automation-config.mjs';
 const encode=new TextEncoder();
 export const digest=async value=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',encode.encode(JSON.stringify(value))))].map(x=>x.toString(16).padStart(2,'0')).join('');
 const bad=(message,status=400)=>Object.assign(new Error(message),{status});
@@ -49,63 +49,58 @@ export function cleanTask(task) {
  }else {t.numberResults=1;t.outputType='URL';t.outputFormat='JPG';t.deliveryMethod='async';}
  t.includeCost=true;return t;
 }
+// Queue only: provider credentials and generation stay in the ChatGPT Runware connection.
 async function providerTask(store,job,task,kind,retry=false) {
- const settings=await readSettings(store),keySecret=activeKey(settings);if(!keySecret)throw bad('Runware is not configured.',503);
+ rejectVisualSecrets(task);
+ if(JSON.stringify(task).length>82000)throw bad('This task exceeds the ChatGPT handoff size. Reduce prompt batch size before retrying.',413);
  const fingerprint=await digest(task),key=job.id+':'+kind+':'+fingerprint;
- const claim=await store.automation('claim',{key,jobId:job.id,taskUUID:crypto.randomUUID(),retry});
- if(claim.record.state==='done')return {...claim.record.result,cached:true};
- if(claim.record.state==='error')throw bad(claim.record.message,422);
- const requestTask=claim.created?{...task,taskUUID:claim.record.taskUUID}:{taskType:'getResponse',taskUUID:claim.record.taskUUID};
- const blocked=await limitRunwareTasks([requestTask]);if(blocked){
-  if(claim.created)await store.automation('failed',{key,message:'Request limit reached before submission. Retry this stage after waiting.'});
-  return {blocked};
- }
- let data;
- try{
-  const response=await fetch(RUNWARE_URL,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify([{taskType:'authentication',apiKey:keySecret},requestTask]),signal:AbortSignal.timeout(50000)});
-  data=await response.json();
-  // HTTP 5xx and lost replies are ambiguous: poll this UUID; never submit again.
-  if(response.status>=500)return {pending:true,taskUUID:claim.record.taskUUID,message:'Provider response delayed; checking the same task.'};
-  if(data.errors?.length){
-   const message=cleanMessage(data.errors[0].message)||'Runware task failed.';
-   if(!claim.created&&/not found|not ready|processing|pending/i.test(message))return {pending:true,taskUUID:claim.record.taskUUID};
-   await store.automation('failed',{key,message});throw bad(message,422);
+ const claim=await store.automation('claim',{key,jobId:job.id,taskUUID:crypto.randomUUID(),task,kind,retry});
+ if(claim.record.state==='done'){
+  if(claim.record.result.data?.some(x=>x.taskType==='textInference'&&x.finishReason==='length')){
+   const maxTokens=Number(task.settings?.maxTokens)||4000;
+   if(maxTokens>=8000)throw bad('The text model reached its output limit. Reduce the prompt batch size before retrying.',422);
+   return providerTask(store,job,{...task,settings:{...task.settings,maxTokens:Math.min(8000,maxTokens*2)}},kind+':expanded',retry);
   }
- }catch(error){if(error.status)throw error;return {pending:true,taskUUID:claim.record.taskUUID,message:'Waiting for the submitted task. No duplicate was sent.'};}
- const items=(data.data||[]).filter(d=>d&&d.taskType!=='authentication'&&!('connectionSessionUUID' in d));
- const failed=items.find(d=>d.status==='error'||d.status==='failed');if(failed){const message=cleanMessage(failed.error?.message)||'Runware task failed.';await store.automation('failed',{key,message});throw bad(message,422);}
- const complete=items.find(d=>d.text||d.imageURL||d.imageBase64Data||d.audioURL||d.audioBase64Data);
- if(!complete)return {pending:true,taskUUID:claim.record.taskUUID};
- const result={data:items,model:task.model};
- await store.automation('complete',{key,result,cost:Number(complete.cost)||0,taskType:task.taskType});
- return result;
+  return {...claim.record.result,cached:true};
+ }
+ if(claim.record.state==='error')throw bad(claim.record.message,422);
+ return {pending:true,taskUUID:claim.record.taskUUID,connection:'chatgpt',message:'Waiting for your connected ChatGPT session.'};
 }
 export default async function visualsAutomation(req){
  try{
   const store=openStore(),settings=await readSettings(store),config=validateSettings(settings.visualsAutomation||{});
-  if(req.method==='GET')return json({config,googleConnected:!!settings.visualsGoogle,configured:!!activeKey(settings)});
+  if(req.headers.has('authorization'))throw bad('Provider credentials are not accepted.',400);
+  if(req.method==='GET')return json({config,connection:'chatgpt',keyRequired:false,configured:true,version:'visuals-chatgpt-1'});
   if(req.method!=='POST')return fail('Method not allowed',405);
   if(settings.teamCode&&!safeEqual(req.headers.get('x-team-code')||'',settings.teamCode))return fail('Enter your team access code.',401);
   if(!config.enabled)throw bad('Enable Visuals automation in Admin after saving the shared settings.',409);
   if(!store.automation)throw bad('Visuals automation needs the updated Cloudflare backend.',503);
-  const raw=await req.text();if(raw.length>12000000)throw bad('Request too large.',413);const body=validated(()=>JSON.parse(raw));
+  const raw=await req.text();if(raw.length>12000000)throw bad('Request too large.',413);const body=validated(()=>JSON.parse(raw));rejectVisualSecrets(body);
   if(body.action==='start'){
-   if(!activeKey(settings))throw bad('Runware is not configured.',503);
-   const selection=validated(()=>sheetSelection(body)),episode=await readEpisode(selection,settings.visualsGoogle),model=MODEL_ID.test(body.textModel||'')?body.textModel:textModel(settings);
+   const selection=validated(()=>sheetSelection(body)),model=MODEL_ID.test(body.textModel||'')?body.textModel:textModel(settings);
    const splitMode=body.splitMode==='smart'?'smart':'stops',imageModel=MODEL_ID.test(body.imageModel||'')?body.imageModel:'openai:gpt-image@2';
    const pace=['scene','count','fast','vfast','relaxed'].includes(body.pace)?body.pace:'scene';
    const minImg=Math.min(500,Math.max(2,Math.round(+body.minImg||60))),maxImg=Math.min(500,Math.max(minImg,Math.round(+body.maxImg||70)));
-   const selectionSettings={splitMode,imageModel,pace,minImg,maxImg};
-   const id=await digest([selection,episode,config.revision,model,selectionSettings]);
-   return json(await store.automation('start',{id,episode,config,textModel:model,...selectionSettings,createdAt:new Date().toISOString()}));
+   const projectToken=randomCode(),id=randomCode(),tokenHash=await digest(projectToken),createdAt=new Date().toISOString(),expiresAt=new Date(Date.now()+86400000).toISOString();
+   const {job}=await store.automation('start',{id,selection,config,textModel:model,splitMode,imageModel,pace,minImg,maxImg,createdAt,expiresAt,tokenHash,connection:'chatgpt'});
+   await store.automation('claim',{key:id+':sheet',jobId:id,taskUUID:crypto.randomUUID(),kind:'sheet',task:{taskType:'sheetRead',selection}});
+   return json({job:publicVisualJob(job),projectToken});
   }
   if(!/^[a-f0-9]{64}$/.test(String(body.jobId||'')))throw bad('Invalid automation run.');
   const {job}=await store.automation('get',{id:body.jobId});if(!job)throw bad('Automation run not found.',404);
-  if(body.action==='get')return json({job});
+  if(body.action==='get')return json({job:publicVisualJob(job)});
+  if(body.action==='stop')return json({job:publicVisualJob((await store.automation('stop',{id:job.id})).job)});
+  if(body.action==='resume'){
+   const projectToken=randomCode(),tokenHash=await digest(projectToken),expiresAt=new Date(Date.now()+86400000).toISOString();
+   const resumed=await store.automation('resume',{id:job.id,tokenHash,expiresAt});return json({job:publicVisualJob(resumed.job),projectToken});
+  }
   if(body.action==='checkpoint'){
    const checkpoint=body.checkpoint;if(JSON.stringify(checkpoint).length>1000000)throw bad('Checkpoint too large.',413);
-   return json(await store.automation('checkpoint',{id:job.id,checkpoint}));
+   return json({job:publicVisualJob((await store.automation('checkpoint',{id:job.id,checkpoint})).job)});
   }
+  if(job.stopped)throw bad('This project is stopped. Resume it on Craftush.',409);
+  if(Date.parse(job.expiresAt)<=Date.now())throw bad('The ChatGPT connection expired. Resume to create a new command.',410);
+  if(!job.episode)throw bad('Read the selected sheet row through ChatGPT first.',409);
   let task,kind=body.action;
   if(kind==='research'&&job.research)return json({research:job.research,cached:true});
   if(kind==='script'&&job.script)return json({script:job.script,hookType:job.hookType,words:job.words,cached:true});
@@ -125,9 +120,20 @@ export default async function visualsAutomation(req){
    await store.automation('research',{id:job.id,research});return json({...result,research});
   }
   if(!result.pending&&kind==='script'){
-   const script=validated(()=>validateScript(parseObject(result.data.find(x=>x.text)?.text)));
+   const draft=validated(()=>validateScript(parseObject(result.data.find(x=>x.text)?.text)));
+   const reviewTask={taskType:'textInference',model:job.textModel,includeCost:true,deliveryMethod:'sync',settings:{maxTokens:6000},messages:[{role:'user',content:scriptReviewPrompt(draft,job.research,job.config)}]};
+   let reviewed=await providerTask(store,job,reviewTask,'scriptReview',body.retry===true);
+   if(reviewed.pending)return json({...reviewed,message:'Reviewing the script against its sources before narration.'});
+   let script;
+   try{script=validateReviewedScript(parseObject(reviewed.data.find(x=>x.text)?.text),job.research);}
+   catch(reviewError){
+    const correction={...reviewTask,messages:[...reviewTask.messages,{role:'assistant',content:reviewed.data.find(x=>x.text)?.text||''},{role:'user',content:`The validation failed: ${reviewError.message}. Correct the actual narration. Do not just claim a correction in metadata. Return the complete corrected JSON. Remove unsupported statements about flight, movement or anatomy. Read the final script before returning it.`}]};
+    reviewed=await providerTask(store,job,correction,'scriptCorrection',body.retry===true);
+    if(reviewed.pending)return json({...reviewed,message:'Correcting a source or date mismatch in the narration.'});
+    script=validated(()=>validateReviewedScript(parseObject(reviewed.data.find(x=>x.text)?.text),job.research));
+   }
    if(script.hookType===job.previousHook)throw bad('The writer repeated the last hook type. Edit the instructions and start a new settings revision.');
-   await store.automation('script',{id:job.id,...script});return json({...result,...script});
+   await store.automation('script',{id:job.id,...script});return json({...reviewed,...script});
   }
   return json(result);
  }catch(error){return fail(error.status?error.message:'Automation could not complete this request. Your saved work is retained.',error.status||503);}

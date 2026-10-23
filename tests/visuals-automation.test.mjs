@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { generateKeyPairSync } from 'node:crypto';
-import { DEFAULTS, validateSettings, sheetSelection, episodeFromRow, validateScript, scriptPrompt, researchPrompt } from '../public/visuals/automation-config.mjs';
+import { DEFAULTS, validateSettings, sheetSelection, episodeFromRow, validateScript, validateReviewedScript, scriptPrompt, researchPrompt } from '../public/visuals/automation-config.mjs';
 import adminHandler from '../netlify/edge-functions/admin.js';
-import handler, { cleanTask, validateResearch, readEpisode, validateGoogleCredential } from '../netlify/lib/visuals-automation.js';
+import handler, { digest, cleanTask, validateResearch, readEpisode, validateGoogleCredential } from '../netlify/lib/visuals-automation.js';
+import { handleVisualProject } from '../netlify/lib/visuals-chatgpt.js';
 import { withRuntime } from '../netlify/lib/runtime-context.js';
 import { CraftushStorage, cloudflareStore } from '../cloudflare/storage.js';
 const sample={id:'a'.repeat(64),episode:{title:'Great Indian Bustard',track:'Rare & Endangered Animals',subtrack:"India's Endangered Animals"},config:{...DEFAULTS,enabled:true},textModel:'anthropic:claude@sonnet-4.6',createdAt:'2026-10-23T00:00:00Z'};
@@ -18,9 +19,77 @@ test('shared settings validate choices and never accept credential or model subs
 test('script constraints and source checks stop unsupported output before narration',()=>{assert.throws(()=>validateScript({script:'too short',hookType:'Myth Buster'}));assert.throws(()=>validateScript({script:'word '.repeat(451),hookType:'Myth Buster'}));assert.throws(()=>validateScript({script:'word '.repeat(100)+'—',hookType:'Myth Buster'}));assert.equal(validateScript({script:'word '.repeat(100),hookType:'Myth Buster'}).words,100);assert.equal(validateResearch(research).sources.length,2);assert.throws(()=>validateResearch(research,['https://example.org/species']));assert.throws(()=>validateResearch({sources:[{url:'javascript:alert(1)'}],facts:[]}));assert.match(scriptPrompt(sample.episode,research,DEFAULTS),/Great Indian Bustard/);});
 test('automatic provider task sanitization preserves image model and strips caller secrets and tools',()=>{const t=cleanTask({taskType:'imageInference',model:'openai:gpt-image@2',positivePrompt:'bird',numberResults:100,apiKey:'private',webhookURL:'https://evil.test',uploadEndpoint:'https://evil.test'});assert.equal(t.numberResults,1);assert.equal(t.model,'openai:gpt-image@2');assert.equal(t.outputType,'URL');assert(!t.apiKey&&!t.webhookURL&&!t.uploadEndpoint);const text=cleanTask({taskType:'textInference',model:'anthropic:claude@sonnet-4.6',messages:[{role:'user',content:'script'}],tools:[{type:'search'}],settings:{temperature:1,maxTokens:9000}});assert.equal(text.settings.maxTokens,8000);assert(!('temperature' in text.settings));assert(!text.tools);assert.throws(()=>cleanTask({taskType:'authentication'}));});
 test('private Google connection reads only named tab C–G and uses readonly scope',async()=>{const original=global.fetch;const {privateKey}=generateKeyPairSync('rsa',{modulusLength:2048});const credential={type:'service_account',client_email:'reader@project.iam.gserviceaccount.com',private_key:privateKey.export({format:'pem',type:'pkcs8'})};const calls=[];global.fetch=async(url,opts)=>{calls.push(String(url));if(String(url).includes('oauth2.googleapis.com')){const jwt=new URLSearchParams(opts.body).get('assertion');const payload=JSON.parse(Buffer.from(jwt.split('.')[1],'base64url'));assert.equal(payload.scope,'https://www.googleapis.com/auth/spreadsheets.readonly');return Response.json({access_token:'fixture-token'});}assert.equal(opts.headers.authorization,'Bearer fixture-token');if(String(url).includes('/values/')){assert.match(decodeURIComponent(String(url)),/Rare & Endangered Animals.*C2:G2/);return Response.json({values:[['Rare & Endangered Animals',"India's Endangered Animals",null,null,'Great Indian Bustard']]});}return Response.json({sheets:[{properties:{title:'Rare & Endangered Animals',sheetId:42}}]});};try{const selection=sheetSelection({sheetURL:'https://docs.google.com/spreadsheets/d/example',tab:'Rare & Endangered Animals',row:2});assert.equal((await readEpisode(selection,credential)).title,'Great Indian Bustard');assert.equal(calls.length,3);await assert.rejects(()=>readEpisode(selection,null),/Connect Google Sheets/);assert.throws(()=>validateGoogleCredential({...credential,type:'authorized_user'}));}finally{global.fetch=original;}});
-test('atomic provider ledger submits once and preserves task UUID across lost replies',async()=>{const f=fixture(),original=global.fetch,calls=[];try{await f.store.setJSON('settings',{teamCode:'team',visualsAutomation:{...DEFAULTS,enabled:true}});await f.store.automation('start',sample);global.fetch=async(url,options)=>{const tasks=JSON.parse(options.body);calls.push(tasks[1]);if(calls.length===1)throw new Error('network reply lost');return Response.json({data:[{taskType:'imageInference',taskUUID:tasks[1].taskUUID,imageURL:'https://im.runware.ai/image/test.jpg',cost:0.05}]});};const task={taskType:'imageInference',model:'openai:gpt-image@2',positivePrompt:'A real bustard in native grassland'};assert.equal((await (await invoke(f,body('task',{task}))).json()).pending,true);const done=await (await invoke(f,body('task',{task}))).json();assert.equal(done.data[0].cost,.05);await invoke(f,body('task',{task}));assert.equal(calls.length,2);assert.equal(calls[1].taskType,'getResponse');assert.equal(calls[1].taskUUID,calls[0].taskUUID);assert.equal((await f.store.automation('get',{id:sample.id})).job.cost,.05);const usage=await f.store.automation('usage',{});assert.equal(usage.cost,.05);assert.equal(usage.images,1);assert.equal((await f.store.automation('usage',{since:'9999'})).cost,0);}finally{global.fetch=original;f.db.close();}});
-test('complete automatic research → script → audio uses one approved script and Hindi male voice',async()=>{const f=fixture(),original=global.fetch,calls=[];try{await f.store.setJSON('settings',{teamCode:'team',visualsAutomation:{...DEFAULTS,enabled:true}});await f.store.automation('start',sample);global.fetch=async(url,options)=>{const task=JSON.parse(options.body)[1];calls.push(task);if(task.taskType==='audioInference'){assert.equal(task.speech.voice,'hindi_male_1_v2');assert.equal(task.speech.text,'शानदार कहानी '.repeat(50).trim());assert.equal(task.model,'minimax:speech@2.8');return Response.json({data:[{taskType:'audioInference',audioURL:'https://am.runware.ai/audio/test.mp3',cost:.1}]});}const value=task.tools?research:{hookType:'Myth Buster',script:'शानदार कहानी '.repeat(50)};return Response.json({data:[{taskType:'textInference',text:JSON.stringify(value),cost:.01}]});};const before=await invoke(f,body('speech'));assert.equal(before.status,400);assert.equal(calls.length,0);const res=await invoke(f,body('research'));assert.equal(res.status,200);const result=await invoke(f,body('script'));assert.equal(result.status,200);assert.equal((await result.json()).words,100);assert.equal((await invoke(f,body('speech'))).status,200);assert.equal(calls.length,3);assert.equal(calls[0].tools[0].type,'search');assert.equal(calls[1].model,'anthropic:claude@sonnet-4.6');const job=(await f.store.automation('get',{id:sample.id})).job;assert.ok(Math.abs(job.cost-.12)<1e-8);const second=(await f.store.automation('start',{...sample,id:'b'.repeat(64)})).job;assert.equal(second.previousHook,'Myth Buster');assert.equal(second.usedSources.length,2);assert.equal((await f.store.automation('start',sample)).existing,true);}finally{global.fetch=original;f.db.close();}});
-test('team authentication and disabled automation prevent any paid tasks',async()=>{const f=fixture();try{await f.store.setJSON('settings',{teamCode:'secret',visualsAutomation:{...DEFAULTS,enabled:true}});assert.equal((await invoke(f,body('speech'))).status,401);await f.store.setJSON('settings',{});assert.equal((await invoke(f,body('speech'))).status,409);}finally{f.db.close();}});
+async function connected(f){
+ const settings={teamCode:'team',visualsAutomation:{...DEFAULTS,enabled:true}};await f.store.setJSON('settings',settings);
+ const token='c'.repeat(64);await f.store.automation('start',{...sample,tokenHash:await digest(token),expiresAt:new Date(Date.now()+86400000).toISOString(),connection:'chatgpt'});
+ const bridge=(action,extra={})=>handleVisualProject(f.store,{action,projectToken:token,...extra},settings);
+ return bridge;
+}
+test('atomic ChatGPT handoff dispatches once, preserves uncertain UUIDs and counts results once without provider fetch',async()=>{
+ const f=fixture(),original=global.fetch;global.fetch=()=>{throw new Error('Provider credentials must never leave the website');};
+ try{
+  const bridge=await connected(f),task={taskType:'imageInference',model:'openai:gpt-image@2',positivePrompt:'A bustard in grassland'};
+  const pending=await (await invoke(f,body('task',{task}))).json();assert.equal(pending.pending,true);
+  const preparations=await Promise.all([bridge('prepare'),bridge('prepare')]);assert.equal(preparations.filter(p=>p.submissionRequired).length,1);
+  assert.equal(preparations[0].taskUUID,preparations[1].taskUUID);assert.equal(preparations[0].taskUUID,pending.taskUUID);
+  const result={taskUUID:pending.taskUUID,text:JSON.stringify({imageURL:'https://im.runware.ai/image/test.jpg'}),cost:.05};
+  await bridge('record',{taskUUID:pending.taskUUID,result});await bridge('record',{taskUUID:pending.taskUUID,result});
+  const done=await (await invoke(f,body('task',{task}))).json();assert.equal(done.data[0].cost,.05);
+  assert.equal((await f.store.automation('get',{id:sample.id})).job.cost,.05);
+  assert.equal((await f.store.automation('usage',{})).images,1);
+  await assert.rejects(()=>bridge('record',{taskUUID:pending.taskUUID,result:{...result,cost:9}}),/different result/);
+ }finally{global.fetch=original;f.db.close();}
+});
+test('complete research, script and male narration preserve models and use only recorded ChatGPT outputs',async()=>{
+ const f=fixture();try{
+  const bridge=await connected(f),calls=[];
+  const finish=async(action,text,cost)=>{
+   const pending=await (await invoke(f,body(action))).json(),prepared=await bridge('prepare');calls.push(prepared.request[0]);
+   await bridge('record',{taskUUID:pending.taskUUID,result:{taskUUID:pending.taskUUID,text,cost}});
+   return (await invoke(f,body(action))).json();
+  };
+  assert.equal((await invoke(f,body('speech'))).status,400);
+  await finish('research',JSON.stringify(research),.01);
+  const script='शानदार कहानी '.repeat(50).trim();assert.equal((await finish('script',JSON.stringify({script,hookType:'Myth Buster'}),.01)).pending,true);
+  assert.equal((await invoke(f,body('speech'))).status,400,'An unreviewed draft cannot be narrated');
+  const review=await bridge('prepare');assert.equal(review.kind,'scriptReview');calls.push(review.request[0]);
+  await bridge('record',{taskUUID:review.taskUUID,result:{taskUUID:review.taskUUID,text:JSON.stringify({script,hookType:'Myth Buster',claimChecks:research.facts}),cost:.01}});
+  assert.equal((await (await invoke(f,body('script'))).json()).words,100);
+  await finish('speech',JSON.stringify({audioURL:'https://am.runware.ai/audio/test.mp3'}),.1);
+  assert.equal(calls[0].tools[0].type,'search');assert.equal(calls[1].model,sample.textModel);
+  assert.equal(calls[3].speech.voice,'hindi_male_1_v2');assert.equal(calls[3].speech.text,script);
+  assert.ok(Math.abs((await f.store.automation('get',{id:sample.id})).job.cost-.13)<1e-8);
+  const second=(await f.store.automation('start',{...sample,id:'b'.repeat(64)})).job;assert.equal(second.previousHook,'Myth Buster');assert.equal(second.usedSources.length,2);
+ }finally{f.db.close();}
+});
+test('keyless Start binds an exact private sheet row, hides token hashes and rejects credential fields',async()=>{
+ const f=fixture(),original=global.fetch;global.fetch=()=>{throw new Error('No Google or Runware key is required');};
+ try{
+  const settings={teamCode:'team',visualsAutomation:{...DEFAULTS,enabled:true}};await f.store.setJSON('settings',settings);
+  const response=await invoke(f,body('start',{sheetURL:'https://docs.google.com/spreadsheets/d/example/edit?gid=999',tab:'Rare & Endangered Animals',row:2}));assert.equal(response.status,200);
+  const {job,projectToken}=await response.json();assert(!job.tokenHash);assert(!job.episode);
+  const bridge=(action,extra={})=>handleVisualProject(f.store,{action,projectToken,...extra},settings);
+  const prepared=await bridge('prepare');assert.equal(prepared.kind,'sheetRead');assert.equal(prepared.selection.range,"'Rare & Endangered Animals'!C2:G2");
+  const result={taskUUID:prepared.taskUUID,text:JSON.stringify({values:[['Wildlife','India',null,null,'Great Indian Bustard']]})};
+  await bridge('record',{taskUUID:prepared.taskUUID,result});assert.equal((await f.store.automation('get',{id:job.id})).job.episode.title,'Great Indian Bustard');
+  assert.equal((await f.store.automation('usage',{})).prompts,0);
+  await assert.rejects(()=>bridge('record',{taskUUID:prepared.taskUUID,result:{...result,apiKey:'secret'}}),/credentials/);
+  assert.equal((await invoke(f,body('get',{jobId:job.id,apiKey:'secret'}))).status,400);
+ }finally{global.fetch=original;f.db.close();}
+});
+test('Stop blocks dispatch, Resume rotates connection and stale task IDs cannot overwrite retried tasks',async()=>{
+ const f=fixture();try{
+  const bridge=await connected(f),task={taskType:'imageInference',model:'openai:gpt-image@2',positivePrompt:'grassland'};
+  await invoke(f,body('task',{task}));await invoke(f,body('stop'));await assert.rejects(()=>bridge('prepare'),/stopped/);
+  const resumed=await (await invoke(f,body('resume'))).json();assert.equal(await bridge('read'),null);
+  const settings=await f.store.get('settings',{type:'json'}),newBridge=(action,extra={})=>handleVisualProject(f.store,{action,projectToken:resumed.projectToken,...extra},settings);
+  const p=await newBridge('prepare');await newBridge('record',{taskUUID:p.taskUUID,result:{taskUUID:p.taskUUID,error:'confirmed failure'}});
+  assert.equal((await invoke(f,body('task',{task}))).status,422);
+  const next=await (await invoke(f,body('task',{task,retry:true}))).json();assert.notEqual(next.taskUUID,p.taskUUID);
+  await assert.rejects(()=>newBridge('record',{taskUUID:p.taskUUID,result:{taskUUID:p.taskUUID,text:JSON.stringify({imageURL:'https://im.runware.ai/stale.jpg'})}}),/Prepare this task/);
+ }finally{f.db.close();}
+});
+test('team authentication and disabled automation prevent any paid tasks',async()=>{const f=fixture();try{await f.store.setJSON('settings',{teamCode:'secret',visualsAutomation:{...DEFAULTS,enabled:true}});assert.equal((await invoke(f,body('speech'))).status,401);await f.store.setJSON('settings',{visualsAutomation:{enabled:false}});assert.equal((await invoke(f,body('speech'))).status,409);}finally{f.db.close();}});
 
 test('admin totals include automation-only work, redact Google credentials, and reset without deleting saved run costs',async()=>{const f=fixture();try{
 await f.store.setJSON('settings',{visualsGoogle:{client_email:'reader@project.iam.gserviceaccount.com',private_key:'private-key-must-never-leak'}});
@@ -31,3 +100,21 @@ const reset=await (await call('resetUsage')).json();assert.equal(reset.usage.cos
 }finally{f.db.close();}});
 
 test('research date is frozen across an overnight Resume',()=>{assert.match(researchPrompt(sample.episode,[],'2026-10-23'),/as of 2026-10-23/);});
+test('a date in review metadata cannot disguise an undated spoken population statistic',()=>{
+ const evidence={...research,facts:[{claim:'The population estimate was 140 individuals.',asOf:'2025',sourceURL:research.sources[0].url}]};
+ const draft={hookType:'Uncomfortable Statistic',script:'Only 140 remain. '+'word '.repeat(100),claimChecks:research.facts,issuesRemoved:['Dated the 2025 estimate']};
+ assert.throws(()=>validateReviewedScript(draft,evidence),/source year 2025/);
+ assert.doesNotThrow(()=>validateReviewedScript({...draft,script:'The 2025 report estimated 140 birds. '+'word '.repeat(100)},evidence));
+ assert.throws(()=>validateReviewedScript({...draft,script:'१४० बचे हैं। '+'शब्द '.repeat(100)},evidence),/source year 2025/);
+});
+test('truncated text is charged once and recovered with a larger output budget without losing context',async()=>{
+ const f=fixture();try{
+  const bridge=await connected(f),task={taskType:'textInference',model:sample.textModel,messages:[{role:'user',content:'Full episode context and six scene directions'}],settings:{maxTokens:3700}};
+  await invoke(f,body('task',{task}));const first=await bridge('prepare');
+  await bridge('record',{taskUUID:first.taskUUID,result:{taskUUID:first.taskUUID,text:'[{"line":1',finishReason:'length',cost:.06}});
+  assert.equal((await (await invoke(f,body('task',{task}))).json()).pending,true);
+  const expanded=await bridge('prepare');assert.equal(expanded.request[0].settings.maxTokens,7400);assert.deepEqual(expanded.request[0].messages,task.messages);assert.notEqual(expanded.taskUUID,first.taskUUID);
+  await bridge('record',{taskUUID:expanded.taskUUID,result:{taskUUID:expanded.taskUUID,text:'[{"line":1}]',finishReason:'stop',cost:.08}});
+  const final=await (await invoke(f,body('task',{task}))).json();assert.equal(final.data[0].text,'[{"line":1}]');assert.equal((await f.store.automation('get',{id:sample.id})).job.cost,.14);
+ }finally{f.db.close();}
+});

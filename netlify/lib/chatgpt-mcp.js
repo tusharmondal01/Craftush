@@ -21,13 +21,13 @@ const projectSchema = {
   },
 };
 const tools = [
-  { name: 'craftush_workflow', title: 'Craftush documentary instructions',
-    description: 'Read the exact workflow and connection status before generating a Craftush documentary through the official Runware connection. No generation or provider credential is needed.',
+  { name: 'craftush_workflow', title: 'Craftush generation instructions',
+    description: 'Read the workflow for Stunning Visuals or Documentary Studio through the connected Runware account. No generation or provider credential is needed.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     securitySchemes: [{ type: 'noauth' }], _meta: { securitySchemes: [{ type: 'noauth' }] } },
   { name: 'craftush_project', title: 'Craftush project handoff',
-    description: 'Read one connected project, prepare its exact native Runware task, or record its matching result. Never sends generation to Runware. Requires the user’s temporary project code. Preserve task UUIDs and poll uncertain jobs before any new generation.',
+    description: 'Read one connected Documentary or Stunning Visuals project, prepare its exact task, or record a matching result. For Stunning Visuals, omit kind and encode imageURL/audioURL or sheet values as JSON in result.text. Never sends generation to Runware. Requires a temporary project code. Preserve task UUIDs and poll uncertain jobs before new generation.',
     inputSchema: projectSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     securitySchemes: [{ type: 'noauth' }], _meta: { securitySchemes: [{ type: 'noauth' }] } },

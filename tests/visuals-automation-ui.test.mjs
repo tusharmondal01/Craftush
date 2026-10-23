@@ -18,6 +18,8 @@ function setup({stopAtPrompts=false,failedImage=false,stopAtAudio=false}={}){
   if(!opts?.method)return Response.json({config,configured:true,googleConnected:true});
   const b=JSON.parse(opts.body);calls.push(b.action);
   if(b.action==='start'){savedJob={id:'a'.repeat(64),episode:{title:'Great Indian Bustard'},config,textModel:'anthropic:claude@sonnet-4.6',cost:1};return Response.json({job:savedJob});}
+  if(b.action==='resume')return Response.json({job:savedJob,projectToken:'c'.repeat(64)});
+  if(b.action==='stop')return Response.json({stopped:true});
   if(b.action==='get')return Response.json({job:savedJob});
   if(b.action==='checkpoint'){savedJob.checkpoint=b.checkpoint;return Response.json({job:savedJob});}
   if(b.action==='research'){savedJob.research={sources:[{title:'Conservation source',url:'https://example.org'}],facts:[]};return Response.json({research:savedJob.research});}

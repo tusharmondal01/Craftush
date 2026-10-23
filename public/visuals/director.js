@@ -406,7 +406,7 @@ function shrinkForCheck(b64){
 
 const noPeople = it => (it.scene && it.scene.people === 'none') || /No people anywhere in the frame/.test(it.prompt || '');
 
-async function checkImage(it, b64){
+async function checkImage(it, b64, imageSourceURL){
   const sc = it.scene || {};
   const txt = await askClaude(`You are a strict photo editor checking one generated image for a video. Look at the attached image and compare it with what was intended.
 
@@ -425,7 +425,7 @@ Check: is it a believable real photograph (not cartoon, illustration, anime, 3D 
 
 Reject a picture of the general topic that fails to illustrate this particular narration beat. Check species and life stage when specified. Missing physical evidence is a relevance failure.
 Return ONLY JSON: {"photorealistic": true, "cartoon_or_cgi": false, "unexpected_person": false, "meaning_ok": true, "facts_ok": true, "subject_ok": true, "action_ok": true, "environment_ok": true, "unwanted_text": false, "distortion": false, "composition_ok": true, "score": 0-10, "issues": ["short issue"], "fix": "one or two sentences to add to the prompt that would fix the issues"}`,
-    { maxTokens: 500, temperature: 0, images: [await shrinkForCheck(b64)] });
+    { maxTokens: 500, temperature: 0, images: [window.CraftushAutomation?.running && imageSourceURL ? imageSourceURL : await shrinkForCheck(b64)] });
   const r = parseJSONLoose(txt);
   const min = parseFloat($('#qcMin').value) || 7;
   if (!noPeople(it)) r.unexpected_person = false;
@@ -441,7 +441,7 @@ async function qcAfterGenerate(i, first){
   const tries = parseInt($('#qcRetries').value, 10) || 0;
   for (let attempt = 0; attempt <= tries; attempt++){
     let r;
-    try { r = await checkImage(it, current.b64); }
+    try { r = await checkImage(it, current.b64, current.imageSourceURL); }
     catch (e){
       if (e.auth) throw e;
       // The model or account can't check images: keep going without checks, and say so once.

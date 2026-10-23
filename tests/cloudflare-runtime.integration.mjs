@@ -71,12 +71,12 @@ test('compiled v17 Worker runs with actual Cloudflare SQLite storage and preserv
       assert.equal(value.visualsAutomationUsage.cost, 0);
       const config = await (await call('/api/visuals-automation')).json();
       assert.equal(config.config.voice, 'hindi_male_1_v2');
-      assert.equal(config.googleConnected, false);
+      assert.equal(config.connection, 'chatgpt');assert.equal(config.keyRequired,false);
       assert(!JSON.stringify(config).includes('runtime-fixture'));
       assert.equal((await call('/api/visuals-automation', { action: 'speech' })).status, 401);
       const start = await call('/api/visuals-automation', { action: 'start', sheetURL: 'https://docs.google.com/spreadsheets/d/example', tab: 'Rare & Endangered Animals', row: 2 }, { 'x-team-code': 'runtime-fixture-team' });
-      assert.equal(start.status, 409);
-      assert.match((await start.json()).errors[0].message, /Connect Google Sheets/);
+      assert.equal(start.status, 200);
+      const queued=await start.json();assert.equal(queued.job.selection.row,2);assert.equal(queued.projectToken.length,64);assert(!queued.job.tokenHash);
       assert.equal(providerCalls.length, 1);
     });
     await t.test('large uploaded thumbnail HTML survives chunked SQLite storage', async () => {

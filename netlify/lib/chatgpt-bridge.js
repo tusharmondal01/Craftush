@@ -1,6 +1,7 @@
 import { buildDocumentaryTask, publicWorkflow } from './documentary-api.js';
 import { storageErrorResponse } from './storage-errors.js';
 import { newProject, restoreProject, parseMaster, validatePrompt, UUID } from '../../public/documentary/core.js';
+import { handleVisualProject } from './visuals-chatgpt.js';
 
 const TOKEN = /^[0-9a-f]{64}$/;
 const HOUR = 3600000;
@@ -57,6 +58,8 @@ export function createChatGPTBridge(deps) {
       if (!body || typeof body !== 'object' || Array.isArray(body)) return fail('A project request object is required.', 400);
       rejectSecrets(body);
       const store = openStore(), settings = await readSettings(store);
+      const visual = await handleVisualProject(store, body, settings);
+      if (visual !== null) return json(visual);
       if (dashboardView(settings).cards.documentary.enabled === false) return fail('Documentary Studio is disabled.', 403);
       if (body.action === 'create') {
         if (!(await teamCodeOk(req, settings))) return fail('Enter the correct team access code.', 401);
@@ -156,6 +159,7 @@ export function createChatGPTBridge(deps) {
       }
       return fail('Unknown project action.', 400);
     } catch (e) {
+      if (e.status) return fail(e.message, e.status);
       const storageFailure = storageErrorResponse(e);
       if (storageFailure) return storageFailure;
       return fail(e?.message && /credential|master script|scene prompt|expected video prompt|at most 5000|invalid JSON/i.test(e.message)
