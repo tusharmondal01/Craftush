@@ -1,3 +1,5 @@
+import { validateSettings } from '../../public/visuals/automation-config.mjs';
+import { validateGoogleCredential, googleToken } from '../lib/visuals-automation.js';
 // Admin API for craftush.netlify.app/admin. Every request must carry the admin
 // password, which lives only in the ADMIN_PASSWORD environment variable on Netlify.
 import {
@@ -27,6 +29,8 @@ const view = (settings, usage, comfyMeta) => {
     dashboard: dashboardView(settings),
     comfy: comfyMeta || null,
     version: VERSION,
+    visualsAutomation: validateSettings(settings.visualsAutomation || {}),
+    visualsGoogle: { connected: !!settings.visualsGoogle, email: settings.visualsGoogle?.client_email || '' },
   };
 };
 
@@ -48,11 +52,30 @@ export default async (req) => {
   const store = openStore();
   const settings = await readSettings(store);
   let usage = await readUsage(store);
+  let usageStart = (await store.get('usage', { type: 'json' }))?.since || '';
   let comfyMeta = await store.get("comfy-meta", { type: "json" });
   const dash = () => (settings.dashboard = settings.dashboard || {});
-  const reply = () => json(view(settings, usage, comfyMeta));
+  const reply = async () => {
+    const automatic = store.automation ? await store.automation('usage', { since: usageStart }) : { images: 0, prompts: 0, audio: 0, cost: 0 };
+    const totals = { ...usage, since: usageStart || automatic.first || usage.since, images: usage.images + automatic.images, prompts: usage.prompts + automatic.prompts, cost: usage.cost + automatic.cost, last: [usage.last, automatic.last].filter(Boolean).sort().at(-1) || null };
+    return json({ ...view(settings, totals, comfyMeta), visualsAutomationUsage: automatic });
+  };
 
   switch (body.action) {
+    case "saveVisualsAutomation": {
+      try { settings.visualsAutomation = validateSettings(body.settings); }
+      catch (error) { return fail(error.message, 400); }
+      settings.visualsAutomation.revision = Date.now();
+      await store.setJSON('settings', settings);return reply();
+    }
+    case "connectVisualsGoogle": {
+      try { const credential = validateGoogleCredential(body.credential); await googleToken(credential); settings.visualsGoogle=credential; }
+      catch { return fail('Could not connect Google Sheets. Use a valid service-account JSON key with Google Sheets API enabled.', 400); }
+      await store.setJSON('settings', settings);return reply();
+    }
+    case "disconnectVisualsGoogle": {
+      delete settings.visualsGoogle;await store.setJSON('settings', settings);return reply();
+    }
     case "get":
       return reply();
 
@@ -167,6 +190,7 @@ export default async (req) => {
 
     case "resetUsage":
       usage = { images: 0, prompts: 0, cost: 0, since: new Date().toISOString() };
+      usageStart = usage.since;
       await store.setJSON("usage", usage);
       return reply();
 

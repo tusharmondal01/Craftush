@@ -1,3 +1,4 @@
+import visualsAutomation from '../netlify/lib/visuals-automation.js';
 import admin from '../netlify/edge-functions/admin.js';
 import runware from '../netlify/edge-functions/runware.js';
 import tools from '../netlify/edge-functions/tools.js';
@@ -18,6 +19,7 @@ const mcp = createChatGPTMCP(bridge, {
 });
 const imageRequests = createImageRequestsHandler({ openStore, readSettings, env, safeEqual, json });
 const routes = new Map([
+  ['/api/visuals-automation', visualsAutomation],
   ['/api/admin', admin], ['/api/runware', runware], ['/api/tools', tools],
   ['/api/thumbnail', thumbnail], ['/thumbnail', thumbnail],
   ['/api/documentary', documentary], ['/api/documentary-media', media],
@@ -88,6 +90,7 @@ export default {
             const blocked = await limiter.imageRequests(request.method === 'POST', owner);
             if (blocked) return headersFor(blocked, origin);
           }
+          if (path === '/api/visuals-automation') { const blocked = await limiter.imageRequests(false); if (blocked) return headersFor(blocked, origin); }
           response = await handler(request);
         }
         return headersFor(response, origin);

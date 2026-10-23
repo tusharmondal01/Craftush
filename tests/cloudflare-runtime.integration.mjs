@@ -63,6 +63,22 @@ test('compiled v17 Worker runs with actual Cloudflare SQLite storage and preserv
       const response = await call('/api/runware', [{ taskType: 'textInference', taskUUID: crypto.randomUUID() }]);
       assert.equal(response.status, 401); assert.equal(providerCalls.length, 1);
     });
+    await t.test('automation settings persist and the new route enforces team access without exposing credentials', async () => {
+      const saved = await admin({ action: 'saveVisualsAutomation', settings: { enabled: true, voice: 'hindi_male_1_v2', fps: '25' } });
+      assert.equal(saved.status, 200);
+      const value = await saved.json();
+      assert.equal(value.visualsAutomation.fps, '25');
+      assert.equal(value.visualsAutomationUsage.cost, 0);
+      const config = await (await call('/api/visuals-automation')).json();
+      assert.equal(config.config.voice, 'hindi_male_1_v2');
+      assert.equal(config.googleConnected, false);
+      assert(!JSON.stringify(config).includes('runtime-fixture'));
+      assert.equal((await call('/api/visuals-automation', { action: 'speech' })).status, 401);
+      const start = await call('/api/visuals-automation', { action: 'start', sheetURL: 'https://docs.google.com/spreadsheets/d/example', tab: 'Rare & Endangered Animals', row: 2 }, { 'x-team-code': 'runtime-fixture-team' });
+      assert.equal(start.status, 409);
+      assert.match((await start.json()).errors[0].message, /Connect Google Sheets/);
+      assert.equal(providerCalls.length, 1);
+    });
     await t.test('large uploaded thumbnail HTML survives chunked SQLite storage', async () => {
       const html = '<!doctype html><html><head><title>Fixture thumbnail</title></head><body>' + 'हिन्दी 🦋'.repeat(80000) + '</body></html>';
       const uploaded = await admin({ action: 'uploadThumb', name: 'fixture.html', html });

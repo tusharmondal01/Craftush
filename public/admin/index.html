@@ -158,7 +158,7 @@
 <!-- Panel -->
 <section hidden="" id="panel">
 <h1>Control <span style="color:var(--dim)">room.</span></h1>
-<p class="lede">Manage models, access and usage for your <a href="/">Craftush studio</a>.</p><nav aria-label="Admin sections" class="admin-nav"><a href="#admin-keys">API key</a><a href="#admin-models">Models</a><a href="#admin-usage">Usage</a><a href="#admin-access">Team access</a><a href="#admin-cards">Tools</a><a href="#admin-workflow">Video workflow</a></nav>
+<p class="lede">Manage models, access and usage for your <a href="/">Craftush studio</a>.</p><nav aria-label="Admin sections" class="admin-nav"><a href="#admin-keys">API key</a><a href="#admin-models">Models</a><a href="#admin-visuals-automation">Visuals automation</a><a href="#admin-usage">Usage</a><a href="#admin-access">Team access</a><a href="#admin-cards">Tools</a><a href="#admin-workflow">Video workflow</a></nav>
 <div class="card" id="admin-keys">
 <h2>Runware API key <span class="pill" id="keyPill">…</span></h2>
 <p class="help">Saved on the server and used for generation. Your team never needs to enter the API key. A new key is checked with Runware before saving.</p>
@@ -212,7 +212,7 @@
 <div class="stat"><span>Text requests</span><b id="uPrompts">0</b></div>
 <div class="stat"><span>Spent</span><b id="uCost">$0.00</b></div>
 </div>
-<p class="help">Text requests include planning, prompt writing, relevance reviews and image checks. One image may use several text requests.</p>
+<p class="help">Text requests include planning, prompt writing, relevance reviews and image checks. One image may use several text requests. Spent also includes automation research, scripts and narration.</p>
 <p class="small" id="uSince"></p>
 <div class="row"><button id="refresh">Refresh</button><button class="danger" id="resetUsage">Reset counters</button></div>
 <p aria-live="polite" class="status" id="usageStatus"></p>
@@ -288,6 +288,7 @@ async function call(action, extra = {}){
 }
 
 function render(v){
+  window.craftushAdminView=v;window.dispatchEvent(new CustomEvent("craftush-admin-render",{detail:v}));
   const k = v.key;
   $('#keyPill').textContent = k.set ? 'Active' : 'Not set';
   $('#keyPill').className = 'pill ' + (k.set ? 'on' : 'off');
@@ -508,5 +509,6 @@ $('#saveComfy').addEventListener('click', () => guarded('#comfyStatus', async ()
 
 if (PW) call('get').then(showPanel).catch(() => signOut());
 </script>
+<script type="module" src="visuals-automation.mjs?v=1"></script>
 </body>
 </html>

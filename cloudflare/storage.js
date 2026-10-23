@@ -1,3 +1,4 @@
+import { automationStorage } from './visuals-automation-storage.js';
 import { initializeRateLimits, consumeQuota } from './rate-limit.js';
 import { IMAGE_REQUEST_LIMITS, IMAGE_RUNNER_LIMITS } from './image-requests.js';
 
@@ -42,6 +43,10 @@ export class CraftushStorage {
   }
 
   async fetch(request) {
+    if (new URL(request.url).pathname === '/visuals-automation') {
+      try { const { operation, payload } = await request.json(); return Response.json(automationStorage(this.storage, this.sql, operation, payload)); }
+      catch (error) { return Response.json({ error: String(error.message || 'Automation storage failed.') }, { status: 409 }); }
+    }
     if (new URL(request.url).pathname === '/image-requests') return this.imageRequests(request);
     if (new URL(request.url).pathname === '/image-request-asset') return this.imageRequestAsset(request);
     if (new URL(request.url).pathname === '/rate-limit') {
@@ -481,6 +486,10 @@ export function cloudflareStore(namespace) {
     set: setText,
     setJSON: (key, value) => setText(key, JSON.stringify(value)),
     imageRequests,
+    async automation(operation, payload) {
+      const response = await object.fetch(new Request('https://private-storage.invalid/visuals-automation', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({operation,payload})}));
+      const data=await response.json();if(!response.ok)throw Object.assign(new Error(data.error||'Automation storage failed.'),{status:response.status});return data;
+    },
     async imageRequestAsset(id, assetId) {
       const response = await object.fetch(new Request('https://private-storage.invalid/image-request-asset?id=' + encodeURIComponent(id) + '&assetId=' + encodeURIComponent(assetId)));
       if (!response.ok) {

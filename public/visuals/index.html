@@ -500,7 +500,7 @@ button{min-height:44px}.field{min-width:0}.field select,.field input,.field text
 <section aria-labelledby="h3" class="step" id="st3">
 <span class="step-tag">Step 03 · Images</span>
 <h2 id="h3">Generate the <span class="dim">images.</span></h2>
-<p class="lede">Choose an image model, frame shape and quality. Generate the batch, then review the images below; you can redo any one image.</p><p aria-live="polite" class="guide" id="step3Guide">Write prompts in step 2, then generate your images.</p>
+<p class="lede">Choose an image model. Shared frame, quality and export settings come from admin when automation is enabled. Generate the batch, then review the images below; you can redo any one image.</p><p aria-live="polite" class="guide" id="step3Guide">Write prompts in step 2, then generate your images.</p>
 <div class="fields">
 <label class="field">Image model
         <select id="imgModel">
@@ -1055,7 +1055,7 @@ async function smartSplit(text){
   return r.segments;
 }
 
-$('#splitBtn').addEventListener('click', async () => {
+async function createVisualScenes(){
   const text = $('#script').value.trim();
   if (!text){ setStatus('#s1', 'Paste a script first, then split it.', 'err'); return; }
   let segs, note = '', smart = $('#splitMode').value === 'smart';
@@ -1083,7 +1083,8 @@ $('#splitBtn').addEventListener('click', async () => {
   setStatus('#s1', summary + note + countNote, note || countNote ? 'err' : 'ok');
   renderAll();
   if (!note) showStep(1);
-});
+}
+$('#splitBtn').addEventListener('click', createVisualScenes);
 
 /* ---------- STEP 2: prompts ---------- */
 /* REALISM FIRST. Glossy terms (volumetric rays, luminous, saturated, HDR, cinematic grade) make FLUX images look AI-made,
@@ -1251,6 +1252,7 @@ async function loadImageModels(){
 }
 
 async function relay(tasks){
+  if (typeof window !== 'undefined' && window.CraftushAutomation?.running) return window.CraftushAutomation.relay(tasks);
   // Keep text requests compatible even when this page talks to an older relay.
   // Model selection still applies to prompt writing when full-stop mode is selected.
   const safeTasks = tasks.map(task => {
@@ -1467,7 +1469,7 @@ $('#promptModel').addEventListener('change', () => {
   $('#writerCustomField').hidden = $('#promptModel').value !== 'runwareLLM' || $('#writerModel').value !== 'custom';
 });
 
-$('#promptBtn').addEventListener('click', async () => {
+async function writeVisualPrompts(){
   const items = state.items; if (!items.length) return;
   const writer = $('#promptModel').value;
   if (writer === 'director') return runDirector();
@@ -1515,7 +1517,8 @@ $('#promptBtn').addEventListener('click', async () => {
     setStatus('#s2', `All ${items.length} prompts written by ${name}${lastWriterModel ? ' (' + lastWriterModel + ')' : ''}${state.cost.prompts > c0 ? ` for ${money(state.cost.prompts - c0)}` : ''}.${writerFellBack ? ` Runware didn’t accept ${writerFellBack}, so ${lastWriterModel} wrote them instead. Pick another writer model if you want.` : ' Edit any of them before generating.'}`, writerFellBack ? 'err' : 'ok');
   updateCost();
   updateButtons();
-});
+}
+$('#promptBtn').addEventListener('click', writeVisualPrompts);
 
 function promptProjectData(){
   ensureSceneIds();
@@ -1636,6 +1639,7 @@ function applyModelRules(){
   $('#look').disabled = imageModel() !== 'runware:101@1';
   $('#steps').disabled = gpt;
   if (gpt) $('#steps').value = '';
+  else if (typeof window !== 'undefined' && window.CraftushAutomation?.sharedSettings?.enabled) $('#steps').value = window.CraftushAutomation.sharedSettings.steps;
   $('#modelNote').hidden = !gpt;
   renderGrid(); refreshTimeline(); updateCost();
 }
@@ -1832,7 +1836,7 @@ async function strengthenBeforeGenerate(todo){
   if (failed) console.info(`${failed} prompt(s) kept as written; realism layers are added automatically at generation.`);
 }
 
-$('#genBtn').addEventListener('click', async () => {
+async function generateVisualImages(){
   if (needCode('#s3')) return;
   if (!imageModel()){ setStatus('#s3', 'Paste a Runware model ID, or pick FLUX.1 Dev from the list.', 'err'); $('#customModel').focus(); return; }
   const todo = state.items.map((it, i) => it.b64 ? -1 : i).filter(i => i >= 0);
@@ -1850,7 +1854,8 @@ $('#genBtn').addEventListener('click', async () => {
   else if (failed.length) setStatus('#s3', `${failed.length} image${failed.length > 1 ? 's' : ''} failed: ${failed[0].err} Press generate again to retry only those.`, 'err');
   else setStatus('#s3', 'Every image is ready. Head to step 4 to download them.', 'ok');
   updateButtons();
-});
+}
+$('#genBtn').addEventListener('click', generateVisualImages);
 $('#stopBtn').addEventListener('click', () => { state.cancel = true; $('#stopBtn').disabled = true; setStatus('#s3', 'Stopping after the images already in progress…'); });
 
 async function downloadZip(sid, imagesOnly=false){
@@ -1866,6 +1871,7 @@ async function downloadZip(sid, imagesOnly=false){
       log.push(`${fname(i)}\nSentence: ${it.text}\nPrompt: ${it.prompt}\n`);
     });
     zip.file('prompts.txt', log.join('\n'));
+    if (typeof window !== 'undefined' && window.CraftushAutomation?.metadata()) zip.file('episode-research-settings.json', JSON.stringify(window.CraftushAutomation.metadata(), null, 2));
     zip.file('prompts.json', JSON.stringify(promptProjectData(), null, 2));
     zip.file('image-links.json', JSON.stringify({ version: 17, images: state.items.map((it,i) => ({ sceneId: it.id, line: it.text, image: fname(i), sourceURL: it.imageSourceURL || null, included: !!it.b64 })) }, null, 2));
     if (hasTimeline){
@@ -2209,6 +2215,7 @@ function updateButtons(){
   updateWorkflowHelp();
   updateTransitionControls();
   markSteps();
+  if (typeof window !== 'undefined' && window.CraftushAutomation) window.CraftushAutomation.lock();
 }
 
 function updateWorkflowHelp(){
@@ -2396,5 +2403,6 @@ $('#teamCode').addEventListener('change', () => { if (server.configured && !$('#
 })();
 </script>
 <script src="director.js?v=13"></script>
+<script type="module" src="automation.mjs?v=1"></script>
 </body>
 </html>
