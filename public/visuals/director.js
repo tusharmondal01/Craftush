@@ -153,7 +153,7 @@ async function planScenes(onProgress){
     let scenes = null;
     for (let attempt = 0; attempt < 2 && !scenes; attempt++){
       try {
-        const arr = parseJSONLoose(await askClaude(planPrompt(lines, start, prev), { maxTokens: Math.min(8000, 400 + lines.length * 550), temperature: 0.35 }));
+        const arr = parseJSONLoose(await askClaude(planPrompt(lines, start, prev), { maxTokens: Math.min(8000, 800 + lines.length * 900), temperature: 0.35 }));
         if (!Array.isArray(arr) || lines.some((_, k) => arr.filter(s => s && +s.line === start + k + 1).length !== 1)) throw new Error('The scene planner omitted or duplicated a line');
         scenes = arr; track.success();
       } catch (e){ if (e.auth) throw e; console.warn('Visual plan failed', e); track.fail(e); }
