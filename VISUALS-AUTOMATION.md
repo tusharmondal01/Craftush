@@ -46,12 +46,16 @@ Runs, checkpoints, task IDs, results and source history persist in Cloudflare SQ
 
 Stop prevents later stages from starting. A task already submitted to Runware can still finish and incur cost. Resume retrieves its existing task UUID and cached result. Ambiguous network failures are polled rather than resubmitted. An explicit Resume may retry a known failed task. Provider tasks are claimed atomically, and completed costs are counted once in both the run ledger and admin totals. Truncated text is retained with its actual cost and automatically requested again with a larger output limit, up to 8,000 tokens. The pipeline never parses a known-truncated response as complete. Resetting admin usage counters does not erase a saved run's cost or research history.
 
+Image dispatch respects the shared admin concurrency setting (1–8). Resume retains finished prompts and reviewed images; an image interrupted during review is checked again using its existing generation result. The creator cost display uses the durable reported-cost ledger, so replaying a cached result does not increase the displayed total.
+
 Image/audio URLs are provider-hosted and can expire. Export completed work promptly. Checkpoints store image URLs and scene metadata, not large image binaries. Closing the tab stops browser orchestration; Resume continues from saved work. This is not a scheduled background batch worker.
 
 The existing speech recognition, alignment diagnostics, timing review, transitions and Premiere packaging remain in place. The ZIP additionally includes episode research and settings metadata while the script still matches the automated episode. Uncertain alignment is flagged instead of silently approving the export.
 
-## Validation and remaining live checks
+## Validation
 
 Run `npm test`, `npm run test:cloudflare`, and the GitHub Pages build. Tests include the full mocked stage sequence, Stop during prompts/audio download, failed-image recovery, cached Resume, readonly Sheets OAuth/range selection, duplicate-task prevention, usage accounting, source history and the compiled Worker with real SQLite storage. Browser QA covers the new creator panel and admin form.
 
-The replacement Runware connection successfully completed live research, script generation, source review and scene direction on 2026-10-23. The earlier billing rejection no longer applies to that connection. The automated test suites cover the full sequence with fixtures; live media generation, narration alignment and an actual Premiere import must be reported separately from those fixtures.
+On 2026-10-23, 300 unit/UI tests passed (one existing test skipped), 13 compiled Cloudflare runtime tests passed, and the GitHub Pages build passed. The replacement Runware connection completed live research, the reviewed 376-word script, 25 scene prompts and images, image relevance checks, and male Hindi narration for the requested pilot. Stop/Resume and cached image recovery were exercised in the browser.
+
+The managed preview encountered a local SQLite file-synchronization conflict, so pilot results were recovered through the actual HTTP bridge rather than writing the database from a second process. The final audio handoff could not be completed reliably in that preview, and the test browser could not finish loading the generated audio. Live narration duration, alignment, final package download and actual Premiere application import remain unverified; the automated test suites cover these orchestration/export paths with fixtures. No timing review is silently approved.
