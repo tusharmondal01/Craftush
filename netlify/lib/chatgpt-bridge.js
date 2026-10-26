@@ -2,6 +2,7 @@ import { buildDocumentaryTask, publicWorkflow } from './documentary-api.js';
 import { storageErrorResponse } from './storage-errors.js';
 import { newProject, restoreProject, parseMaster, validatePrompt, UUID } from '../../public/documentary/core.js';
 import { handleVisualProject } from './visuals-chatgpt.js';
+import { handleNarrationProject } from './narration-session.js';
 
 const TOKEN = /^[0-9a-f]{64}$/;
 const HOUR = 3600000;
@@ -58,6 +59,8 @@ export function createChatGPTBridge(deps) {
       if (!body || typeof body !== 'object' || Array.isArray(body)) return fail('A project request object is required.', 400);
       rejectSecrets(body);
       const store = openStore(), settings = await readSettings(store);
+      const narration = await handleNarrationProject(store, body, settings);
+      if (narration !== null) return json(narration);
       const visual = await handleVisualProject(store, body, settings);
       if (visual !== null) return json(visual);
       if (dashboardView(settings).cards.documentary.enabled === false) return fail('Documentary Studio is disabled.', 403);

@@ -86,6 +86,28 @@ test('compiled v17 Worker runs with actual Cloudflare SQLite storage and preserv
       assert.equal(delivered.recorded,true);assert.equal((await mcp({action:'read'})).title,'Great Indian Bustard');
       assert.equal(providerCalls.length, 1);
     });
+    await t.test('narration-first approval and native MCP queue work through the real Worker', async () => {
+      const team = { 'x-team-code': 'runtime-fixture-team' };
+      const metadata = await (await call('/api/documentary')).json();
+      assert.equal(metadata.workflow.narrationFirst.maxRequests,100);
+      assert.equal((await call('/api/documentary-session',{action:'start'})).status,401);
+      const before=providerCalls.length;
+      assert.equal((await call('/api/documentary',{action:'narration-voice',taskUUID:crypto.randomUUID(),script:'A full script',approvedScript:'stale',audioModel:'google:gemini@3.1-flash-tts',chunk:0},team)).status,400);
+      const start=await call('/api/documentary-session',{action:'start',title:'Narration test'},team);
+      assert.equal(start.status,200);const {projectToken}=await start.json();
+      const request={action:'narration-script',taskUUID:crypto.randomUUID(),idea:'A forest at dawn'};
+      assert.equal((await call('/api/documentary-session',{action:'task',projectToken,request},team)).status,200);
+      const mcp=async args=>{
+        const response=await runtime.dispatchFetch('https://worker.example/api/chatgpt-mcp',{method:'POST',headers:{'content-type':'application/json',accept:'application/json, text/event-stream'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'craftush_project',arguments:{projectToken,...args}}})});
+        const envelope=await response.json();assert(!envelope.result.isError,JSON.stringify(envelope));return envelope.result.structuredContent;
+      };
+      assert.equal((await mcp({action:'read'})).projectType,'documentary-narration');
+      const prepared=await mcp({action:'prepare'});assert.equal(prepared.request[0].model,'anthropic:claude@sonnet-4.6');assert.equal(prepared.taskUUID,request.taskUUID);
+      const result={taskUUID:request.taskUUID,text:JSON.stringify({script:'A complete forest narration.'}),cost:.01};
+      await mcp({action:'record',taskUUID:request.taskUUID,result});
+      const completed=await (await call('/api/documentary-session',{action:'task',projectToken,request},team)).json();assert.equal(completed.data[0].text,result.text);
+      assert.equal(providerCalls.length,before,'Keyless handoff never uses the server provider credential');
+    });
     await t.test('large uploaded thumbnail HTML survives chunked SQLite storage', async () => {
       const html = '<!doctype html><html><head><title>Fixture thumbnail</title></head><body>' + 'हिन्दी 🦋'.repeat(80000) + '</body></html>';
       const uploaded = await admin({ action: 'uploadThumb', name: 'fixture.html', html });

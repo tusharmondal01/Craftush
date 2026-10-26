@@ -73,7 +73,7 @@ export function automationStorage(storage,sql,operation,payload){
    if(record&&!(record.state==='error'&&payload.retry))return {record,created:false};
    const job=read(payload.jobId);if(job.stopped)throw new Error('Project stopped. Resume on Craftush.');
    if((record?.attempt||0)>=3)throw new Error('This task reached its three-attempt limit.');
-   record={taskUUID:payload.taskUUID,jobId:payload.jobId,state:'pending',createdAt:new Date().toISOString(),attempt:(record?.attempt||0)+1,...(payload.task?{task:payload.task,kind:payload.kind}:{})};
+   record={taskUUID:payload.taskUUID,jobId:payload.jobId,state:'pending',createdAt:new Date().toISOString(),attempt:(record?.attempt||0)+1,...(payload.task?{task:payload.task,kind:payload.kind}:{}),...(payload.existingSubmission?{dispatchedAt:new Date().toISOString()}:{})};
    sql.exec('INSERT OR REPLACE INTO visuals_tasks (key,job_id,document) VALUES (?,?,?)',payload.key,payload.jobId,JSON.stringify(record));return {record,created:true};
   }
   if(!record)throw new Error('Task not found.');

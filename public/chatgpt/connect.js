@@ -90,7 +90,7 @@ $('openStudio').addEventListener('click', () => guarded(async () => {
       for (const s of imported.scenes) { const old = saved.scenes.find(other => other.index === s.index); if (old?.videoURL === s.videoURL) s.mediaKey = old.mediaKey; }
       if (saved.scenes.every(s => imported.scenes[s.index - 1].videoURL === s.videoURL)) imported.final = saved.final;
     }
-    await store.put('current-project', imported); location.assign('/documentary/#export');
+    await store.put('current-project', imported); location.assign('/documentary/legacy.html#export');
   } finally { pending = false; render(); }
 }));
 $('endConnection').addEventListener('click', () => guarded(async () => {

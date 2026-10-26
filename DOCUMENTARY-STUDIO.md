@@ -1,4 +1,34 @@
-# Documentary Studio
+# Documentary Studio: narration-first workflow
+
+The default `/documentary/` now follows the approved script and the measured voiceover. Existing fixed 13-scene projects remain available at `/documentary/legacy.html`; their data and Runware workflow are preserved. The other dashboard tools retain their routes and settings.
+
+1. Enter the title, detailed idea and approximate target duration. **Write full script** calls Claude Sonnet 4.6 through Runware and stops for review.
+2. Edit and **Save text**, download `.txt`, or enter feedback and **Revise with Claude**. Repeat as needed. Previous versions remain available. Every edit clears prior approval and dependent media.
+3. Choose Gemini 3.1 Flash TTS or Fish Audio S2.1 Pro in Voiceover. Male narration is the default. **Approve & create documentary** starts production using that exact script. Long scripts split at model limits and join into one saved WAV.
+4. On-device speech recognition measures word timestamps from that WAV. A script match below 90% stops the workflow for transcript review. Import an SRT from the exact audio or edit the timings, confirm them, and continue. SRT words inside a cue are interpolated and require review.
+5. Claude chooses semantic shot cuts and groups up to six connected shots per video request. The JSON includes shot count, absolute start/end, duration, narration excerpt and visual direction. Validation requires full audio coverage, no gaps or overlaps, at most 15 seconds per request and at most 100 requests. Download or edit the JSON in Shot plan.
+6. Only planned slots become active. PixVerse V6 generates silent 720 × 1280 MP4s; each completed clip is cached on the device and has a download button. The remaining slots stay disabled. The default concurrency is three, with one, five or eight available.
+7. FFmpeg trims active clips to the planned frame boundaries, concatenates them in order and adds the complete narration. Optional background music and volume controls remain available. Final output must contain video and audio and match the narration duration within codec tolerance before it is saved.
+
+**Stop** prevents new submissions but cannot cancel already-running provider jobs. **Resume / retry current stage** checks the saved UUIDs; an explicitly failed task receives a new UUID only on retry. Keep the tab open while processing. The first transcript analysis downloads a Whisper model and can take several minutes on slower devices. Internal AI-generated shot cuts are requested in prompts but can vary; review the final video and replace a clip if necessary.
+
+## Connections and storage
+
+Use the existing secure website Runware connection or select **Runware connected in ChatGPT**. The latter creates a 24-hour private project command. Enable Craftush Cloudflare and Runware in ChatGPT and keep the website open. Craftush queues native tasks and accepts results through `craftush_project read/prepare/record`; provider credentials are never sent through this flow. It pauses after the script until the creator approves on the website.
+
+Cloudflare serves `/api/documentary`, `/api/documentary-media`, and `/api/documentary-session`, with existing team access, tool visibility and rate limits. Models: `anthropic:claude@sonnet-4.6`, `google:gemini@3.1-flash-tts`, `fishaudio:s2.1@pro`, and `pixverse:1@8`. The selected model and UUID are preserved throughout each provider task.
+
+Projects, script revisions, WAVs, clips and final MP4s are saved in IndexedDB on this browser/device. Project JSON excludes provider credentials and the private connection token; it contains media references, not embedded media. Download media separately for a portable backup. Reopen JSON on another device, resume available Runware downloads and upload replacement MP4s if a URL expired. Runware-reported costs are counted once per UUID and reset for a new project.
+
+Limits: 20-minute measured narration, 30,000 script characters, 6,000 timestamped words, 100 requests, 160 MB per downloaded clip, 80 MB music and 512 MB total input media for browser assembly. The provider may impose its own credit or request limits. Desktop Chrome or Edge is recommended for local processing. No Runware credits are used for analysis or assembly.
+
+## Validation
+
+Automated checks cover approval, repeated revisions, natural TTS chunking, model/UUID preservation, low-confidence transcript gating, gap/overlap rejection, disabled slots, fractional frame totals, Stop/Resume without duplicate submission, credential rejection, idempotent result recording, and real Cloudflare SQLite/MCP routing. Browser FFmpeg verification joined two real clips with a 3.41-second WAV into a 3.41-second MP4 while ignoring 98 disabled slots. Paid full-film generation is not part of deployment tests.
+
+---
+
+# Classic 13-scene Studio
 
 The fourth Craftush dashboard tool runs your supplied Runware v18 workflow without ComfyUI. The existing three tools retain their own routes and settings.
 
@@ -7,11 +37,11 @@ The fourth Craftush dashboard tool runs your supplied Runware v18 workflow witho
 1. Extract this ZIP and deploy its complete contents to the existing Craftush project. Keep `public/`, `api/`, `netlify/`, `package.json`, `package-lock.json`, `vercel.json` and `netlify.toml` together. Install dependencies with `npm ci` where your host requires it.
 2. Keep the existing storage and admin environment configuration described in README.md. The new API routes use the same saved settings and Runware key. No new provider key or media server is required.
 3. Open `/admin` and confirm your Runware API key is configured. Under Dashboard cards, Documentary Studio is enabled by default and has editable title, description and visibility.
-4. Open `/documentary/`. If your admin configured a team access code, enter that code. The browser does not receive or save the Runware API key.
+4. Open `/documentary/legacy.html`. If your admin configured a team access code, enter that code. The browser does not receive or save the Runware API key.
 
 Vercel routes are `/api/documentary` and `/api/documentary-media`. Matching Netlify edge handlers are included. Opening the HTML directly from your filesystem cannot run the generation backend; use the deployed website.
 
-## Create the documentary
+## Create a classic documentary
 
 1. Enter a topic and optional project title. Choose **Generate full documentary** to create the story and scene videos, or **Create story plan only** to review the plan first.
 2. Review the glossary, subject sheet and continuity sheet. The master JSON editor and master-script download are available in Story plan. A replacement plan resets its dependent scene prompts and videos.
