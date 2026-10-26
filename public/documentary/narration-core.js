@@ -87,7 +87,7 @@ export function videoPrompt(plan, index) {
   return prompt;
 }
 export function newNarrationProject() {
-  return { schema: VERSION, id: newUUID(), title: '', idea: '', targetSeconds: 156, script: '', revisions: [], feedback: '', approvedScript: '', audioModel: Object.keys(VOICES)[0], voice: 'Charon', concurrency: 3, mode: 'server', tasks: {}, ledger: {}, audio: null, plan: null, clips: {}, final: null, stage: 'idea', created: new Date().toISOString() };
+  return { schema: VERSION, id: newUUID(), title: '', idea: '', targetSeconds: 156, script: '', revisions: [], feedback: '', approvedScript: '', audioModel: Object.keys(VOICES)[0], voice: 'Charon', concurrency: 3, mode: 'chatgpt', tasks: {}, ledger: {}, audio: null, plan: null, clips: {}, final: null, stage: 'idea', created: new Date().toISOString() };
 }
 export function invalidateNarration(p) { p.approvedScript = ''; p.audio = null; p.plan = null; p.clips = {}; p.final = null; }
 export function approveScript(p) { p.approvedScript = scriptText(p.script); return p.approvedScript; }
@@ -100,13 +100,16 @@ export function restoreNarrationProject(input) {
   p.feedback = String(input.feedback || '').slice(0, 8000); p.targetSeconds = Math.max(30, Math.min(1200, Number(input.targetSeconds) || 156));
   p.revisions = (input.revisions || []).slice(-30).filter(r => typeof r.text === 'string').map(r => ({ text: r.text.slice(0, 30000), feedback: String(r.feedback || '').slice(0,8000), date: String(r.date || '') }));
   p.audioModel = VOICES[input.audioModel] ? input.audioModel : p.audioModel; p.voice = String(input.voice || VOICES[p.audioModel].voice).slice(0,100);
-  p.concurrency = Math.max(1, Math.min(8, Number(input.concurrency) || 3)); p.mode = input.mode === 'chatgpt' ? 'chatgpt' : 'server';
+  p.concurrency = Math.max(1, Math.min(8, Number(input.concurrency) || 3)); p.mode = 'chatgpt';
   if (scriptApproved(p) && input.audio) {
     p.audio = { key: UUID.test(input.audio.key || '') ? input.audio.key : '', duration: Number(input.audio.duration) || 0, urls: (input.audio.urls || []).slice(0,30).map(u => mediaURL(u,'audio')), words: [], reviewed: input.audio.reviewed === true, source: String(input.audio.source || '') };
     if (input.audio.words?.length) p.audio.words = validWords(input.audio.words,p.audio.duration);
     if (input.plan) { p.plan = validatePlan(input.plan,p.audio.duration); p.plan.requests.forEach(r => videoPrompt(p.plan,r.index)); }
   }
   for (const [id, t] of Object.entries(input.tasks || {})) if (UUID.test(t?.id || '') && typeof t.fingerprint === 'string' && t.fingerprint.length === 64 && ['queued','submitted','processing','paused','uncertain','complete','error'].includes(t.status)) p.tasks[id] = { id:t.id, fingerprint:t.fingerprint, status:t.status, started:String(t.started||''), error:String(t.error||'').slice(0,600) };
+  // A missing website receipt is not a provider failure. Recover the same UUID
+  // through the ChatGPT connection instead of starting another paid task.
+  for (const task of Object.values(p.tasks)) if (task.status === 'error' && task.error.includes('This task is not registered with Documentary Studio.')) task.status = 'uncertain';
   for (const [id, cost] of Object.entries(input.ledger || {})) if (UUID.test(id) && Number.isFinite(cost) && cost>=0) p.ledger[id] = cost;
   if(p.plan) for(const r of p.plan.requests) { const c=input.clips?.[r.index]; if(c?.url||UUID.test(c?.key||'')) p.clips[r.index] = {url:c.url?mediaURL(c.url,'video'):'',key:UUID.test(c.key||'')?c.key:'',taskUUID:UUID.test(c.taskUUID||'')?c.taskUUID:''}; }
   p.stage = ['idea','script','voice','plan','videos','export'].includes(input.stage) ? input.stage : 'idea';

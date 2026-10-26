@@ -1,4 +1,4 @@
-import {newUUID,VERSION,VOICES,MAX_REQUESTS,scriptText,audioChunks,object,validWords,validatePlan,videoPrompt,newNarrationProject,restoreNarrationProject,invalidateNarration,approveScript,scriptApproved} from './narration-core.js';
+import {newUUID,VERSION,VOICES,MAX_REQUESTS,scriptText,audioChunks,object,validWords,validatePlan,videoPrompt,newNarrationProject,restoreNarrationProject,invalidateNarration,approveScript,scriptApproved} from './narration-core.js?v=20261026-chatgpt';
 import {DocumentaryStore} from './storage.js';
 import {filename} from './core.js';
 import {fetchMedia,joinNarration,recognizeAudio,parseSRT} from './narration-media.js';
@@ -25,7 +25,7 @@ function download(blob,name){const u=URL.createObjectURL(blob),a=document.create
 function ready(){return project.plan?.requests.filter(r=>project.clips[r.index]?.url||project.clips[r.index]?.key).length||0;}
 function setStage(stage){project.stage=stage;render();saveSoon();history.replaceState(null,'','#'+stage);}
 function voiceOptions(){const fish=project.audioModel.startsWith('fishaudio:');const voices=fish?[['bf322df2096a46f18c579d0baa36f41d','Adrian · male narrator'],['536d3a5e000945adb7038665781a4aca','Ethan · male explainer'],['b347db033a6549378b48d00acb0d06cd','Selene'],['933563129e564b19a115bedd57b7406a','Sarah']]:[['Charon','Charon · male, informative'],['Achird','Achird · male, friendly'],['Algieba','Algieba · male, smooth'],['Orus','Orus · male, firm'],['Puck','Puck · male, upbeat'],['Kore','Kore · female, firm'],['Aoede','Aoede · female, breezy'],['Zephyr','Zephyr · female, bright']];$('voice').innerHTML=voices.map(([value,label])=>`<option value="${value}">${label}</option>`).join('');if(!voices.some(v=>v[0]===project.voice))project.voice=VOICES[project.audioModel].voice;$('voice').value=project.voice;}
-function syncInputs(){for(const id of ['projectTitle','idea','targetSeconds','concurrency','scriptText','scriptFeedback','audioModel','connectionMode'])$(id).value=({projectTitle:project.title,idea:project.idea,targetSeconds:project.targetSeconds,concurrency:project.concurrency,scriptText:project.script,scriptFeedback:project.feedback,audioModel:project.audioModel,connectionMode:project.mode})[id];voiceOptions();}
+function syncInputs(){for(const id of ['projectTitle','idea','targetSeconds','concurrency','scriptText','scriptFeedback','audioModel'])$(id).value=({projectTitle:project.title,idea:project.idea,targetSeconds:project.targetSeconds,concurrency:project.concurrency,scriptText:project.script,scriptFeedback:project.feedback,audioModel:project.audioModel})[id];voiceOptions();}
 function render(){
  document.querySelectorAll('.stage').forEach(e=>e.hidden=e.id!=='stage-'+project.stage);document.querySelectorAll('[data-stage]').forEach(e=>{e.classList.toggle('active',e.dataset.stage===project.stage);if(e.dataset.stage===project.stage)e.setAttribute('aria-current','step');else e.removeAttribute('aria-current');});
  const n=project.plan?.requestCount||0,count=ready();$('readyCount').textContent=`${count} / ${n}`;$('cost').textContent='$'+Object.values(project.ledger).reduce((a,c)=>a+c,0).toFixed(4);
@@ -41,23 +41,23 @@ function render(){
  $('shotTimeline').innerHTML=project.plan?project.plan.requests.flatMap(r=>r.shots).map(s=>`<span title="Shot ${s.shot}: ${s.start.toFixed(2)}–${s.end.toFixed(2)}s" style="flex:${s.duration}"></span>`).join(''):'';
  $('shotList').innerHTML=project.plan?project.plan.requests.map(r=>`<div class="shot-row"><b>REQUEST ${r.index}<br>${r.duration.toFixed(2)}s</b><div>${r.shots.map(s=>`<p><strong>Shot ${s.shot}</strong> · ${s.start.toFixed(2)}–${s.end.toFixed(2)}s</p><p lang="hi">${esc(s.narration)}</p><small>${esc(s.visual)}</small>`).join('')}</div></div>`).join(''):'';
  if(document.activeElement!==$('planJson'))$('planJson').value=project.plan?JSON.stringify(project.plan,null,2):'';
- for(const id of ['writeScript','saveScript','refineScript','approveScript','generateVoice','analyzeAudio','applyTimings','planShots','continueVideos','generateVideos','retryFailed','savePlan','retryClip','replaceClip','newProject','projectFile','reconnect','projectTitle','idea','targetSeconds','concurrency','connectionMode','audioModel','voice','scriptText','scriptFeedback','revision','planJson','wordTimings','srtFile','resumeStage','musicFile','musicVolume','narrationVolume','removeMusic','timingConfirmed'])$(id).disabled=busy;
+ for(const id of ['writeScript','saveScript','refineScript','approveScript','generateVoice','analyzeAudio','applyTimings','planShots','continueVideos','generateVideos','retryFailed','savePlan','retryClip','replaceClip','newProject','projectFile','reconnect','projectTitle','idea','targetSeconds','concurrency','audioModel','voice','scriptText','scriptFeedback','revision','planJson','wordTimings','srtFile','resumeStage','musicFile','musicVolume','narrationVolume','removeMusic','timingConfirmed'])$(id).disabled=busy;
  $('refineScript').disabled=busy||!project.script;$('approveScript').disabled=busy||!project.script;
  $('generateVoice').disabled=busy||!scriptApproved(project);$('analyzeAudio').disabled=busy||!project.audio?.duration;$('planShots').disabled=busy||!project.audio?.words.length;
  for(const id of ['continueVideos','generateVideos','retryFailed','downloadPlan'])$(id).disabled=(id!=='downloadPlan'&&busy)||!n;
  $('assemble').disabled=busy||!n||count!==n;$('downloadFinal').disabled=!finalBlob;$('downloadScript').disabled=!project.script;$('downloadAudio').disabled=!project.audio?.key;$('saveClip').disabled=!project.clips[selected];$('retryClip').disabled=busy||project.tasks['video-'+selected]?.status!=='error';
  $('stop').hidden=!busy;$('stop').disabled=!!controller?.signal.aborted;$('workProgress').hidden=!busy;
- $('handoff').hidden=project.mode!=='chatgpt'||!token;void preview();
+ $('handoff').hidden=!token;void preview();
 }
 async function preview(){const sequence=++previewSequence;const clip=project.clips[selected],isFinal=project.stage==='export'&&finalBlob;const blob=isFinal?finalBlob:await media(clip?.key);if(sequence!==previewSequence)return;const url=blob?objectURL(isFinal?project.final.key:clip.key,blob):clip?.url;const player=$('previewVideo');$('previewEmpty').hidden=!!url;player.hidden=!url;$('previewHeading').textContent=isFinal?'Final documentary':`Video request ${selected}`;if(url&&player.getAttribute('src')!==url){player.src=url;player.load();}if(!url)player.removeAttribute('src');}
 async function showAudio(){const blob=await media(project.audio?.key);$('audioPreview').hidden=!blob;if(blob)$('audioPreview').src=objectURL(project.audio.key,blob);}
-async function connectionCheck(){try{const r=await endpoint('/api/documentary',{cache:'no-store'});const data=await r.json().catch(()=>{throw new Error('The generation backend is not connected. Local script editing and saved media remain available.');});if(!r.ok)throw new Error(data.errors?.[0]?.message||'Backend unavailable.');connection=data;$('teamCodeWrap').hidden=!data.codeRequired;$('connectionStatus').textContent=data.enabled?(data.configured?'Runware connected · narration-first ready':'Connect Runware through ChatGPT'):'Disabled by admin';if(!data.configured&&project.mode==='server'){project.mode='chatgpt';$('connectionMode').value='chatgpt';}}catch(e){connection=null;$('connectionStatus').textContent='Connection unavailable';notice(e.message,true);}render();}
+async function connectionCheck(){try{const r=await endpoint('/api/documentary',{cache:'no-store'});const data=await r.json().catch(()=>{throw new Error('The generation backend is not connected. Local script editing and saved media remain available.');});if(!r.ok)throw new Error(data.errors?.[0]?.message||'Backend unavailable.');connection=data;$('teamCodeWrap').hidden=!data.codeRequired;$('connectionStatus').textContent=data.enabled?'ChatGPT generation ready · no website API key':'Disabled by admin';}catch(e){connection=null;$('connectionStatus').textContent='Connection unavailable';notice(e.message,true);}render();}
 async function connectSession(force=false){
  if(token&&!force){await session({action:'resume'});return;}
  const data=await request('/api/documentary-session',{action:'start',title:project.title,concurrency:project.concurrency});token=data.projectToken;await store.put('narration-connection-'+project.id,{token});
  $('projectCommand').value=`Continue my narration-first Documentary Studio project using project code ${token}. Read the Craftush workflow, then use craftush_project read/prepare/record without kind or scene. Run prepared tasks through my connected Runware account, preserving every model and task UUID. Pause for script approval on the website. Never send provider credentials to Craftush.`;render();
 }
-async function statusCheckpoint(){if(project.mode==='chatgpt'&&token)await session({action:'checkpoint',stage:project.stage,readyVideos:ready(),requestCount:project.plan?.requestCount||0,complete:!!project.final});}
+async function statusCheckpoint(){if(token)await session({action:'checkpoint',stage:project.stage,readyVideos:ready(),requestCount:project.plan?.requestCount||0,complete:!!project.final});}
 async function fingerprint(body){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(body))))].map(n=>n.toString(16).padStart(2,'0')).join('');}
 const sleep=(ms,signal)=>new Promise((resolve,reject)=>{const stop=()=>{clearTimeout(t);reject(new DOMException('Stopped.','AbortError'));};const t=setTimeout(()=>{signal?.removeEventListener('abort',stop);resolve();},ms);if(signal?.aborted)return stop();signal?.addEventListener('abort',stop,{once:true});});
 async function execute(slot,body,type){
@@ -71,13 +71,9 @@ async function execute(slot,body,type){
   while(Date.now()-start<3600000){
    check();let result;
    try{
-    if(project.mode==='chatgpt'){
-     task.status='processing';await save();dispatched=true;
-     result=await session({action:'task',request:{...body,taskUUID:task.id},existingSubmission:!isNew,retry},signal);if(result.taskUUID&&result.taskUUID!==task.id){task.id=result.taskUUID;await save();}
-    }else{
-     const send=isNew&&!dispatched;task.status=send?'submitted':'processing';await save();check();dispatched=true;
-     result=await request('/api/documentary',send?{...body,taskUUID:task.id}:{action:'poll',taskUUID:task.id},signal);
-    }
+    task.status='processing';await save();check();dispatched=true;
+    result=await session({action:'task',request:{...body,taskUUID:task.id},existingSubmission:!isNew,retry},signal);if(result.taskUUID&&result.taskUUID!==task.id){task.id=result.taskUUID;await save();}
+    if(result.pending)activity('Waiting for ChatGPT. Copy the project command above and send it in your chat.');
     check();failures=0;
     const output=(result.data||[]).find(x=>x.taskUUID===task.id&&(type==='audio'?x.audioURL:type==='video'?x.videoURL:typeof x.text==='string'&&x.text));
     if(output){if(Number.isFinite(output.cost)&&output.cost>=0)project.ledger[task.id]=output.cost;task.status='complete';await save();if(output.finishReason==='length')throw new Error('The model response was truncated. Retry with a shorter documentary or script.');return output;}
@@ -153,7 +149,7 @@ async function run(fn,{retries=false,provider=true}={}){
   if(!lock&&navigator.locks){notice('This project is running in another tab. Stop that queue first.',true);return;}
   busy=true;retry=retries;controller=new AbortController();started=Date.now();timer=setInterval(()=>{$('elapsed').textContent=Math.floor((Date.now()-started)/60000)+':'+String(Math.floor((Date.now()-started)/1000)%60).padStart(2,'0')+' elapsed';},1000);render();
   try{
-   if(provider){if(!connection?.enabled)throw new Error('Check the backend connection first.');if(project.mode==='server'&&!connection.configured)throw new Error('Select your Runware connection in ChatGPT. No API key is needed here.');if(project.mode==='chatgpt')await connectSession();}
+   if(provider){if(!connection?.enabled)throw new Error('Check the backend connection first.');await connectSession();}
    await fn();
   }catch(e){notice(controller.signal.aborted?'Workflow stopped. Your work is saved. Resume checks existing requests.':e.message,!controller.signal.aborted);activity(controller.signal.aborted?'Stopped. Ready to resume.':'Needs attention. Your saved work is retained.');}
   finally{clearInterval(timer);busy=false;controller=null;retry=false;await save().catch(e=>notice(e.message,true));render();}
@@ -169,7 +165,7 @@ $('generateVoice').onclick=()=>run(ensureVoice);$('analyzeAudio').onclick=()=>ru
 for(const id of ['continueVideos','generateVideos'])$(id).onclick=()=>run(async()=>{await generateVideos();await assemble();});
 $('retryFailed').onclick=()=>run(async()=>{await continueProduction();},{retries:true});$('retryClip').onclick=()=>run(()=>generateVideos([selected]),{retries:true});
 $('resumeStage').onclick=()=>run(async()=>{if(!scriptApproved(project)){await write(!!project.script&&!!project.feedback);}else await continueProduction();},{retries:true});
-$('assemble').onclick=()=>run(assemble,{provider:false});$('stop').onclick=()=>{controller?.abort();if(project.mode==='chatgpt'&&token)session({action:'stop'}).catch(()=>{});render();};
+$('assemble').onclick=()=>run(assemble,{provider:false});$('stop').onclick=()=>{controller?.abort();if(token)session({action:'stop'}).catch(()=>{});render();};
 $('savePlan').onclick=()=>guarded(async()=>{const plan=validatePlan($('planJson').value,project.audio?.duration);plan.requests.forEach(r=>videoPrompt(plan,r.index));if(JSON.stringify(plan)!==JSON.stringify(project.plan)){await store.put('narration-archive-'+project.id+'-'+Date.now(),structuredClone(project));project.plan=plan;project.clips={};project.final=null;finalBlob=null;}await save();render();});
 $('applyTimings').onclick=()=>run(async()=>{if(!$('timingConfirmed').checked)throw new Error('Confirm that you checked these timings.');project.audio.words=validWords(JSON.parse($('wordTimings').value),project.audio.duration);project.audio.reviewed=true;project.plan=null;project.clips={};project.final=null;finalBlob=null;await save();await ensurePlan();});
 $('srtFile').onchange=()=>guarded(async()=>{const file=$('srtFile').files[0];if(!file)return;if(!project.audio?.duration)throw new Error('Generate narration first.');if(file.size>2000000)throw new Error('SRT is too large.');project.audio.words=parseSRT(await file.text(),project.audio.duration);project.audio.reviewed=false;project.audio.source='srt';$('wordTimings').value=JSON.stringify(project.audio.words,null,2);$('transcriptReview').open=true;$('timingConfirmed').checked=false;await save();notice('SRT loaded. Review the imported timings, then apply them.');});
@@ -191,7 +187,6 @@ $('copyCommand').onclick=()=>guarded(async()=>{await navigator.clipboard.writeTe
 $('reconnect').onclick=()=>run(()=>connectSession(true),{provider:false});$('recheck').onclick=connectionCheck;
 $('audioModel').onchange=()=>guarded(async()=>{project.audioModel=$('audioModel').value;project.voice=VOICES[project.audioModel].voice;project.audio=null;project.plan=null;project.clips={};project.final=null;finalBlob=null;voiceOptions();await save();render();});
 $('voice').onchange=()=>guarded(async()=>{project.voice=$('voice').value;project.audio=null;project.plan=null;project.clips={};project.final=null;finalBlob=null;await save();render();});
-$('connectionMode').onchange=()=>{project.mode=$('connectionMode').value;saveSoon();render();};
 for(const [id,field] of [['projectTitle','title'],['idea','idea'],['scriptFeedback','feedback']])$(id).oninput=()=>{project[field]=$(id).value;saveSoon();};
 $('targetSeconds').onchange=()=>{project.targetSeconds=Math.max(30,Math.min(1200,Number($('targetSeconds').value)||156));saveSoon();};$('concurrency').onchange=()=>{project.concurrency=Number($('concurrency').value);saveSoon();};
 document.querySelectorAll('[data-stage]').forEach(e=>e.onclick=()=>setStage(e.dataset.stage));
