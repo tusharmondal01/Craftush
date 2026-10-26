@@ -26,7 +26,7 @@ const brief=(job,tasks=[])=>({projectType:'stunning-visuals',title:job.episode?.
 export async function handleVisualProject(store,body,settings){
  if(!store.automation||!/^[a-f0-9]{64}$/.test(body.projectToken||''))return null;
  const {job}=await store.automation('connection',{hash:await digest(body.projectToken)});
- if(!job)return null;
+ if(!job||job.projectType==='documentary-narration')return null;
  rejectVisualSecrets(body);
  if(!validateSettings(settings.visualsAutomation||{}).enabled)throw error('Visuals automation is disabled in Admin.',409);
  if(Date.parse(job.expiresAt)<=Date.now())throw error('This connection expired. Resume on Craftush and use its new command.',410);

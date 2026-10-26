@@ -1,8 +1,10 @@
 import { WORKFLOW } from './documentary-workflow.js';
 import { storageErrorResponse } from './storage-errors.js';
 import { parseMaster, validatePrompt, UUID } from '../../public/documentary/core.js';
+import { buildNarrationTask, NARRATION_ACTIONS } from './narration-tasks.js';
 
 export function buildDocumentaryTask(body) {
+  if (NARRATION_ACTIONS.has(body?.action)) return buildNarrationTask(body);
   if (!body || !UUID.test(String(body.taskUUID || ''))) throw new Error('A unique task UUID is required.');
   const base = { taskUUID: body.taskUUID, numberResults: 1, deliveryMethod: 'async', includeCost: true };
   if (body.action === 'master') {
@@ -25,7 +27,8 @@ export function buildDocumentaryTask(body) {
 
 export function publicWorkflow() {
   return { version: WORKFLOW.version, sceneCount: WORKFLOW.sceneCount, sceneSeconds: WORKFLOW.sceneSeconds, totalSeconds: WORKFLOW.totalSeconds,
-    width: WORKFLOW.width, height: WORKFLOW.height, models: { master: WORKFLOW.master.model, director: WORKFLOW.director.model, video: WORKFLOW.video.model }, music: WORKFLOW.music, sourceHashes: WORKFLOW.sourceHashes };
+    width: WORKFLOW.width, height: WORKFLOW.height, models: { master: WORKFLOW.master.model, director: WORKFLOW.director.model, video: WORKFLOW.video.model }, music: WORKFLOW.music, sourceHashes: WORKFLOW.sourceHashes,
+    narrationFirst: { version: 'documentary-narration-1', maxRequests: 100, maxRequestSeconds: 15, scriptApprovalRequired: true, textModel: 'anthropic:claude@sonnet-4.6', audioModels: ['google:gemini@3.1-flash-tts','fishaudio:s2.1@pro'] } };
 }
 
 export function sanitizeReply(data, secret = '') {
@@ -94,7 +97,7 @@ export function createDocumentaryHandler(deps) {
       try { result = sanitizeReply(await upstream.json(), secret); } catch { return fail('Runware returned an unreadable response. Resume this task to check its result.', 502); }
       if (Array.isArray(result.errors)) result.errors = result.errors.map(e => ({ ...e, message: String(e.message || 'Runware reported an error.').replace(/<[^>]*>/g, ' ').slice(0, 600) }));
       const items = Array.isArray(result.data) ? result.data : [];
-      const output = items.find(d => d.taskUUID === body.taskUUID && (typeof d.text === 'string' && d.text.length || d.videoURL));
+      const output = items.find(d => d.taskUUID === body.taskUUID && (typeof d.text === 'string' && d.text.length || d.videoURL || d.audioURL));
       const terminal = (result.errors || []).find(e => e.taskUUID === body.taskUUID && !/not.?found|not.?ready|not.?available|processing/i.test(String(e.code || '') + ' ' + String(e.message || '')));
       if (output || terminal) {
         receipt.status = output ? 'complete' : 'error'; receipt.result = result;

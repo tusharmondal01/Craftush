@@ -6,7 +6,8 @@ export const MEDIA_MAX_BYTES = 160 * 1024 * 1024;
 export function validateMediaURL(value) {
   let u;
   try { u = new URL(value); } catch { throw new Error('Invalid video URL.'); }
-  if (u.protocol !== 'https:' || u.hostname !== 'vm.runware.ai' || u.port || u.username || u.password || !u.pathname.startsWith('/video/')) throw new Error('Only Runware-generated video URLs can be downloaded.');
+  const video=u.hostname==='vm.runware.ai'&&u.pathname.startsWith('/video/'),audio=u.hostname==='am.runware.ai'&&u.pathname.startsWith('/audio/');
+  if (u.protocol !== 'https:' || (!video&&!audio) || u.port || u.username || u.password || [...u.searchParams.keys()].some(k=>/key|token|auth|secret/i.test(k))) throw new Error('Only Runware-generated video or audio URLs can be downloaded.');
   return u.href;
 }
 
@@ -45,7 +46,7 @@ export function createMediaHandler(deps) {
       if (!bytes || (contentRange && bytes !== +contentRange[2] - start + 1)) return fail('The video download was interrupted. Retry downloading the scene.', 502);
       const merged = new Uint8Array(bytes); let pos = 0;
       for (const piece of pieces) { merged.set(piece, pos); pos += piece.length; }
-      return new Response(merged, { status: 200, headers: { 'content-type': 'video/mp4', 'cache-control': 'no-store',
+      return new Response(merged, { status: 200, headers: { 'content-type': new URL(url).hostname==='am.runware.ai'?'application/octet-stream':'video/mp4', 'cache-control': 'no-store',
         'x-media-total': String(contentRange ? +contentRange[3] : bytes), 'x-media-next': String(start + bytes) } });
     } catch (error) { return storageErrorResponse(error) || fail('The scene could not be downloaded. Retry or upload the scene MP4.', 502); }
   };

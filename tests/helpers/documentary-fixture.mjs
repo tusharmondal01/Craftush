@@ -21,7 +21,7 @@ export async function until(check) {
 // Run the actual studio event handlers against its HTML. Only storage, media
 // assembly and provider transport are substituted; no Runware credits are used.
 export async function documentaryFixture({ project, media = {}, reply, confirm = true, onPut, assemble } = {}) {
-  const html = await readFile(new URL('../../public/documentary/index.html', import.meta.url), 'utf8');
+  const html = await readFile(new URL('../../public/documentary/legacy.html', import.meta.url), 'utf8');
   const source = await readFile(new URL('../../public/documentary/studio.js', import.meta.url), 'utf8');
   const { document } = parseHTML(html), records = new Map(Object.entries(media)), calls = [], confirmations = [];
   if (project) records.set('current-project', structuredClone(project));
