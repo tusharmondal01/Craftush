@@ -182,3 +182,9 @@ test('long single shots split only at measured word ends and never fabricate mis
  assert.throws(()=>packPlanRequests(input,32),/no measured/);
  assert.throws(()=>packPlanRequests({requests:[{shots:[{...input.requests[0].shots[0],end:5},{...input.requests[0].shots[0],start:6,end:10}]}]},10),/gaps/);
 });
+
+test('shot plans include measured opening and trailing quiet without stretching missing narration',()=>{
+ const input={requests:[{shots:[{start:.8,end:12,narration:'Hello',visual:'Opening landscape'},{start:12,end:20,narration:'World',visual:'Closing landscape'}]}]},words=[{text:'Hello',start:1,end:2},{text:'World',start:19,end:20}];
+ const p=packPlanRequests(input,20.2,words);assert.equal(p.requests[0].start,0);assert.equal(p.requests.at(-1).end,20.2);assert.equal(input.requests[0].shots[0].start,.8);assert.equal(input.requests[0].shots.at(-1).end,20);
+ assert.throws(()=>packPlanRequests({requests:[{shots:[{start:0,end:12,narration:'Incomplete',visual:'Landscape'}]}]},20.2,words),/full narration/);
+});

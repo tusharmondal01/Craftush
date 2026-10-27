@@ -171,3 +171,10 @@ test('cached oversized shot groups are repaired without another provider request
  const f=fixture();f.records.set('documentary-task-'+ID,{id:ID,kind:'narration-plan',fingerprint:createHash('sha256').update(JSON.stringify(buildDocumentaryTask(body))).digest('hex'),status:'complete',result:{data:[{taskUUID:ID,text:JSON.stringify(raw),cost:.084507}]}});
  const result=await (await f.post({...body,recoverOnly:true})).json();const p=JSON.parse(result.data[0].text);assert.equal(p.requestCount,2);assert.equal(p.shotCount,3);assert(p.requests.every(r=>r.generationSeconds<=15));assert.equal(result.data[0].cost,.084507);assert.equal(f.calls.length,0);assert.equal(result.data[0].taskUUID,ID);
 });
+
+test('a saved plan rejected for omitting tail silence recovers without a new paid generation',async()=>{
+ const body={action:'narration-plan',taskUUID:ID,script:'Hello world.',approvedScript:'Hello world.',audioDuration:20.2,words:[{text:'Hello',start:0,end:1},{text:'world',start:19,end:20}],timingReviewed:true};
+ const raw={requests:[{shots:[{start:0,end:12,narration:'Hello',visual:'Forest'},{start:12,end:20,narration:'world',visual:'River'}]}]};
+ const f=fixture();f.records.set('documentary-task-'+ID,{id:ID,kind:'narration-plan',fingerprint:createHash('sha256').update(JSON.stringify(buildDocumentaryTask(body))).digest('hex'),status:'error',result:{data:[{taskUUID:ID,text:JSON.stringify(raw),cost:.08}],errors:[{taskUUID:ID,code:'invalidShotPlan',message:'The plan does not cover the full narration.'}]}});
+ const result=await (await f.post({...body,recoverOnly:true})).json();assert.equal(result.errors.length,0);const p=JSON.parse(result.data[0].text);assert.equal(p.requests.at(-1).end,20.2);assert(p.requests.every(r=>r.duration<=15));assert.equal(f.calls.length,0);assert.equal(f.records.get('documentary-task-'+ID).status,'complete');
+});

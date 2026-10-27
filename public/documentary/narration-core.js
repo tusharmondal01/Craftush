@@ -90,7 +90,13 @@ export function packPlanRequests(input,duration,words=[]){
   const value=typeof input==='string'?object(input):input;
   if(!Array.isArray(value?.requests)||!value.requests.length||value.requests.length>MAX_REQUESTS)throw new Error('The plan must contain 1–100 video requests for the measured narration.');
   const measured=words.length?validWords(words,duration):[],requests=[];
-  for(const request of value.requests){
+  const source=value.requests.map(r=>({...r,shots:r.shots?.map(s=>({...s}))}));
+  const first=source[0]?.shots?.[0],last=source.at(-1)?.shots?.at(-1);
+  // Hold the first/last composition through measured non-speaking margins.
+  // Never extend a plan that stops before the final recognized spoken word.
+  if(measured.length&&first?.start>0&&first.start<=measured[0].start+.04)first.start=0;
+  if(measured.length&&Number.isFinite(last?.end)&&last.end<duration&&last.end>=measured.at(-1).end-.04)last.end=duration;
+  for(const request of source){
     if(!Array.isArray(request.shots)||!request.shots.length)throw new Error('Every request needs a shot.');
     let group=[];
     const append=shot=>{if(group.length&&(group.length>=6||shot.end-group[0].start>15.001)){requests.push({shots:group});group=[];}group.push(shot);};

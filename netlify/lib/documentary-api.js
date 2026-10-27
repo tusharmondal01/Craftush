@@ -7,11 +7,13 @@ import { pendingResult, taskFailure } from '../../public/documentary/task-status
 import { packPlanRequests } from '../../public/documentary/narration-core.js';
 
 function fitPlanReply(result,body){
-  if(body.action!=='narration-plan'||taskFailure(result,body.taskUUID))return result;
-  const output=result.data?.find(item=>item.taskUUID===body.taskUUID&&item.text);
+  if(body.action!=='narration-plan')return result;
+  const clean={...result,errors:(result.errors||[]).filter(e=>!(e.taskUUID===body.taskUUID&&e.code==='invalidShotPlan'))};
+  if(taskFailure(clean,body.taskUUID))return result;
+  const output=clean.data?.find(item=>item.taskUUID===body.taskUUID&&item.text);
   if(!output)return result;
-  try{const plan=packPlanRequests(output.text,body.audioDuration,body.words);return {...result,data:result.data.map(item=>item===output?{...item,text:JSON.stringify(plan)}:item)};}
-  catch(error){return {...result,errors:[...(result.errors||[]),{taskUUID:body.taskUUID,code:'invalidShotPlan',message:error.message}]};}
+  try{const plan=packPlanRequests(output.text,body.audioDuration,body.words);return {...clean,data:clean.data.map(item=>item===output?{...item,text:JSON.stringify(plan)}:item)};}
+  catch(error){return {...clean,errors:[...clean.errors,{taskUUID:body.taskUUID,code:'invalidShotPlan',message:error.message}]};}
 }
 
 export function buildDocumentaryTask(body,options) {

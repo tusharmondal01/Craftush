@@ -1,4 +1,4 @@
-import {newUUID,VERSION,VOICES,MAX_REQUESTS,scriptText,audioChunks,object,validWords,validatePlan,packPlanRequests,videoPrompt,newNarrationProject,restoreNarrationProject,invalidateNarration,approveScript,scriptApproved} from './narration-core.js?v=20261027-planner-groups';
+import {newUUID,VERSION,VOICES,MAX_REQUESTS,scriptText,audioChunks,object,validWords,validatePlan,packPlanRequests,videoPrompt,newNarrationProject,restoreNarrationProject,invalidateNarration,approveScript,scriptApproved} from './narration-core.js?v=20261027-planner-margins';
 import {DocumentaryStore} from './storage.js';
 import {filename} from './core.js';
 import {fetchMedia,joinNarration,recognizeAudio,parseSRT} from './narration-media.js?v=20261027-audio-recovery2';
@@ -69,7 +69,7 @@ async function execute(slot,body,type){
  check();const signature=await fingerprint(body);let task=project.tasks[slot];
  if(task&&task.fingerprint!==signature){project.tasks[slot+'@'+task.fingerprint]=task;task=project.tasks[slot+'@'+signature];}
  if(task?.status==='error'&&/Wrong team access code|Enter your team access code/i.test(task.error))task.status='queued';
- if(slot==='plan'&&task?.status==='error'&&/Each video request must cover|Request \d+ needs|A long shot has no measured/.test(task.error))task.status='uncertain';
+ if(slot==='plan'&&task?.status==='error'&&!retry)task.status='uncertain';
  if(task?.status==='error'){if(!retry)throw new Error(task.error+' Use Retry failed tasks to submit a new attempt.');task=null;}
  if(!task)task={id:newUUID(),fingerprint:signature,status:'queued',started:new Date().toISOString()};
  project.tasks[slot]=task;
