@@ -250,3 +250,19 @@ test('saved scenes can export corrected audio and XML without regenerating their
   assert.equal(name,'timeline-audio.zip');assert(!files.has('001.jpg'));assert(files.has('narration.wav'));assert(files.has('timeline.xml'));
   assert.match(files.get('timeline.xml'),/<name>001.jpg<\/name>/);assert.match(el('#s4').textContent,/existing numbered JPGs/);
 });
+
+test('documentary recognition ignores truncated context words outside their owned window',async()=>{
+ const {transcribeWindows}=await import('../public/visuals/transcription-windows.mjs');let calls=0;
+ const r=await transcribeWindows(async()=>{calls++;return {chunks:calls===1?[{text:' valid',timestamp:[1,1.4]},{text:' context fragment',timestamp:[17,null]}]:[]}},new Float32Array(320000),'hi',{recoverIncomplete:true});
+ assert.equal(calls,2);assert.equal(r.requiresReview,false);assert.equal(r.chunks.length,1);assert.equal(r.chunks[0].text,' valid');
+});
+test('documentary recognition retries an incomplete section and accepts only measured replacement times',async()=>{
+ const {transcribeWindows}=await import('../public/visuals/transcription-windows.mjs');let calls=0;const progress=[];
+ const r=await transcribeWindows(async()=>({chunks:[{text:' word',timestamp:++calls===1?[.2,null]:[.2,.7]}]}),new Float32Array(16000),'hi',{recoverIncomplete:true,onChunk:p=>progress.push(p)});
+ assert.equal(calls,2);assert.equal(r.requiresReview,false);assert.deepEqual(r.chunks[0].timestamp,[.2,.7]);assert(progress.some(p=>p.retrying));
+});
+test('persistently incomplete recognition keeps valid words and requires review without fabricating times',async()=>{
+ const {transcribeWindows}=await import('../public/visuals/transcription-windows.mjs');let calls=0;
+ const r=await transcribeWindows(async()=>{calls++;return {chunks:[{text:' valid',timestamp:[.1,.4]},{text:' missing',timestamp:[.5,null]}]}},new Float32Array(16000),'hi',{recoverIncomplete:true});
+ assert.equal(calls,2);assert.equal(r.requiresReview,true);assert.equal(r.chunks.length,1);assert.equal(r.issues[0].text,'missing');assert.equal(r.chunks[0].timestamp[1],.4);
+});

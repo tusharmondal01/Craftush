@@ -1,7 +1,7 @@
 import {newUUID,VERSION,VOICES,MAX_REQUESTS,scriptText,audioChunks,object,validWords,validatePlan,videoPrompt,newNarrationProject,restoreNarrationProject,invalidateNarration,approveScript,scriptApproved} from './narration-core.js?v=20261027-access-flow';
 import {DocumentaryStore} from './storage.js';
 import {filename} from './core.js';
-import {fetchMedia,joinNarration,recognizeAudio,parseSRT} from './narration-media.js';
+import {fetchMedia,joinNarration,recognizeAudio,parseSRT} from './narration-media.js?v=20261027-timestamps';
 import {assembleNarrated} from './narration-assemble.js';
 const $=id=>document.getElementById(id),store=new DocumentaryStore(),memory=new Map(),urls=new Map();
 let previewSequence=0,audioPreviewSequence=0;
@@ -112,8 +112,9 @@ async function analyze(){
  project.audio.words=found.words;project.audio.source='audio';$('wordTimings').value=JSON.stringify(found.words,null,2);
  const normalized=globalThis.CraftushAlignment.fromWords(found.words.map(w=>({text:w.text,timestamp:[w.start,w.end]})),project.audio.duration);
  const match=globalThis.CraftushAlignment.align([{text:project.script}],normalized,{duration:project.audio.duration});
- project.audio.coverage=match.coverage;project.audio.reviewed=match.coverage>=.9;
+ project.audio.coverage=match.coverage;project.audio.reviewed=match.coverage>=.9&&!found.requiresReview;
  await save();$('analysisStatus').textContent=`${found.words.length} timestamped words · ${Math.round(match.coverage*100)}% script match.`;
+ if(found.requiresReview){$('transcriptReview').open=true;$('analysisStatus').textContent=`${found.words.length} valid timed words saved. Review missing timings for: ${(found.issues||[]).map(i=>i.text).join(', ')}`;throw new Error('Valid audio timings are saved. A few words still need review after automatic retry. Review the transcript and timings below, then apply them.');}
  if(!project.audio.reviewed){$('transcriptReview').open=true;throw new Error('Some narration words did not match the script. Review the transcript, correct timings or import an SRT before continuing.');}
 }
 async function ensurePlan(){

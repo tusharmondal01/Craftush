@@ -114,3 +114,10 @@ test('access rejection during submission can be corrected without a new task UUI
  let denied=true;const f=await narrationFixture({reply:b=>denied?Response.json({errors:[{message:'Wrong team access code. Ask your admin for the current code.'}]},{status:401}):{data:[{taskUUID:b.taskUUID,text:JSON.stringify({script})}]}});
  try{f.input('idea','Forest');await f.trigger('writeScript');const id=f.read().tasks.script.id;assert.equal(f.read().tasks.script.status,'queued');denied=false;await f.trigger('writeScript');assert.equal(f.read().tasks.script.id,id);assert.equal(f.read().script,script);}finally{f.close()}
 });
+
+test('incomplete audio timing preserves valid words and blocks paid shot planning until review',async()=>{
+ const p=newNarrationProject();p.script=script;approveScript(p);p.audio={key:crypto.randomUUID(),duration:6,urls:[],words:[],reviewed:false};
+ const words=[{text:'Hello',start:0,end:1},{text:'world',start:1,end:2},{text:'Our',start:3,end:4},{text:'story',start:4,end:6}];
+ const f=await narrationFixture({project:p,media:{['narration-media-'+p.audio.key]:new Blob(['audio'])},recognize:async()=>({words,requiresReview:true,issues:[{text:'uncertain word'}]})});
+ try{await f.trigger('analyzeAudio');assert.equal(f.read().audio.words.length,4);assert.equal(f.read().audio.reviewed,false);assert.equal(f.el('transcriptReview').open,true);assert.match(f.el('analysisStatus').textContent,/uncertain word/);assert.equal(f.calls.length,0);assert.equal(f.read().plan,null);assert(f.records.get('narration-project').audio.words.length);}finally{f.close()}
+});

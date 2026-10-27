@@ -28,7 +28,7 @@ export async function recognizeAudio(blob,{signal,onProgress=()=>{}}={}){
  try{const buffer=await ctx.decodeAudioData(await blob.arrayBuffer());duration=buffer.duration;const offline=new OfflineAudioContext(1,Math.ceil(duration*16000),16000),source=offline.createBufferSource();source.buffer=buffer;source.connect(offline.destination);source.start();samples=(await offline.startRendering()).getChannelData(0).slice();}finally{await ctx.close();}
  stopped(signal);
  return new Promise((resolve,reject)=>{
-  const worker=new Worker(new URL('../visuals/voice-worker.mjs?v=17',import.meta.url),{type:'module'});let timer;
+  const worker=new Worker(new URL('../visuals/voice-worker.mjs?v=20261027-timestamps',import.meta.url),{type:'module'});let timer;
   const finish=(error,data)=>{clearTimeout(timer);worker.terminate();signal?.removeEventListener('abort',stop);error?reject(error):resolve(data);};
   const stop=()=>finish(new DOMException('Stopped.','AbortError'));
   const reset=()=>{clearTimeout(timer);timer=setTimeout(()=>finish(new Error('Audio analysis stopped responding. Retry analysis or import an SRT from this exact narration.')),300000);};
@@ -36,10 +36,10 @@ export async function recognizeAudio(blob,{signal,onProgress=()=>{}}={}){
   worker.onerror=()=>finish(new Error('Speech recognition could not load. Check the connection or import narration SRT.'));
   worker.onmessage=({data})=>{
    reset();if(data.type==='error')finish(new Error(data.message));
-   else if(data.type==='complete'){try{const words=globalThis.CraftushAlignment.fromWords(data.chunks,duration);finish(null,{words:validWords(words,duration),transcript:data.text});}catch(e){finish(e);}}
-   else onProgress(data.type==='progress'?`Preparing speech model${data.progress?` · ${Math.round(data.progress)}% of ${String(data.file||'file').split('/').pop()}`:''}`:data.type==='chunk'?`Listening · ${data.count} of ${data.total} sections`:'Listening to the narration…');
+   else if(data.type==='complete'){try{const words=globalThis.CraftushAlignment.fromWords(data.chunks,duration);finish(null,{words:validWords(words,duration),transcript:data.text,requiresReview:data.requiresReview===true,issues:data.issues||[]});}catch(e){finish(e);}}
+   else onProgress(data.type==='progress'?`Preparing speech model${data.progress?` · ${Math.round(data.progress)}% of ${String(data.file||'file').split('/').pop()}`:''}`:data.type==='chunk'?(data.retrying?`Rechecking word timings near ${Math.floor(data.start)} seconds…`:`Listening · ${data.count} of ${data.total} sections`):'Listening to the narration…');
   };
-  worker.postMessage({type:'transcribe',audio:samples,language:'hi'},[samples.buffer]);
+  worker.postMessage({type:'transcribe',audio:samples,language:'hi',recoverIncomplete:true},[samples.buffer]);
  });
 }
 export function parseSRT(text,duration){
