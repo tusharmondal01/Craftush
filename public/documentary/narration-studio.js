@@ -1,4 +1,4 @@
-import {newUUID,VERSION,VOICES,MAX_REQUESTS,scriptText,audioChunks,object,validWords,validatePlan,videoPrompt,newNarrationProject,restoreNarrationProject,invalidateNarration,approveScript,scriptApproved} from './narration-core.js?v=20261027-access-flow';
+import {newUUID,VERSION,VOICES,MAX_REQUESTS,scriptText,audioChunks,object,validWords,validatePlan,packPlanRequests,videoPrompt,newNarrationProject,restoreNarrationProject,invalidateNarration,approveScript,scriptApproved} from './narration-core.js?v=20261027-planner-groups';
 import {DocumentaryStore} from './storage.js';
 import {filename} from './core.js';
 import {fetchMedia,joinNarration,recognizeAudio,parseSRT} from './narration-media.js?v=20261027-audio-recovery2';
@@ -69,6 +69,7 @@ async function execute(slot,body,type){
  check();const signature=await fingerprint(body);let task=project.tasks[slot];
  if(task&&task.fingerprint!==signature){project.tasks[slot+'@'+task.fingerprint]=task;task=project.tasks[slot+'@'+signature];}
  if(task?.status==='error'&&/Wrong team access code|Enter your team access code/i.test(task.error))task.status='queued';
+ if(slot==='plan'&&task?.status==='error'&&/Each video request must cover|Request \d+ needs|A long shot has no measured/.test(task.error))task.status='uncertain';
  if(task?.status==='error'){if(!retry)throw new Error(task.error+' Use Retry failed tasks to submit a new attempt.');task=null;}
  if(!task)task={id:newUUID(),fingerprint:signature,status:'queued',started:new Date().toISOString()};
  project.tasks[slot]=task;
@@ -136,7 +137,7 @@ async function ensurePlan(){
  if(!project.audio?.words.length||!project.audio.reviewed)throw new Error('Analyze the audio and review any timing warnings first.');
  setStage('plan');await statusCheckpoint();activity('Claude is choosing shot boundaries from the narration timestamps…');
  const output=await execute('plan',{action:'narration-plan',...base(),audioDuration:project.audio.duration,words:project.audio.words,timingReviewed:project.audio.reviewed},'text');
- let plan;try{plan=validatePlan(output.text,project.audio.duration);plan.requests.forEach(r=>videoPrompt(plan,r.index));}catch(e){project.tasks.plan.status='error';project.tasks.plan.error=e.message;throw e;}project.plan=plan;project.clips={};project.final=null;finalBlob=null;await save();render();await statusCheckpoint();
+ let plan;try{plan=packPlanRequests(output.text,project.audio.duration,project.audio.words);plan.requests.forEach(r=>videoPrompt(plan,r.index));}catch(e){project.tasks.plan.status='error';project.tasks.plan.error=e.message;throw e;}project.plan=plan;project.clips={};project.final=null;finalBlob=null;await save();render();await statusCheckpoint();
 }
 async function clipBlob(index){
  const clip=project.clips[index];if(!clip)throw new Error(`Video ${index} is not ready.`);let blob=await media(clip.key);if(blob)return blob;if(!clip.url)throw new Error(`Video ${index} must be uploaded again.`);

@@ -86,6 +86,29 @@ export function validatePlan(input, duration) {
   return { schema: VERSION, audioDuration: duration, fps: FPS, shotCount, requestCount: requests.length, disabledSlots: MAX_REQUESTS - requests.length,
     continuity: String(value.continuity || '').slice(0, 4000), requests };
 }
+export function packPlanRequests(input,duration,words=[]){
+  const value=typeof input==='string'?object(input):input;
+  if(!Array.isArray(value?.requests)||!value.requests.length||value.requests.length>MAX_REQUESTS)throw new Error('The plan must contain 1–100 video requests for the measured narration.');
+  const measured=words.length?validWords(words,duration):[],requests=[];
+  for(const request of value.requests){
+    if(!Array.isArray(request.shots)||!request.shots.length)throw new Error('Every request needs a shot.');
+    let group=[];
+    const append=shot=>{if(group.length&&(group.length>=6||shot.end-group[0].start>15.001)){requests.push({shots:group});group=[];}group.push(shot);};
+    for(const shot of request.shots){
+      let start=shot.start;
+      // A continuous long shot can span several provider requests. New cuts
+      // must come from measured word ends, never evenly divided audio length.
+      while(Number.isFinite(start)&&Number.isFinite(shot.end)&&shot.end-start>15.001){
+        const end=measured.filter(w=>w.end>=start+.3&&w.end<=start+15&&shot.end-w.end>=.3).at(-1)?.end;
+        if(!Number.isFinite(end))throw new Error('A long shot has no measured spoken-word boundary within 15 seconds. Review its timings.');
+        append({...shot,start,end});start=end;
+      }
+      append({...shot,start});
+    }
+    if(group.length)requests.push({shots:group});
+  }
+  return validatePlan({...value,requests},duration);
+}
 export function videoPrompt(plan, index) {
   const r = plan.requests[index - 1]; if (!r) throw new Error('This generation slot is disabled.');
   const prompt = `Premium photorealistic cinematic documentary, 9:16, physically plausible action, consistent subjects and period details. No captions, readable text, logos, music or speech. A separate approved narration track is added during editing.\nContinuity: ${plan.continuity}\n` +

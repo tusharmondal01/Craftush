@@ -4,6 +4,15 @@ import { parseMaster, validatePrompt, UUID } from '../../public/documentary/core
 import { buildNarrationTask, NARRATION_ACTIONS } from './narration-tasks.js';
 import { recoverNarrationResult } from './narration-session.js';
 import { pendingResult, taskFailure } from '../../public/documentary/task-status.js';
+import { packPlanRequests } from '../../public/documentary/narration-core.js';
+
+function fitPlanReply(result,body){
+  if(body.action!=='narration-plan'||taskFailure(result,body.taskUUID))return result;
+  const output=result.data?.find(item=>item.taskUUID===body.taskUUID&&item.text);
+  if(!output)return result;
+  try{const plan=packPlanRequests(output.text,body.audioDuration,body.words);return {...result,data:result.data.map(item=>item===output?{...item,text:JSON.stringify(plan)}:item)};}
+  catch(error){return {...result,errors:[...(result.errors||[]),{taskUUID:body.taskUUID,code:'invalidShotPlan',message:error.message}]};}
+}
 
 export function buildDocumentaryTask(body,options) {
   if (NARRATION_ACTIONS.has(body?.action)) return buildNarrationTask(body,options);
@@ -69,10 +78,11 @@ export function createDocumentaryHandler(deps) {
       if (!UUID.test(String(body.taskUUID || ''))) return fail('A valid task UUID is required.', 400);
       receiptKey = 'documentary-task-' + body.taskUUID;
       receipt = await store.get(receiptKey, { type: 'json' });
+      const savedReply=async()=>{const result=fitPlanReply(receipt.result,body);if(JSON.stringify(result)!==JSON.stringify(receipt.result)){receipt.result=result;receipt.status=taskFailure(result,body.taskUUID)?'error':'complete';await store.setJSON(receiptKey,receipt);}return json(result);};
       let task;
       if (body.action === 'poll') {
         if (!receipt) return fail('This task is not registered with Documentary Studio. Restore the project on its original website.', 404);
-        if (receipt.result) return json(receipt.result);
+        if (receipt.result) return savedReply();
         task = { taskType: 'getResponse', taskUUID: body.taskUUID };
       } else {
         try { task = buildDocumentaryTask(body); } catch (e) { return fail(e.message, 400); }
@@ -84,7 +94,7 @@ export function createDocumentaryHandler(deps) {
           const legacyMatch=receipt.kind==='narration-plan'&&body.action==='narration-plan'&&receipt.fingerprint===await digestTask(buildDocumentaryTask(body,{legacyPlanner:true}));
           if (receipt.fingerprint !== fingerprint&&!legacyMatch) return fail('This task ID already belongs to a different request. Start a new task.', 409);
           // Never repeat a paid generation after a lost acknowledgement or page refresh.
-          if (receipt.result) return json(receipt.result);
+          if (receipt.result) return savedReply();
           task = { taskType: 'getResponse', taskUUID: body.taskUUID };
         } else {
           if (body.recoverOnly === true) {
@@ -93,7 +103,7 @@ export function createDocumentaryHandler(deps) {
             catch(error){if(body.action!=='narration-plan')throw error;recovered=await recoverNarrationResult(store,body.projectToken,buildDocumentaryTask(body,{legacyPlanner:true}));}
             receipt = { id: body.taskUUID, fingerprint, kind: body.action, created: new Date().toISOString(), status: recovered ? 'complete' : 'submitted', ...(recovered ? { result: recovered } : {}) };
             await store.setJSON(receiptKey, receipt);
-            if (recovered) return json(recovered);
+            if (recovered) return savedReply();
             task = { taskType: 'getResponse', taskUUID: body.taskUUID };
           } else {
           const blocked = await limitRunwareTasks([task]);
@@ -111,6 +121,7 @@ export function createDocumentaryHandler(deps) {
         body: JSON.stringify([{ taskType: 'authentication', apiKey: secret }, task]) });
       let result;
       try { result = sanitizeReply(await upstream.json(), secret); } catch { return fail('Runware returned an unreadable response. Resume this task to check its result.', 502); }
+      result=fitPlanReply(result,body);
       if (Array.isArray(result.errors)) result.errors = result.errors.map(e => ({ ...e, message: String(e.message || 'Runware reported an error.').replace(/<[^>]*>/g, ' ').slice(0, 600) }));
       const items = Array.isArray(result.data) ? result.data : [];
       const failure = taskFailure(result,body.taskUUID);

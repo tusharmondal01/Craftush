@@ -164,3 +164,10 @@ test('old high-thinking planner receipts recover their original UUID while new p
  assert.equal((await f.post({...body,words:[{text:'Changed',start:0,end:6}]})).status,409);
  await f.post({...body,taskUUID:ID2});assert.equal(f.calls[1][1].taskUUID,ID2);assert.equal(f.calls[1][1].settings.thinkingLevel,'off');assert.equal(f.calls[1][1].model,legacy.model);assert.equal(f.calls[1][1].settings.systemPrompt,legacy.settings.systemPrompt);assert.equal(f.calls[1][1].messages[0].content,legacy.messages[0].content);
 });
+
+test('cached oversized shot groups are repaired without another provider request or changed media',async()=>{
+ const body={action:'narration-plan',taskUUID:ID,script:'Hello world.',approvedScript:'Hello world.',audioDuration:21,words:[{text:'Hello',start:0,end:10},{text:'world',start:10,end:21}],timingReviewed:true};
+ const raw={continuity:'Same landscape',requests:[{shots:[0,7,14].map((start,i)=>({start,end:start+7,narration:'Line '+i,visual:'View '+i,camera:'Static'}))}]};
+ const f=fixture();f.records.set('documentary-task-'+ID,{id:ID,kind:'narration-plan',fingerprint:createHash('sha256').update(JSON.stringify(buildDocumentaryTask(body))).digest('hex'),status:'complete',result:{data:[{taskUUID:ID,text:JSON.stringify(raw),cost:.084507}]}});
+ const result=await (await f.post({...body,recoverOnly:true})).json();const p=JSON.parse(result.data[0].text);assert.equal(p.requestCount,2);assert.equal(p.shotCount,3);assert(p.requests.every(r=>r.generationSeconds<=15));assert.equal(result.data[0].cost,.084507);assert.equal(f.calls.length,0);assert.equal(result.data[0].taskUUID,ID);
+});

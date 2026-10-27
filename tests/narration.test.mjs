@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {audioChunks,validatePlan,videoPrompt,newNarrationProject,approveScript,restoreNarrationProject,VOICES} from '../public/documentary/narration-core.js';
+import {audioChunks,validatePlan,packPlanRequests,videoPrompt,newNarrationProject,approveScript,restoreNarrationProject,VOICES} from '../public/documentary/narration-core.js';
 import {buildNarrationTask} from '../netlify/lib/narration-tasks.js';
 import handler,{handleNarrationProject,recoverNarrationResult} from '../netlify/lib/narration-session.js';
 import {withRuntime} from '../netlify/lib/runtime-context.js';
@@ -168,4 +168,17 @@ test('planning reserves a duration-scaled output budget and other text tasks kee
  const task=buildNarrationTask(body);assert.equal(task.settings.thinkingLevel,'off');assert.equal(task.settings.maxTokens,8000);assert.equal(task.model,'anthropic:claude@sonnet-4.6');
  const long=buildNarrationTask({...body,audioDuration:1200});assert(long.settings.maxTokens>=46000);assert(long.settings.maxTokens<=64000);
  const scriptTask=buildNarrationTask({...base(),action:'narration-script',idea:'Forest'});assert.equal(scriptTask.settings.thinkingLevel,'high');assert.equal(scriptTask.settings.maxTokens,16000);
+});
+
+test('oversized model groups repack at existing shots without changing their timing or content',()=>{
+ const shots=[0,7,14].map((start,i)=>({start,end:start+7,narration:'Line '+i,visual:'Specific image '+i,camera:'Push in'}));
+ const p=packPlanRequests({continuity:'Same scene',requests:[{shots}]},21);assert.equal(p.requestCount,2);assert.deepEqual(p.requests.map(r=>r.duration),[14,7]);assert.deepEqual(p.requests.flatMap(r=>r.shots).map(({start,end,narration,visual,camera})=>({start,end,narration,visual,camera})),shots);
+ assert.equal(p.requests.reduce((n,r)=>n+r.frames,0),630);assert.equal(p.disabledSlots,98);
+});
+test('long single shots split only at measured word ends and never fabricate missing boundaries',()=>{
+ const input={requests:[{shots:[{start:0,end:32,narration:'Continuous narration',visual:'A continuous mountain panorama'}]}]};
+ const words=[1,10,14,20,28,32].map((end,i)=>({text:'word'+i,start:Math.max(0,end-.5),end}));
+ const p=packPlanRequests(input,32,words);assert.deepEqual(p.requests.map(r=>[r.start,r.end]),[[0,14],[14,28],[28,32]]);assert(p.requests.every(r=>r.generationSeconds<=15));assert(p.requests.flatMap(r=>r.shots).every(s=>s.visual===input.requests[0].shots[0].visual));
+ assert.throws(()=>packPlanRequests(input,32),/no measured/);
+ assert.throws(()=>packPlanRequests({requests:[{shots:[{...input.requests[0].shots[0],end:5},{...input.requests[0].shots[0],start:6,end:10}]}]},10),/gaps/);
 });
