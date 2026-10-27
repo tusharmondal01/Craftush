@@ -1,4 +1,4 @@
-import {newUUID,VERSION,VOICES,MAX_REQUESTS,scriptText,audioChunks,object,validWords,validatePlan,videoPrompt,newNarrationProject,restoreNarrationProject,invalidateNarration,approveScript,scriptApproved} from './narration-core.js?v=20261027-server';
+import {newUUID,VERSION,VOICES,MAX_REQUESTS,scriptText,audioChunks,object,validWords,validatePlan,videoPrompt,newNarrationProject,restoreNarrationProject,invalidateNarration,approveScript,scriptApproved} from './narration-core.js?v=20261027-voice-recovery';
 import {DocumentaryStore} from './storage.js';
 import {filename} from './core.js';
 import {fetchMedia,joinNarration,recognizeAudio,parseSRT} from './narration-media.js';
@@ -62,9 +62,10 @@ async function fingerprint(body){return [...new Uint8Array(await crypto.subtle.d
 const sleep=(ms,signal)=>new Promise((resolve,reject)=>{const stop=()=>{clearTimeout(t);reject(new DOMException('Stopped.','AbortError'));};const t=setTimeout(()=>{signal?.removeEventListener('abort',stop);resolve();},ms);if(signal?.aborted)return stop();signal?.addEventListener('abort',stop,{once:true});});
 async function execute(slot,body,type){
  check();const signature=await fingerprint(body);let task=project.tasks[slot];
- if(task&&task.fingerprint!==signature){if(['submitted','processing','paused','uncertain'].includes(task.status))throw new Error('An earlier task is pending for this stage. Resume it before changing its inputs.');task=null;}
+ if(task&&task.fingerprint!==signature){project.tasks[slot+'@'+task.fingerprint]=task;task=project.tasks[slot+'@'+signature];}
  if(task?.status==='error'){if(!retry)throw new Error(task.error+' Use Retry failed tasks to submit a new attempt.');task=null;}
- if(!task)task=project.tasks[slot]={id:newUUID(),fingerprint:signature,status:'queued',started:new Date().toISOString()};
+ if(!task)task={id:newUUID(),fingerprint:signature,status:'queued',started:new Date().toISOString()};
+ project.tasks[slot]=task;
  const isNew=task.status==='queued';const signal=controller.signal;let dispatched=false;
  try{
   check();await save();check();const start=Date.now();let wait=2000,failures=0;

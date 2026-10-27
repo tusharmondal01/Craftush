@@ -10,6 +10,8 @@ The default `/documentary/` now follows the approved script and the measured voi
 6. Only planned slots become active. PixVerse V6 generates silent 720 × 1280 MP4s; each completed clip is cached on the device and has a download button. The remaining slots stay disabled. The default concurrency is three, with one, five or eight available.
 7. FFmpeg trims active clips to the planned frame boundaries, concatenates them in order and adds the complete narration. Optional background music and volume controls remain available. Final output must contain video and audio and match the narration duration within codec tolerance before it is saved.
 
+Changing a voice, model or other generation input preserves the earlier task under its original input fingerprint. Generating with the new selection creates its own task; switching back resumes the matching original UUID. Changing a selection alone never submits a request. Already-submitted jobs may still finish and incur their original cost.
+
 **Stop** prevents new submissions but cannot cancel already-running provider jobs. **Resume / retry current stage** checks the saved UUIDs; an explicitly failed task receives a new UUID only on retry. Keep the tab open while processing. The first transcript analysis downloads a Whisper model and can take several minutes on slower devices. Internal AI-generated shot cuts are requested in prompts but can vary; review the final video and replace a clip if necessary.
 
 ## Connections and storage

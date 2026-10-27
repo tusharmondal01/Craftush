@@ -64,3 +64,23 @@ test('website generation never asks for a ChatGPT command and blocks clearly wit
  try{f.input('idea','Forest');await f.trigger('writeScript');assert(f.requests.every(r=>r.url==='/api/documentary'));assert.equal(f.el('handoff').hidden,true);assert.match(f.el('connectionStatus').textContent,/website generation ready/);assert.equal(f.read().script,script);}finally{f.close()}
  const missing=await narrationFixture({configured:false});try{missing.input('idea','Forest');await missing.trigger('writeScript');assert.match(missing.el('notice').textContent,/Runware API key in Admin/);assert.equal(missing.calls.length,0);}finally{missing.close()}
 });
+
+test('changing voice after Stop starts the selected voice and switching back recovers the original UUID',async()=>{
+ const p=newNarrationProject();p.script=script;approveScript(p);const wait=deferred();
+ const f=await narrationFixture({project:p,reply:b=>b.recoverOnly?{data:[{taskUUID:b.taskUUID,audioURL:'https://am.runware.ai/audio/test.wav'}]}:wait.promise});
+ try{
+  const first=f.trigger('generateVoice');await until(()=>f.calls.length===1);const original=f.calls[0];f.trigger('stop');await first;
+  await f.change('voice','Achird');assert.equal(f.calls.length,1);assert.equal(f.read().approvedScript,script);
+  const second=f.trigger('generateVoice');await until(()=>f.calls.length===2);assert.equal(f.calls[1].voice,'Achird');assert.notEqual(f.calls[1].taskUUID,original.taskUUID);assert.equal(f.calls[1].recoverOnly,false);f.trigger('stop');await second;
+  const saved=f.read();assert(Object.values(saved.tasks).some(t=>t.id===original.taskUUID));const restored=restoreNarrationProject(saved);assert(Object.values(restored.tasks).some(t=>t.id===original.taskUUID));
+  await f.change('voice','Charon');await f.trigger('generateVoice');assert.equal(f.calls[2].taskUUID,original.taskUUID);assert.equal(f.calls[2].recoverOnly,true);assert.equal(f.el('notice').className,'notice');assert(f.read().audio.key);
+ }finally{f.close()}
+});
+test('reopened projects with changed voice or model recover without the old pending-task blocker',async()=>{
+ for(const change of [['voice','Achird'],['audioModel','fishaudio:s2.1@pro']]){
+  const p=newNarrationProject();p.script=script;approveScript(p);const wait=deferred();const original=await narrationFixture({project:p,reply:()=>wait.promise});let saved,oldID;
+  try{const run=original.trigger('generateVoice');await until(()=>original.calls.length===1);oldID=original.calls[0].taskUUID;original.trigger('stop');await run;await original.change(...change);saved=original.read();}finally{original.close()}
+  const reopened=await narrationFixture({project:saved,reply:b=>({data:[{taskUUID:b.taskUUID,audioURL:'https://am.runware.ai/audio/test.wav'}]})});
+  try{await reopened.trigger('generateVoice');assert.equal(reopened.calls.length,1);assert.notEqual(reopened.calls[0].taskUUID,oldID);assert.equal(reopened.calls[0].recoverOnly,false);assert.equal(reopened.el('notice').className,'notice');assert(reopened.read().audio.key);assert(Object.values(reopened.read().tasks).some(t=>t.id===oldID));}finally{reopened.close()}
+ }
+});
