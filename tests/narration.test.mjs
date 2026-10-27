@@ -102,3 +102,15 @@ test('voice changes clear stale playable audio and analysis enables only for com
  const f=await narrationFixture({project:p,media:{['narration-media-'+p.audio.key]:new Blob(['old narration'])},reply:b=>({data:[{taskUUID:b.taskUUID,audioURL:'https://am.runware.ai/audio/test.wav'}]})});
  try{assert.equal(f.el('audioPreview').hidden,false);assert.equal(f.el('analyzeAudio').disabled,false);await f.change('voice','Achird');assert.equal(f.el('audioPreview').hidden,true);assert.equal(f.el('audioPreview').getAttribute('src'),null);assert.equal(f.el('analyzeAudio').disabled,true);assert.match(f.el('audioMeta').textContent,/selected voice/);await f.trigger('generateVoice');assert.equal(f.el('audioPreview').hidden,false);assert.equal(f.el('analyzeAudio').disabled,false);assert.equal(f.el('downloadAudio').disabled,false);assert.match(f.el('analysisStatus').textContent,/Narration ready/);assert.equal(f.calls[0].voice,'Achird');}finally{f.close()}
 });
+
+test('wrong code stays on Idea with no generation task, and correcting it works without Retry',async()=>{
+ const f=await narrationFixture({teamCode:'fixture-code',reply:b=>({data:[{taskUUID:b.taskUUID,text:JSON.stringify({script})}]})});
+ try{f.input('idea','Forest');f.input('teamCode','wrong');await f.trigger('writeScript');assert.equal(f.read().stage,'idea');assert.equal(f.calls.length,0);assert.equal(Object.keys(f.read().tasks).length,0);assert.match(f.el('notice').textContent,/Wrong team access code/);f.input('teamCode','fixture-code');await f.trigger('writeScript');assert.equal(f.calls.length,1);assert.equal(f.read().stage,'script');assert.equal(f.read().script,script);await f.trigger('backToIdea');assert.equal(f.read().stage,'idea');assert.equal(f.el('idea').value,'Forest');assert.equal(f.read().script,script);}finally{f.close()}
+});
+test('Idea remains visible until writing returns a valid script',async()=>{
+ const wait=deferred();const f=await narrationFixture({reply:()=>wait.promise});try{f.input('idea','Forest');const run=f.trigger('writeScript');await until(()=>f.calls.length===1);assert.equal(f.read().stage,'idea');wait.resolve({data:[{taskUUID:f.calls[0].taskUUID,text:JSON.stringify({script})}]});await run;assert.equal(f.read().stage,'script');}finally{f.close()}
+});
+test('access rejection during submission can be corrected without a new task UUID',async()=>{
+ let denied=true;const f=await narrationFixture({reply:b=>denied?Response.json({errors:[{message:'Wrong team access code. Ask your admin for the current code.'}]},{status:401}):{data:[{taskUUID:b.taskUUID,text:JSON.stringify({script})}]}});
+ try{f.input('idea','Forest');await f.trigger('writeScript');const id=f.read().tasks.script.id;assert.equal(f.read().tasks.script.status,'queued');denied=false;await f.trigger('writeScript');assert.equal(f.read().tasks.script.id,id);assert.equal(f.read().script,script);}finally{f.close()}
+});

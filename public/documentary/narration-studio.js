@@ -1,4 +1,4 @@
-import {newUUID,VERSION,VOICES,MAX_REQUESTS,scriptText,audioChunks,object,validWords,validatePlan,videoPrompt,newNarrationProject,restoreNarrationProject,invalidateNarration,approveScript,scriptApproved} from './narration-core.js?v=20261027-tts-bytes';
+import {newUUID,VERSION,VOICES,MAX_REQUESTS,scriptText,audioChunks,object,validWords,validatePlan,videoPrompt,newNarrationProject,restoreNarrationProject,invalidateNarration,approveScript,scriptApproved} from './narration-core.js?v=20261027-access-flow';
 import {DocumentaryStore} from './storage.js';
 import {filename} from './core.js';
 import {fetchMedia,joinNarration,recognizeAudio,parseSRT} from './narration-media.js';
@@ -13,7 +13,7 @@ function activity(text,progress){$('activity').textContent=text;$('workProgress'
 function endpoint(path,options){return globalThis.craftushAPI?globalThis.craftushAPI(path,options):fetch(path,options);}
 async function request(path,body,signal){
  let r;try{r=await endpoint(path,{method:'POST',headers:{'content-type':'application/json','x-team-code':$('teamCode').value.trim()},body:JSON.stringify(body),signal});}catch(e){if(signal?.aborted)throw e;throw Object.assign(new Error('Connection interrupted. Resume to check the existing task.'),{uncertain:true});}
- const data=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(data.errors?.[0]?.message||'The service could not complete this request.'),{uncertain:r.status>=500});return data;
+ const data=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(data.errors?.[0]?.message||'The service could not complete this request.'),{uncertain:r.status>=500,accessDenied:r.status===401||r.status===403});return data;
 }
 function session(body,signal){return request('/api/documentary-session',{...body,projectToken:token},signal);}
 async function save(){project.updated=new Date().toISOString();await store.put('narration-project',structuredClone(project));}
@@ -41,7 +41,7 @@ function render(){
  $('shotTimeline').innerHTML=project.plan?project.plan.requests.flatMap(r=>r.shots).map(s=>`<span title="Shot ${s.shot}: ${s.start.toFixed(2)}–${s.end.toFixed(2)}s" style="flex:${s.duration}"></span>`).join(''):'';
  $('shotList').innerHTML=project.plan?project.plan.requests.map(r=>`<div class="shot-row"><b>REQUEST ${r.index}<br>${r.duration.toFixed(2)}s</b><div>${r.shots.map(s=>`<p><strong>Shot ${s.shot}</strong> · ${s.start.toFixed(2)}–${s.end.toFixed(2)}s</p><p lang="hi">${esc(s.narration)}</p><small>${esc(s.visual)}</small>`).join('')}</div></div>`).join(''):'';
  if(document.activeElement!==$('planJson'))$('planJson').value=project.plan?JSON.stringify(project.plan,null,2):'';
- for(const id of ['writeScript','saveScript','refineScript','approveScript','generateVoice','analyzeAudio','applyTimings','planShots','continueVideos','generateVideos','retryFailed','savePlan','retryClip','replaceClip','newProject','projectFile','reconnect','projectTitle','idea','targetSeconds','concurrency','audioModel','voice','scriptText','scriptFeedback','revision','planJson','wordTimings','srtFile','resumeStage','musicFile','musicVolume','narrationVolume','removeMusic','timingConfirmed'])$(id).disabled=busy;
+ for(const id of ['backToIdea','writeScript','saveScript','refineScript','approveScript','generateVoice','analyzeAudio','applyTimings','planShots','continueVideos','generateVideos','retryFailed','savePlan','retryClip','replaceClip','newProject','projectFile','reconnect','projectTitle','idea','targetSeconds','concurrency','audioModel','voice','scriptText','scriptFeedback','revision','planJson','wordTimings','srtFile','resumeStage','musicFile','musicVolume','narrationVolume','removeMusic','timingConfirmed'])$(id).disabled=busy;
  $('refineScript').disabled=busy||!project.script;$('approveScript').disabled=busy||!project.script;
  $('generateVoice').disabled=busy||!scriptApproved(project);$('analyzeAudio').disabled=busy||!project.audio?.duration;$('planShots').disabled=busy||!project.audio?.words.length;
  for(const id of ['continueVideos','generateVideos','retryFailed','downloadPlan'])$(id).disabled=(id!=='downloadPlan'&&busy)||!n;
@@ -63,6 +63,7 @@ const sleep=(ms,signal)=>new Promise((resolve,reject)=>{const stop=()=>{clearTim
 async function execute(slot,body,type){
  check();const signature=await fingerprint(body);let task=project.tasks[slot];
  if(task&&task.fingerprint!==signature){project.tasks[slot+'@'+task.fingerprint]=task;task=project.tasks[slot+'@'+signature];}
+ if(task?.status==='error'&&/Wrong team access code|Enter your team access code/i.test(task.error))task.status='queued';
  if(task?.status==='error'){if(!retry)throw new Error(task.error+' Use Retry failed tasks to submit a new attempt.');task=null;}
  if(!task)task={id:newUUID(),fingerprint:signature,status:'queued',started:new Date().toISOString()};
  project.tasks[slot]=task;
@@ -82,14 +83,14 @@ async function execute(slot,body,type){
    render();await sleep(wait,signal);wait=Math.min(10000,wait*1.3);
   }
   throw Object.assign(new Error('This task is still pending. Resume later to check its original task ID.'),{uncertain:true});
- }catch(e){task.status=signal.aborted?(dispatched?'paused':'queued'):e.uncertain?'uncertain':'error';task.error=e.message;await save();throw e;}
+ }catch(e){task.status=e.accessDenied?(isNew?'queued':'uncertain'):signal.aborted?(dispatched?'paused':'queued'):e.uncertain?'uncertain':'error';task.error=e.message;await save();throw e;}
 }
 function base(){return {script:project.script,approvedScript:project.approvedScript};}
 function revision(text,feedback=''){if(project.script&&project.revisions.at(-1)?.text!==project.script)project.revisions.push({text:project.script,feedback:project.feedback,date:new Date().toISOString()});project.script=scriptText(text);project.revisions.push({text:project.script,feedback,date:new Date().toISOString()});project.revisions=project.revisions.slice(-30);invalidateNarration(project);finalBlob=null;$('scriptText').value=project.script;}
 async function write(refine=false){
- project.title=$('projectTitle').value.trim();project.idea=$('idea').value.trim();project.targetSeconds=Number($('targetSeconds').value)||156;project.feedback=$('scriptFeedback').value.trim();setStage('script');activity(refine?'Claude is revising your script…':'Claude is writing the full script…');
+ project.title=$('projectTitle').value.trim();project.idea=$('idea').value.trim();project.targetSeconds=Number($('targetSeconds').value)||156;project.feedback=$('scriptFeedback').value.trim();if(!refine&&!project.idea)throw new Error('Enter your documentary idea first.');activity(refine?'Claude is revising your script…':'Claude is writing the full script…');
  const body={action:refine?'narration-refine':'narration-script',title:project.title,idea:project.idea,targetSeconds:project.targetSeconds,...(refine?{script:project.script,feedback:project.feedback}:{})};
- const output=await execute(refine?'refine':'script',body,'text');let parsed;try{parsed=object(output.text);scriptText(parsed.script);}catch(e){project.tasks[refine?'refine':'script'].status='error';project.tasks[refine?'refine':'script'].error=e.message;throw e;}revision(parsed.script,refine?project.feedback:'');await save();notice('Script saved. Review it, give feedback, or approve it to start production.');activity('Script ready for your approval.');await statusCheckpoint();
+ const output=await execute(refine?'refine':'script',body,'text');let parsed;try{parsed=object(output.text);scriptText(parsed.script);}catch(e){project.tasks[refine?'refine':'script'].status='error';project.tasks[refine?'refine':'script'].error=e.message;throw e;}revision(parsed.script,refine?project.feedback:'');setStage('script');await save();notice('Script saved. Review it, give feedback, or approve it to start production.');activity('Script ready for your approval.');await statusCheckpoint();
 }
 async function ensureVoice(){
  if(!scriptApproved(project))throw new Error('Save and approve this script first.');setStage('voice');await statusCheckpoint();
@@ -149,15 +150,18 @@ async function run(fn,{retries=false,provider=true}={}){
   if(!lock&&navigator.locks){notice('This project is running in another tab. Stop that queue first.',true);return;}
   busy=true;retry=retries;controller=new AbortController();started=Date.now();timer=setInterval(()=>{$('elapsed').textContent=Math.floor((Date.now()-started)/60000)+':'+String(Math.floor((Date.now()-started)/1000)%60).padStart(2,'0')+' elapsed';},1000);render();
   try{
-   if(provider){if(!connection?.enabled)throw new Error('Check the backend connection first.');if(!connection.configured)throw new Error('Add your Runware API key in Admin, then check the connection.');}
+   if(provider){if(!connection?.enabled)throw new Error('Check the backend connection first.');if(!connection.configured)throw new Error('Add your Runware API key in Admin, then check the connection.');await request('/api/documentary',{action:'check-access'},controller.signal);$('teamCodeStatus').textContent=connection.codeRequired?'Access code verified.':'';}
    await fn();
-  }catch(e){notice(controller.signal.aborted?'Workflow stopped. Your work is saved. Resume checks existing requests.':e.message,!controller.signal.aborted);activity(controller.signal.aborted?'Stopped. Ready to resume.':'Needs attention. Your saved work is retained.');}
+  }catch(e){if(e.accessDenied){$('teamCodeStatus').textContent='Code not accepted. Use the saved Team access code from Admin → Team access, then try again.';$('teamCode').focus();}notice(controller.signal.aborted?'Workflow stopped. Your work is saved. Resume checks existing requests.':e.message,!controller.signal.aborted);activity(controller.signal.aborted?'Stopped. Ready to resume.':'Needs attention. Your saved work is retained.');}
   finally{clearInterval(timer);busy=false;controller=null;retry=false;await save().catch(e=>notice(e.message,true));render();}
  };
  if(navigator.locks)await navigator.locks.request('craftush-documentary-narration',{ifAvailable:true},work);else await work(true);
 }
 async function guarded(fn){try{await fn();}catch(e){notice(e.message,true);}}
 function changedScript(){const text=scriptText($('scriptText').value);if(text!==project.script)revision(text);}
+$('backToIdea').onclick=()=>setStage('idea');
+$('showTeamCode').onclick=()=>{const visible=$('teamCode').type==='password';$('teamCode').type=visible?'text':'password';$('showTeamCode').textContent=visible?'Hide code':'Show code';};
+$('teamCode').oninput=()=>{$('teamCodeStatus').textContent='';};
 $('writeScript').onclick=()=>run(()=>write(false));$('refineScript').onclick=()=>run(async()=>{changedScript();await write(true);});
 $('saveScript').onclick=()=>guarded(async()=>{changedScript();await save();render();notice('Script saved. Approval is required after any change.');});
 $('approveScript').onclick=()=>run(async()=>{changedScript();approveScript(project);await save();await continueProduction();});

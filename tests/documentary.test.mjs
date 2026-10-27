@@ -140,3 +140,7 @@ test('completed migration results are reused without contacting Runware',async()
  const f=fixture();f.deps.openStore=()=>({get:async()=>null,setJSON:async()=>{},automation:async(op)=>op==='connection'?{job:{id:'job',projectType:'documentary-narration',expiresAt:new Date(Date.now()+60000).toISOString()}}:{tasks:[{taskUUID:ID,state:'done',task:((({taskUUID,...rest})=>rest)(buildDocumentaryTask({action:'narration-script',idea:'Forest',taskUUID:ID}))),result:{data:[{taskUUID:ID,text:'saved script',cost:.02}]}}]}});
  const handle=createDocumentaryHandler(f.deps);const r=await handle(new Request('https://test/api/documentary',{method:'POST',body:JSON.stringify({action:'narration-script',idea:'Forest',taskUUID:ID,recoverOnly:true,projectToken:'a'.repeat(64)})}));assert.equal(r.status,200);assert.equal((await r.json()).data[0].text,'saved script');assert.equal(f.calls.length,0);
 });
+
+test('access checks validate the saved team code without provider calls or task receipts',async()=>{
+ const f=fixture({settings:{teamCode:'fixture-team'}});assert.equal((await f.post({action:'check-access'},'wrong')).status,401);assert.equal((await f.post({action:'check-access'},'fixture-team')).status,200);assert.equal(f.calls.length,0);assert.equal(f.records.size,0);
+});

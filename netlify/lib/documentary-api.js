@@ -64,6 +64,7 @@ export function createDocumentaryHandler(deps) {
       let body;
       try { body = JSON.parse(raw); } catch { return fail('Invalid JSON request', 400); }
       if (!body || typeof body !== 'object' || Array.isArray(body)) return fail('A documentary request object is required.', 400);
+      if (body.action === 'check-access') return json({ ok: true });
       if (!UUID.test(String(body.taskUUID || ''))) return fail('A valid task UUID is required.', 400);
       receiptKey = 'documentary-task-' + body.taskUUID;
       receipt = await store.get(receiptKey, { type: 'json' });
