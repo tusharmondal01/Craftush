@@ -29,18 +29,38 @@ export async function recognizeAudio(blob,{signal,onProgress=()=>{}}={}){
  try{const buffer=await ctx.decodeAudioData(await blob.arrayBuffer());duration=buffer.duration;const offline=new OfflineAudioContext(1,Math.ceil(duration*16000),16000),source=offline.createBufferSource();source.buffer=buffer;source.connect(offline.destination);source.start();samples=(await offline.startRendering()).getChannelData(0).slice();}finally{await ctx.close();}
  stopped(signal);
  return new Promise((resolve,reject)=>{
-  const worker=new Worker(new URL('./narration-worker.mjs?v=20261027-audio-recovery2',import.meta.url),{type:'module'});let timer,finished=false;
-  const finish=(error,data)=>{if(finished)return;finished=true;clearTimeout(timer);worker.terminate();signal?.removeEventListener('abort',stop);error?reject(error):resolve(data);};
+  let worker,timer,retryTimer,finished=false,attempt=0,phase='starting';
   const stop=()=>finish(new DOMException('Stopped.','AbortError'));
-  const reset=()=>{clearTimeout(timer);timer=setTimeout(()=>finish(new Error('Audio analysis stopped responding. Retry analysis or import an SRT from this exact narration.')),300000);};
-  signal?.addEventListener('abort',stop,{once:true});reset();
-  worker.onerror=()=>finish(new Error('Speech recognition could not load. Check the connection or import narration SRT.'));
-  worker.onmessage=({data})=>{
-   if(finished)return;reset();if(data.type==='error')finish(new Error(data.message));
-   else if(data.type==='complete'){try{const cleaned=cleanRecognition(data,duration),words=globalThis.CraftushAlignment.fromWords(cleaned.chunks,duration);finish(null,{words:words.length?validWords(words,duration):[],transcript:cleaned.text,requiresReview:cleaned.requiresReview,issues:cleaned.issues});}catch(e){finish(e);}}
-   else onProgress(data.type==='progress'?`Preparing speech model${data.progress?` · ${Math.round(data.progress)}% of ${String(data.file||'file').split('/').pop()}`:''}`:data.type==='chunk'?(data.retrying?`Rechecking word timings near ${Math.floor(data.start)} seconds…`:`Listening · ${data.count} of ${data.total} sections`):'Listening to the narration…');
+  const finish=(error,data)=>{if(finished)return;finished=true;clearTimeout(timer);clearTimeout(retryTimer);worker?.terminate();signal?.removeEventListener('abort',stop);error?reject(error):resolve(data);};
+  const failed=(message,retryable=true)=>{
+   if(finished)return;clearTimeout(timer);worker?.terminate();worker=null;
+   if(retryable&&attempt<2){onProgress('Recovering speech analysis · retrying with a fresh engine…');retryTimer=setTimeout(start,600);return;}
+   const detail=String(message||'The speech engine stopped.').slice(0,240);
+   finish(new Error(`Audio analysis could not ${phase==='starting'?'start':'finish'} after recovery. Your narration is saved; do not generate it again. ${detail}`));
   };
-  worker.postMessage({type:'transcribe',audio:samples,language:'hi',recoverIncomplete:true},[samples.buffer]);
+  const reset=(ms=300000)=>{clearTimeout(timer);timer=setTimeout(()=>failed(phase==='starting'?'The speech worker did not start.':'The speech engine stopped responding.',phase!=='recognizing'),ms);};
+  const start=()=>{
+   if(finished||signal?.aborted){stop();return;}attempt++;phase='starting';
+   try{
+    const url=new URL('./narration-worker.mjs?v=20261027-speech-load3',import.meta.url);url.searchParams.set('attempt',String(attempt));
+    const active=new Worker(url,{type:'module'});worker=active;reset(45000);
+    active.onerror=event=>{event.preventDefault?.();if(worker===active)failed(event.message||'The speech worker could not load.');};
+    active.onmessageerror=()=>{if(worker===active)failed('The speech worker could not read its response.');};
+    active.onmessage=({data})=>{
+     if(finished||worker!==active)return;
+     if(data.type==='ready'){
+      phase='loading';reset();onProgress('Preparing speech model · first use downloads the model…');
+      // Keep the original samples for bounded recovery; transfer only a copy.
+      const copy=samples.slice();active.postMessage({type:'transcribe',audio:copy,language:'hi',recoverIncomplete:true,fresh:attempt>1},[copy.buffer]);return;
+     }
+     reset();if(data.type==='error'){failed(data.message,data.retryable===true);return;}
+     if(data.type==='complete'){try{const cleaned=cleanRecognition(data,duration),words=globalThis.CraftushAlignment.fromWords(cleaned.chunks,duration);finish(null,{words:words.length?validWords(words,duration):[],transcript:cleaned.text,requiresReview:cleaned.requiresReview,issues:cleaned.issues});}catch(e){finish(e);}return;}
+     if(data.type==='listening')phase='recognizing';
+     onProgress(data.type==='progress'?`Preparing speech model${data.progress?` · ${Math.round(data.progress)}% of ${String(data.file||'file').split('/').pop()}`:''}`:data.type==='chunk'?(data.retrying?`Rechecking word timings near ${Math.floor(data.start)} seconds…`:`Listening · ${data.count} of ${data.total} sections`):data.type==='listening'?'Listening to the narration…':'Loading the speech engine…');
+    };
+   }catch(e){failed(e.message);}
+  };
+  signal?.addEventListener('abort',stop,{once:true});start();
  });
 }
 export function parseSRT(text,duration){

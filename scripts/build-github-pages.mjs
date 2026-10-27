@@ -32,7 +32,7 @@ export async function buildPages({ source = join(root, 'public'), destination = 
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name);
       if (entry.isDirectory()) await visit(path);
-      else if (/\.(html|js|mjs|css|txt|json)$/.test(entry.name)) {
+      else if (/\.(html|js|mjs|css|txt|json)$/.test(entry.name) && !path.startsWith(join(destination, 'documentary/vendor') + '/')) {
         const extension = entry.name.split('.').pop();
         const old = await readFile(path, 'utf8');
         const updated = adaptPagesText(old, basePath, extension, backendURL);

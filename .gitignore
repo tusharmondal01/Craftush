@@ -13,3 +13,5 @@ dist-worker/
 .craftush-imagegen/
 craftush-generator-connection.json
 
+
+/public/documentary/vendor/speech-3.8.1/

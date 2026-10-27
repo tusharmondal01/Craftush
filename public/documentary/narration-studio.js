@@ -1,7 +1,7 @@
 import {newUUID,VERSION,VOICES,MAX_REQUESTS,scriptText,audioChunks,object,validWords,validatePlan,packPlanRequests,videoPrompt,newNarrationProject,restoreNarrationProject,invalidateNarration,approveScript,scriptApproved} from './narration-core.js?v=20261027-scene-regenerate';
 import {DocumentaryStore} from './storage.js';
 import {filename} from './core.js';
-import {fetchMedia,joinNarration,recognizeAudio,parseSRT} from './narration-media.js?v=20261027-audio-recovery2';
+import {fetchMedia,joinNarration,recognizeAudio,parseSRT} from './narration-media.js?v=20261027-speech-load3';
 import {assembleNarrated} from './narration-assemble.js';
 import {pendingResult,taskFailure,waitExpired} from './task-status.js?v=20261027-planner-output';
 const $=id=>document.getElementById(id),store=new DocumentaryStore(),memory=new Map(),urls=new Map();
