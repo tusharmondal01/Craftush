@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {audioChunks,validatePlan,videoPrompt,newNarrationProject,approveScript,restoreNarrationProject,VOICES} from '../public/documentary/narration-core.js';
 import {buildNarrationTask} from '../netlify/lib/narration-tasks.js';
-import handler,{handleNarrationProject} from '../netlify/lib/narration-session.js';
+import handler,{handleNarrationProject,recoverNarrationResult} from '../netlify/lib/narration-session.js';
 import {withRuntime} from '../netlify/lib/runtime-context.js';
 import {CraftushStorage,cloudflareStore} from '../cloudflare/storage.js';
 import {narrationFixture} from './helpers/narration-fixture.mjs';
@@ -34,29 +34,8 @@ test('script review pauses before voice; repeat feedback uses the last revision;
  }finally{f.close()}
 });
 test('Stop and Resume poll the original script task without another generation',async()=>{
- const wait=deferred();const f=await narrationFixture({reply:(b,session)=>!session.existingSubmission?wait.promise:{data:[{taskUUID:b.taskUUID,text:JSON.stringify({script}),cost:.01}]}});
- try{f.input('idea','Forest');const running=f.trigger('writeScript');await until(()=>f.calls.length===1);const id=f.calls[0].taskUUID;f.trigger('stop');await running;assert.equal(f.read().tasks.script.status,'paused');await f.trigger('resumeStage');const tasks=f.requests.filter(c=>c.body.action==='task');assert.deepEqual(tasks.map(t=>t.body.existingSubmission),[false,true]);assert.equal(f.calls[1].taskUUID,id);assert.equal(f.read().script,script);}finally{f.close()}
-});
-test('new and restored projects use ChatGPT without losing saved work or submitted task IDs',()=>{
- const p=newNarrationProject();assert.equal(p.mode,'chatgpt');p.mode='server';p.idea='Saved idea';p.script=script;approveScript(p);
- const id=crypto.randomUUID();p.tasks.script={id,fingerprint:'b'.repeat(64),status:'submitted'};p.ledger[id]=.5;
- const restored=restoreNarrationProject(p);assert.equal(restored.mode,'chatgpt');assert.equal(restored.idea,p.idea);assert.equal(restored.script,p.script);assert.equal(restored.approvedScript,p.approvedScript);assert.equal(restored.tasks.script.id,id);assert.equal(restored.tasks.script.status,'submitted');assert.equal(restored.ledger[id],.5);
-});
-test('ChatGPT-only generation works without an admin key and never falls back when a key exists',async()=>{
- for(const configured of [false,true]){
-  const f=await narrationFixture({configured,reply:()=>Response.json({errors:[{message:'Reconnect the Runware account in ChatGPT.'}]},{status:400})});
-  try{f.input('idea','Forest');await f.trigger('writeScript');assert.equal(f.el('connectionMode'),null);assert.match(f.el('connectionStatus').textContent,/ChatGPT generation ready/);assert.match(f.el('notice').textContent,/Reconnect the Runware account in ChatGPT/);assert.equal(f.calls.length,1);assert(f.requests.every(r=>r.url==='/api/documentary-session'));assert.equal(f.el('handoff').hidden,false);assert.match(f.el('projectCommand').value,/Never send provider credentials to Craftush/);}finally{f.close()}
- }
-});
-test('queued tasks show the ChatGPT handoff instead of claiming the model is already writing',async()=>{
- const f=await narrationFixture({reply:b=>({pending:true,taskUUID:b.taskUUID})});
- try{f.input('idea','Forest');const running=f.trigger('writeScript');await until(()=>f.el('activity').textContent.includes('Waiting for ChatGPT'));assert.equal(f.el('handoff').hidden,false);assert.match(f.el('projectCommand').value,/project code [a-f0-9]{64}/);f.trigger('stop');await running;assert.equal(f.read().tasks.script.status,'paused');assert(f.requests.some(r=>r.body.action==='stop'));}finally{f.close()}
-});
-test('a missing website receipt resumes through ChatGPT using the original UUID',async()=>{
- let saved,id;const first=await narrationFixture({reply:()=>Response.json({errors:[{message:'This task is not registered with Documentary Studio. Restore the project on its original website.'}]},{status:404})});
- try{first.input('idea','Forest');await first.trigger('writeScript');saved=first.read();id=saved.tasks.script.id;assert.equal(saved.tasks.script.status,'error');saved.mode='server';}finally{first.close()}
- const resumed=await narrationFixture({project:saved,reply:b=>({data:[{taskUUID:b.taskUUID,text:JSON.stringify({script}),cost:.01}]})});
- try{assert.equal(resumed.read().tasks.script.status,'uncertain');await resumed.trigger('resumeStage');const queued=resumed.requests.find(r=>r.body.action==='task');assert.equal(queued.body.existingSubmission,true);assert.equal(queued.body.request.taskUUID,id);assert.equal(resumed.read().script,script);assert(resumed.requests.every(r=>r.url==='/api/documentary-session'));}finally{resumed.close()}
+ const wait=deferred();const f=await narrationFixture({reply:b=>!b.recoverOnly?wait.promise:{data:[{taskUUID:b.taskUUID,text:JSON.stringify({script}),cost:.01}]}});
+ try{f.input('idea','Forest');const running=f.trigger('writeScript');await until(()=>f.calls.length===1);const id=f.calls[0].taskUUID;f.trigger('stop');await running;assert.equal(f.read().tasks.script.status,'paused');await f.trigger('resumeStage');assert.equal(f.calls.filter(c=>!c.recoverOnly).length,1);assert.equal(f.calls[1].recoverOnly,true);assert.equal(f.calls[1].taskUUID,id);assert.equal(f.read().script,script);}finally{f.close()}
 });
 test('low-confidence audio pauses before any planning or video spend',async()=>{const p=newNarrationProject();p.script=script;approveScript(p);p.idea='Forest';const f=await narrationFixture({project:p,reply:b=>({data:[{taskUUID:b.taskUUID,audioURL:'https://am.runware.ai/audio/test.wav'}]}),recognize:async()=>({words:[{text:'Unrelated',start:0,end:6}]})});try{await f.trigger('resumeStage');assert.match(f.el('notice').textContent,/did not match/);assert.equal(f.read().audio.reviewed,false);assert.equal(f.calls.length,1)}finally{f.close()}});
 test('restoring a project strips credentials and keeps uploaded replacement clips',()=>{const p=newNarrationProject();p.script=script;approveScript(p);p.audio={key:crypto.randomUUID(),duration:6,urls:[],words:[],reviewed:true};p.plan=plan;p.clips={1:{key:crypto.randomUUID(),url:''}};const clean=restoreNarrationProject({...p,apiKey:'never-save',projectToken:'never-export'});assert(!JSON.stringify(clean).includes('never-'));assert.equal(clean.clips[1].key,p.clips[1].key)});
@@ -69,8 +48,19 @@ test('keyless queue preserves models/UUID, forbids credentials, records once and
  assert.equal((await call({action:'task',request:task})).status,200);const first=await bridge('prepare');assert.equal(first.taskUUID,task.taskUUID);assert.equal(first.request[0].model,'anthropic:claude@sonnet-4.6');assert(first.submissionRequired);assert.equal((await bridge('prepare')).submissionRequired,false);
  assert.equal((await call({action:'task',request:{...task,idea:'changed'}})).status,409);
  const result={taskUUID:task.taskUUID,text:JSON.stringify({script}),cost:.01};await bridge('record',{taskUUID:task.taskUUID,result});await bridge('record',{taskUUID:task.taskUUID,result});assert.equal((await bridge('read')).cost,.01);
+ const recovered=await recoverNarrationResult(f.store,token,buildNarrationTask(task));assert.equal(recovered.data[0].text,result.text);await assert.rejects(()=>recoverNarrationResult(f.store,token,buildNarrationTask({...task,idea:'Changed'})),/different inputs/);
  const done=await (await call({action:'task',request:task})).json();assert.equal(done.data[0].text,result.text);
  const next={...base(),action:'narration-voice',audioModel:Object.keys(VOICES)[0],chunk:0};await call({action:'task',request:next});await call({action:'stop'});await assert.rejects(()=>bridge('prepare'),/stopped/);await call({action:'resume'});const voice=await bridge('prepare');assert.equal(voice.taskUUID,next.taskUUID);assert.equal(voice.request[0].speech.text,script);
  await bridge('record',{taskUUID:next.taskUUID,result:{taskUUID:next.taskUUID,text:JSON.stringify({audioURL:'https://am.runware.ai/audio/test.wav'}),cost:.02}});assert.equal((await (await call({action:'task',request:next})).json()).data[0].audioURL,'https://am.runware.ai/audio/test.wav');
  }finally{f.db.close()}
+});
+
+test('saved ChatGPT projects switch to website generation without discarding task IDs or script',()=>{
+ const p=newNarrationProject();assert.equal(p.mode,'server');p.mode='chatgpt';p.script=script;approveScript(p);const id=crypto.randomUUID();p.tasks.script={id,fingerprint:'b'.repeat(64),status:'complete'};
+ const restored=restoreNarrationProject(p);assert.equal(restored.mode,'server');assert.equal(restored.script,script);assert.equal(restored.approvedScript,script);assert.equal(restored.tasks.script.id,id);
+});
+test('website generation never asks for a ChatGPT command and blocks clearly without an admin key',async()=>{
+ const f=await narrationFixture({reply:b=>({data:[{taskUUID:b.taskUUID,text:JSON.stringify({script})}]})});
+ try{f.input('idea','Forest');await f.trigger('writeScript');assert(f.requests.every(r=>r.url==='/api/documentary'));assert.equal(f.el('handoff').hidden,true);assert.match(f.el('connectionStatus').textContent,/website generation ready/);assert.equal(f.read().script,script);}finally{f.close()}
+ const missing=await narrationFixture({configured:false});try{missing.input('idea','Forest');await missing.trigger('writeScript');assert.match(missing.el('notice').textContent,/Runware API key in Admin/);assert.equal(missing.calls.length,0);}finally{missing.close()}
 });

@@ -131,3 +131,12 @@ test('dashboard defaults preserve existing tools and include the image request q
   assert.deepEqual(Object.keys(view.cards), ['thumbnail', 'visuals', 'comfy', 'documentary', 'images']); assert.equal(view.cards.visuals.title, 'My visuals'); assert.equal(view.cards.documentary.enabled, false); assert.equal(view.available.documentary, true); assert.equal(view.available.images, true);
   assert.equal(publicWorkflow().totalSeconds, 156);
 });
+
+test('migration without a website receipt polls the original UUID without new generation',async()=>{
+ const f=fixture();const body={action:'narration-script',idea:'Titanic at night',taskUUID:ID,recoverOnly:true};
+ await f.post(body);await f.post(body);assert.deepEqual(f.calls.map(c=>c[1].taskType),['getResponse','getResponse']);assert(f.calls.every(c=>c[1].taskUUID===ID));
+});
+test('completed migration results are reused without contacting Runware',async()=>{
+ const f=fixture();f.deps.openStore=()=>({get:async()=>null,setJSON:async()=>{},automation:async(op)=>op==='connection'?{job:{id:'job',projectType:'documentary-narration',expiresAt:new Date(Date.now()+60000).toISOString()}}:{tasks:[{taskUUID:ID,state:'done',task:((({taskUUID,...rest})=>rest)(buildDocumentaryTask({action:'narration-script',idea:'Forest',taskUUID:ID}))),result:{data:[{taskUUID:ID,text:'saved script',cost:.02}]}}]}});
+ const handle=createDocumentaryHandler(f.deps);const r=await handle(new Request('https://test/api/documentary',{method:'POST',body:JSON.stringify({action:'narration-script',idea:'Forest',taskUUID:ID,recoverOnly:true,projectToken:'a'.repeat(64)})}));assert.equal(r.status,200);assert.equal((await r.json()).data[0].text,'saved script');assert.equal(f.calls.length,0);
+});

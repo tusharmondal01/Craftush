@@ -2,6 +2,7 @@ import { WORKFLOW } from './documentary-workflow.js';
 import { storageErrorResponse } from './storage-errors.js';
 import { parseMaster, validatePrompt, UUID } from '../../public/documentary/core.js';
 import { buildNarrationTask, NARRATION_ACTIONS } from './narration-tasks.js';
+import { recoverNarrationResult } from './narration-session.js';
 
 export function buildDocumentaryTask(body) {
   if (NARRATION_ACTIONS.has(body?.action)) return buildNarrationTask(body);
@@ -81,10 +82,18 @@ export function createDocumentaryHandler(deps) {
           if (receipt.result) return json(receipt.result);
           task = { taskType: 'getResponse', taskUUID: body.taskUUID };
         } else {
+          if (body.recoverOnly === true) {
+            const recovered = await recoverNarrationResult(store, body.projectToken, task);
+            receipt = { id: body.taskUUID, fingerprint, kind: body.action, created: new Date().toISOString(), status: recovered ? 'complete' : 'submitted', ...(recovered ? { result: recovered } : {}) };
+            await store.setJSON(receiptKey, receipt);
+            if (recovered) return json(recovered);
+            task = { taskType: 'getResponse', taskUUID: body.taskUUID };
+          } else {
           const blocked = await limitRunwareTasks([task]);
           if (blocked) return blocked;
           receipt = { id: body.taskUUID, fingerprint, kind: body.action, created: new Date().toISOString(), status: 'submitted' };
           await store.setJSON(receiptKey, receipt);
+          }
         }
       }
       if (task.taskType === 'getResponse') {

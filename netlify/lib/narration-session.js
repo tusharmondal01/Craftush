@@ -12,6 +12,15 @@ async function connected(store,token){
  return job;
 }
 function summary(job,tasks=[]){return {projectType:'documentary-narration',title:job.title,expiresAt:job.expiresAt,stopped:job.stopped,cost:job.cost||0,phase:job.checkpoint?.stage||'script',complete:job.checkpoint?.complete===true,readyVideos:job.checkpoint?.readyVideos||0,requestCount:job.checkpoint?.requestCount||0,maxInFlight:job.checkpoint?.stage==='videos'?job.config.conc:1,next:job.stopped?'resume_on_website':tasks.some(t=>t.state==='pending')?'prepare':job.checkpoint?.complete?'review_export':job.checkpoint?.stage==='script'?'await_script_approval':'waiting_browser'};}
+export async function recoverNarrationResult(store,token,request){
+ if(!token||!store.automation)return null;
+ const job=await connected(store,token);if(!job)return null;
+ const {taskUUID,...content}=request;
+ const task=(await store.automation('queue',{id:job.id})).tasks.find(t=>t.taskUUID===taskUUID);
+ if(!task)return null;
+ if(await digest(task.task)!==await digest(content))throw bad('This task UUID belongs to different inputs.',409);
+ return task.state==='done'?task.result:null;
+}
 export async function handleNarrationProject(store,body,settings){
  if(!store.automation||!/^[a-f0-9]{64}$/.test(body.projectToken||''))return null;
  const job=await connected(store,body.projectToken);if(!job)return null;

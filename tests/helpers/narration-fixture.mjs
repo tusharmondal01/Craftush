@@ -13,16 +13,7 @@ export async function narrationFixture({project,media={},reply,join,recognize,as
  for(const e of document.querySelectorAll('audio,video')){e.pause=()=>{};e.load=()=>{};}
  class Store{async get(k){return structuredClone(records.get(k)||null)}async put(k,v){records.set(k,structuredClone(v))}async delete(k){records.delete(k)}}
  let replyHandler=reply;
- const transport=async(url,options={})=>{
-  if(!options.method)return Response.json({configured,enabled:true});
-  const body=JSON.parse(options.body);requests.push({url,body});
-  if(url!=='/api/documentary-session')throw new Error('Unexpected website-key generation route: '+url);
-  if(body.action==='start')return Response.json({projectToken:'a'.repeat(64)});
-  if(body.action!=='task')return Response.json({ok:true});
-  calls.push(body.request);if(options.signal?.aborted)throw new DOMException('Stopped','AbortError');let stop;
-  const aborted=new Promise((_,reject)=>{stop=()=>reject(new DOMException('Stopped','AbortError'));options.signal?.addEventListener('abort',stop,{once:true})});
-  try{const value=await Promise.race([Promise.resolve(replyHandler?.(body.request,body)||{data:[]}),aborted]);return value instanceof Response?value:Response.json(value)}finally{options.signal?.removeEventListener('abort',stop)}
- };
+ const transport=async(url,options={})=>{if(!options.method)return Response.json({configured,enabled:true});const body=JSON.parse(options.body);requests.push({url,body});if(url!=='/api/documentary')throw new Error('Unexpected ChatGPT dependency: '+url);calls.push(body);if(options.signal?.aborted)throw new DOMException('Stopped','AbortError');let stop;const aborted=new Promise((_,reject)=>{stop=()=>reject(new DOMException('Stopped','AbortError'));options.signal?.addEventListener('abort',stop,{once:true})});try{const value=await Promise.race([Promise.resolve(replyHandler?.(body)||{data:[]}),aborted]);return value instanceof Response?value:Response.json(value)}finally{options.signal?.removeEventListener('abort',stop)}};
  const context=vm.createContext({...core,filename,DocumentaryStore:Store,document,fetch:transport,crypto:webcrypto,console,structuredClone,URL,Blob,Response,TextEncoder,TextDecoder,DOMException,AbortController,AbortSignal,
  fetchMedia:async()=>new Blob(['fixture media']),joinNarration:join||asyncJoin,recognizeAudio:recognize||asyncRecognize,parseSRT:()=>[],assembleNarrated:assemble||asyncAssemble,
  navigator:{locks:{request:async(n,o,fn)=>fn({name:n})}},history:{replaceState(){}},
