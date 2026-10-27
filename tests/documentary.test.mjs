@@ -151,3 +151,16 @@ test('terminal model availability and nested provider errors are cached while mi
  const f=fixture({reply:t=>({status:404,body:{errors:[{taskUUID:t.taskUUID,code:'taskNotFound',message:'Task not found'}]}})});
  const r=await f.post({action:'narration-script',idea:'Forest',taskUUID:ID,recoverOnly:true});assert.equal(r.status,200);assert(!f.records.get('documentary-task-'+ID).result);assert.equal(f.calls[0][1].taskType,'getResponse');
 });
+
+test('empty and partial token-limited text is a cached terminal failure, never an endless pending job',async()=>{
+ for(const text of ['', '{"requests":']){const f=fixture({reply:t=>({data:[{taskUUID:t.taskUUID,taskType:'textInference',text,finishReason:'length',cost:.321792,reasoningContent:'private reasoning'}]})});
+ const body={action:'narration-script',idea:'Forest',taskUUID:ID};const r=await (await f.post(body)).json();assert.equal(r.errors[0].code,'textResponseTruncated');assert(!JSON.stringify(r).includes('private reasoning'));assert.equal(f.records.get('documentary-task-'+ID).status,'error');await f.post(body);assert.equal(f.calls.length,1);}
+});
+test('old high-thinking planner receipts recover their original UUID while new plans use output-only tokens',async()=>{
+ const body={action:'narration-plan',taskUUID:ID,script:'Hello world.',approvedScript:'Hello world.',audioDuration:6,words:[{text:'Hello',start:0,end:1},{text:'world',start:1,end:6}],timingReviewed:true};
+ const legacy=buildDocumentaryTask(body,{legacyPlanner:true}),f=fixture();
+ const fingerprint=createHash('sha256').update(JSON.stringify(legacy)).digest('hex');f.records.set('documentary-task-'+ID,{id:ID,kind:'narration-plan',fingerprint,status:'submitted'});
+ assert.equal((await f.post({...body,recoverOnly:true})).status,200);assert.equal(f.calls[0][1].taskType,'getResponse');assert.equal(f.calls[0][1].taskUUID,ID);
+ assert.equal((await f.post({...body,words:[{text:'Changed',start:0,end:6}]})).status,409);
+ await f.post({...body,taskUUID:ID2});assert.equal(f.calls[1][1].taskUUID,ID2);assert.equal(f.calls[1][1].settings.thinkingLevel,'off');assert.equal(f.calls[1][1].model,legacy.model);assert.equal(f.calls[1][1].settings.systemPrompt,legacy.settings.systemPrompt);assert.equal(f.calls[1][1].messages[0].content,legacy.messages[0].content);
+});

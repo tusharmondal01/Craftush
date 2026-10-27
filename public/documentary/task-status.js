@@ -10,6 +10,8 @@ export function pendingResult(error){
 export function taskFailure(result,id){
  const error=(result.errors||[]).find(e=>!e.taskUUID||e.taskUUID===id);
  if(error)return error;
+ const truncated=(result.data||[]).find(e=>e.taskUUID===id&&['length','max_tokens','token_limit'].includes(e.finishReason));
+ if(truncated)return {taskUUID:id,code:'textResponseTruncated',message:'Claude reached its response token limit before completing the text. Start a new shot plan request to use the corrected planner. Your saved narration can be reused.'};
  const failed=(result.data||[]).find(e=>e.taskUUID===id&&e.status==='error');
  return failed?{...(failed.error||{}),taskUUID:id,message:failed.error?.message||'Runware reported that this task failed.'}:null;
 }

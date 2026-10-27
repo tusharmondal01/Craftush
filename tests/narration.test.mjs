@@ -158,3 +158,14 @@ test('explicit new shot request keeps the old task and narration and does not re
  const f=await narrationFixture({project:p,reply:b=>({data:[{taskUUID:b.taskUUID,text:JSON.stringify(plan)}]})});
  try{await f.trigger('newPlanRequest');assert.equal(f.calls.length,1);assert.equal(f.calls[0].action,'narration-plan');assert.notEqual(f.calls[0].taskUUID,old);assert.equal(f.calls[0].recoverOnly,false);assert.equal(f.read().tasks['plan@'+old].id,old);assert.equal(f.read().audio.key,p.audio.key);assert.equal(f.read().plan.requestCount,2);}finally{f.close()}
 });
+
+test('a reasoning-only length result stops promptly and records its reported cost once',async()=>{
+ const f=await narrationFixture({reply:b=>({data:[{taskUUID:b.taskUUID,text:'',finishReason:'length',cost:.321792}]})});
+ try{f.input('idea','Forest');await f.trigger('writeScript');assert.equal(f.calls.length,1);assert.equal(f.read().tasks.script.status,'error');assert.match(f.el('notice').textContent,/token limit/);assert.equal(Object.values(f.read().ledger)[0],.321792);}finally{f.close()}
+});
+test('planning reserves a duration-scaled output budget and other text tasks keep their existing settings',()=>{
+ const body={...base(),action:'narration-plan',audioDuration:6,words:[{text:'Hello',start:0,end:6}],timingReviewed:true};
+ const task=buildNarrationTask(body);assert.equal(task.settings.thinkingLevel,'off');assert.equal(task.settings.maxTokens,8000);assert.equal(task.model,'anthropic:claude@sonnet-4.6');
+ const long=buildNarrationTask({...body,audioDuration:1200});assert(long.settings.maxTokens>=46000);assert(long.settings.maxTokens<=64000);
+ const scriptTask=buildNarrationTask({...base(),action:'narration-script',idea:'Forest'});assert.equal(scriptTask.settings.thinkingLevel,'high');assert.equal(scriptTask.settings.maxTokens,16000);
+});

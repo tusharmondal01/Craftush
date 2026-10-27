@@ -5,8 +5,8 @@ import { buildNarrationTask, NARRATION_ACTIONS } from './narration-tasks.js';
 import { recoverNarrationResult } from './narration-session.js';
 import { pendingResult, taskFailure } from '../../public/documentary/task-status.js';
 
-export function buildDocumentaryTask(body) {
-  if (NARRATION_ACTIONS.has(body?.action)) return buildNarrationTask(body);
+export function buildDocumentaryTask(body,options) {
+  if (NARRATION_ACTIONS.has(body?.action)) return buildNarrationTask(body,options);
   if (!body || !UUID.test(String(body.taskUUID || ''))) throw new Error('A unique task UUID is required.');
   const base = { taskUUID: body.taskUUID, numberResults: 1, deliveryMethod: 'async', includeCost: true };
   if (body.action === 'master') {
@@ -76,16 +76,21 @@ export function createDocumentaryHandler(deps) {
         task = { taskType: 'getResponse', taskUUID: body.taskUUID };
       } else {
         try { task = buildDocumentaryTask(body); } catch (e) { return fail(e.message, 400); }
-        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(task)));
-        const fingerprint = [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+        const digestTask=async value=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(value))))].map(b=>b.toString(16).padStart(2,'0')).join('');
+        const fingerprint = await digestTask(task);
         if (receipt) {
-          if (receipt.fingerprint !== fingerprint) return fail('This task ID already belongs to a different request. Start a new task.', 409);
+          // Existing jobs retain their exact old model settings and UUID. The
+          // corrected planner settings apply only to a new paid submission.
+          const legacyMatch=receipt.kind==='narration-plan'&&body.action==='narration-plan'&&receipt.fingerprint===await digestTask(buildDocumentaryTask(body,{legacyPlanner:true}));
+          if (receipt.fingerprint !== fingerprint&&!legacyMatch) return fail('This task ID already belongs to a different request. Start a new task.', 409);
           // Never repeat a paid generation after a lost acknowledgement or page refresh.
           if (receipt.result) return json(receipt.result);
           task = { taskType: 'getResponse', taskUUID: body.taskUUID };
         } else {
           if (body.recoverOnly === true) {
-            const recovered = await recoverNarrationResult(store, body.projectToken, task);
+            let recovered;
+            try{recovered=await recoverNarrationResult(store,body.projectToken,task);}
+            catch(error){if(body.action!=='narration-plan')throw error;recovered=await recoverNarrationResult(store,body.projectToken,buildDocumentaryTask(body,{legacyPlanner:true}));}
             receipt = { id: body.taskUUID, fingerprint, kind: body.action, created: new Date().toISOString(), status: recovered ? 'complete' : 'submitted', ...(recovered ? { result: recovered } : {}) };
             await store.setJSON(receiptKey, receipt);
             if (recovered) return json(recovered);
@@ -108,9 +113,10 @@ export function createDocumentaryHandler(deps) {
       try { result = sanitizeReply(await upstream.json(), secret); } catch { return fail('Runware returned an unreadable response. Resume this task to check its result.', 502); }
       if (Array.isArray(result.errors)) result.errors = result.errors.map(e => ({ ...e, message: String(e.message || 'Runware reported an error.').replace(/<[^>]*>/g, ' ').slice(0, 600) }));
       const items = Array.isArray(result.data) ? result.data : [];
-      const output = items.find(d => d.taskUUID === body.taskUUID && (typeof d.text === 'string' && d.text.length || d.videoURL || d.audioURL));
       const failure = taskFailure(result,body.taskUUID);
       const terminal = failure && !pendingResult(failure);
+      if(terminal&&!(result.errors||[]).some(e=>!e.taskUUID||e.taskUUID===body.taskUUID))result.errors=[...(result.errors||[]),failure];
+      const output = !terminal&&items.find(d => d.taskUUID === body.taskUUID && (typeof d.text === 'string' && d.text.length || d.videoURL || d.audioURL));
       if (output || terminal) {
         receipt.status = output ? 'complete' : 'error'; receipt.result = result;
         await store.setJSON(receiptKey, receipt);

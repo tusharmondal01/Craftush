@@ -3,7 +3,7 @@ import {DocumentaryStore} from './storage.js';
 import {filename} from './core.js';
 import {fetchMedia,joinNarration,recognizeAudio,parseSRT} from './narration-media.js?v=20261027-audio-recovery2';
 import {assembleNarrated} from './narration-assemble.js';
-import {pendingResult,taskFailure,waitExpired} from './task-status.js?v=20261027-plan-wait';
+import {pendingResult,taskFailure,waitExpired} from './task-status.js?v=20261027-planner-output';
 const $=id=>document.getElementById(id),store=new DocumentaryStore(),memory=new Map(),urls=new Map();
 let previewSequence=0,audioPreviewSequence=0;
 let project=newNarrationProject(),connection=null,busy=false,controller=null,selected=1,started=0,timer,token='',retry=false,finalBlob=null,musicBlob=null,persistTimer;
@@ -82,6 +82,7 @@ async function execute(slot,body,type){
     result=await request('/api/documentary',{...body,taskUUID:task.id,recoverOnly,...(token?{projectToken:token}:{})},signal);
     check();failures=0;
     task.checked=new Date().toISOString();
+    for(const item of result.data||[])if(item.taskUUID===task.id&&Number.isFinite(item.cost)&&item.cost>=0)project.ledger[task.id]=item.cost;
     const error=taskFailure(result,task.id);if(error&&!pendingResult(error))throw new Error(error.message||'Runware could not complete this request.');
     const output=(result.data||[]).find(x=>x.taskUUID===task.id&&(type==='audio'?x.audioURL:type==='video'?x.videoURL:typeof x.text==='string'&&x.text));
     if(output){if(Number.isFinite(output.cost)&&output.cost>=0)project.ledger[task.id]=output.cost;task.status='complete';task.error='';task.providerStatus='Complete';await save();if(output.finishReason==='length')throw new Error('The model response was truncated. Retry with a shorter documentary or script.');return output;}
