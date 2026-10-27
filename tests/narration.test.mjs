@@ -127,3 +127,34 @@ test('no reliable speech timings keeps narration available and stops before paid
  const f=await narrationFixture({project:p,media:{['narration-media-'+p.audio.key]:new Blob(['audio'])},recognize:async()=>({words:[],requiresReview:true,issues:[{text:'Speech near 0s'}]})});
  try{await f.trigger('analyzeAudio');assert.equal(f.read().audio.key,p.audio.key);assert.equal(f.read().audio.reviewed,false);assert.equal(f.el('analyzeAudio').disabled,false);assert.match(f.el('notice').textContent,/do not need to regenerate/);assert.equal(f.calls.length,0);assert.equal(f.read().plan,null);}finally{f.close()}
 });
+
+test('an overdue shot request pauses after one recovery poll and late completion keeps its original UUID',async()=>{
+ const words=[{text:'Hello',start:0,end:1},{text:'world',start:1,end:2},{text:'Our',start:3,end:4},{text:'story',start:4,end:6}];
+ const p=newNarrationProject();p.script=script;approveScript(p);p.stage='plan';p.audio={key:crypto.randomUUID(),duration:6,urls:[],words,reviewed:true};
+ const body={action:'narration-plan',script,approvedScript:script,audioDuration:6,words,timingReviewed:true};
+ const fingerprint=[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(body))))].map(n=>n.toString(16).padStart(2,'0')).join('');
+ const id=crypto.randomUUID();p.tasks.plan={id,fingerprint,status:'processing',started:new Date(Date.now()-24*60000).toISOString()};
+ const f=await narrationFixture({project:p,reply:b=>({data:[{taskUUID:b.taskUUID,status:'processing'}]})});
+ try{await f.trigger('planShots');assert.equal(f.calls.length,1);assert.equal(f.calls[0].recoverOnly,true);assert.equal(f.calls[0].taskUUID,id);assert.equal(f.read().tasks.plan.status,'uncertain');assert.equal(f.busy(),false);assert.equal(f.el('planSummary').textContent,'Request paused');assert.match(f.el('planStatus').textContent,/5 minutes/);assert.match(f.el('planRequest').textContent,new RegExp(id));assert.equal(f.el('newPlanRequest').hidden,false);
+ f.reply(b=>({data:[{taskUUID:b.taskUUID,text:JSON.stringify(plan)}]}));await f.trigger('planShots');assert.equal(f.read().plan.requestCount,2);assert.equal(f.calls[1].taskUUID,id);assert.equal(f.calls[1].recoverOnly,true);assert.equal(f.read().audio.key,p.audio.key);assert.equal(f.calls.length,2);}finally{f.close()}
+});
+test('unavailable models and embedded provider failures stop immediately instead of polling forever',async()=>{
+ for(const nested of [false,true]){const error={code:'modelNotAvailable',message:'This model is not available for processing.'};const f=await narrationFixture({reply:b=>nested?{data:[{taskUUID:b.taskUUID,status:'error',error}]}:{errors:[{taskUUID:b.taskUUID,...error}]}});
+ try{f.input('idea','Forest');await f.trigger('writeScript');assert.equal(f.calls.length,1);assert.equal(f.read().tasks.script.status,'error');assert.match(f.el('notice').textContent,/not available/);}finally{f.close()}}
+});
+test('repeated missing task responses pause without submitting a duplicate generation',async()=>{
+ let polls=0;const f=await narrationFixture({reply:b=>++polls===1?{data:[{taskUUID:b.taskUUID,status:'processing'}]}:{errors:[{taskUUID:b.taskUUID,code:'taskNotFound',message:'Task not found'}]}});
+ try{f.input('idea','Forest');await f.trigger('writeScript');assert.equal(f.calls.length,4);assert.equal(f.calls.filter(c=>!c.recoverOnly).length,1);assert(f.calls.every(c=>c.taskUUID===f.calls[0].taskUUID));assert.equal(f.read().tasks.script.status,'uncertain');assert.match(f.el('notice').textContent,/cannot find/);assert.equal(f.busy(),false);}finally{f.close()}
+});
+test('shot planning shows audio readiness rather than Waiting for audio after transcription is approved',async()=>{
+ const p=newNarrationProject();p.script=script;approveScript(p);p.audio={key:crypto.randomUUID(),duration:6,urls:[],words:[{text:'Hello',start:0,end:1}],reviewed:true};
+ const wait=deferred();const f=await narrationFixture({project:p,reply:()=>wait.promise});
+ try{assert.equal(f.el('planSummary').textContent,'Audio ready');const running=f.trigger('planShots');await until(()=>f.calls.length===1);assert.equal(f.el('planSummary').textContent,'Planning shots');f.trigger('stop');await running;assert.equal(f.el('planSummary').textContent,'Request paused');}finally{f.close()}
+});
+
+test('explicit new shot request keeps the old task and narration and does not regenerate voice or video',async()=>{
+ const words=[{text:'Hello',start:0,end:1}],p=newNarrationProject();p.script=script;approveScript(p);p.audio={key:crypto.randomUUID(),duration:6,urls:[],words,reviewed:true};
+ const old=crypto.randomUUID();p.tasks.plan={id:old,fingerprint:'a'.repeat(64),status:'uncertain',started:new Date().toISOString(),error:'Still pending'};
+ const f=await narrationFixture({project:p,reply:b=>({data:[{taskUUID:b.taskUUID,text:JSON.stringify(plan)}]})});
+ try{await f.trigger('newPlanRequest');assert.equal(f.calls.length,1);assert.equal(f.calls[0].action,'narration-plan');assert.notEqual(f.calls[0].taskUUID,old);assert.equal(f.calls[0].recoverOnly,false);assert.equal(f.read().tasks['plan@'+old].id,old);assert.equal(f.read().audio.key,p.audio.key);assert.equal(f.read().plan.requestCount,2);}finally{f.close()}
+});

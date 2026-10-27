@@ -114,6 +114,7 @@ export function restoreNarrationProject(input) {
     if (input.plan) { p.plan = validatePlan(input.plan,p.audio.duration); p.plan.requests.forEach(r => videoPrompt(p.plan,r.index)); }
   }
   for (const [id, t] of Object.entries(input.tasks || {})) if (UUID.test(t?.id || '') && typeof t.fingerprint === 'string' && t.fingerprint.length === 64 && ['queued','submitted','processing','paused','uncertain','complete','error'].includes(t.status)) p.tasks[id] = { id:t.id, fingerprint:t.fingerprint, status:t.status, started:String(t.started||''), error:String(t.error||'').slice(0,600) };
+  for(const [id,t] of Object.entries(p.tasks)){const saved=input.tasks[id];if(typeof saved.providerStatus==='string')t.providerStatus=saved.providerStatus.slice(0,300);if(Number.isFinite(Date.parse(saved.checked)))t.checked=new Date(saved.checked).toISOString();}
   for (const task of Object.values(p.tasks)) if (task.status === 'error' && task.error.includes('This task is not registered with Documentary Studio.')) task.status = 'uncertain';
   for (const [id, cost] of Object.entries(input.ledger || {})) if (UUID.test(id) && Number.isFinite(cost) && cost>=0) p.ledger[id] = cost;
   if(p.plan) for(const r of p.plan.requests) { const c=input.clips?.[r.index]; if(c?.url||UUID.test(c?.key||'')) p.clips[r.index] = {url:c.url?mediaURL(c.url,'video'):'',key:UUID.test(c.key||'')?c.key:'',taskUUID:UUID.test(c.taskUUID||'')?c.taskUUID:''}; }

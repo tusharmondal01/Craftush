@@ -144,3 +144,10 @@ test('completed migration results are reused without contacting Runware',async()
 test('access checks validate the saved team code without provider calls or task receipts',async()=>{
  const f=fixture({settings:{teamCode:'fixture-team'}});assert.equal((await f.post({action:'check-access'},'wrong')).status,401);assert.equal((await f.post({action:'check-access'},'fixture-team')).status,200);assert.equal(f.calls.length,0);assert.equal(f.records.size,0);
 });
+
+test('terminal model availability and nested provider errors are cached while missing poll results remain recoverable',async()=>{
+ for(const nested of [false,true]){const f=fixture({reply:t=>nested?{data:[{taskUUID:t.taskUUID,status:'error',error:{code:'modelNotAvailable',message:'Model not available for processing'}}]}:{errors:[{taskUUID:t.taskUUID,code:'modelNotAvailable',message:'Model not available for processing'}]}});
+ const body={action:'master',idea:'Forest',taskUUID:ID};await f.post(body);await f.post(body);assert.equal(f.calls.length,1);assert.equal(f.records.get('documentary-task-'+ID).status,'error');}
+ const f=fixture({reply:t=>({status:404,body:{errors:[{taskUUID:t.taskUUID,code:'taskNotFound',message:'Task not found'}]}})});
+ const r=await f.post({action:'narration-script',idea:'Forest',taskUUID:ID,recoverOnly:true});assert.equal(r.status,200);assert(!f.records.get('documentary-task-'+ID).result);assert.equal(f.calls[0][1].taskType,'getResponse');
+});

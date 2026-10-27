@@ -3,6 +3,7 @@ import { storageErrorResponse } from './storage-errors.js';
 import { parseMaster, validatePrompt, UUID } from '../../public/documentary/core.js';
 import { buildNarrationTask, NARRATION_ACTIONS } from './narration-tasks.js';
 import { recoverNarrationResult } from './narration-session.js';
+import { pendingResult, taskFailure } from '../../public/documentary/task-status.js';
 
 export function buildDocumentaryTask(body) {
   if (NARRATION_ACTIONS.has(body?.action)) return buildNarrationTask(body);
@@ -108,12 +109,13 @@ export function createDocumentaryHandler(deps) {
       if (Array.isArray(result.errors)) result.errors = result.errors.map(e => ({ ...e, message: String(e.message || 'Runware reported an error.').replace(/<[^>]*>/g, ' ').slice(0, 600) }));
       const items = Array.isArray(result.data) ? result.data : [];
       const output = items.find(d => d.taskUUID === body.taskUUID && (typeof d.text === 'string' && d.text.length || d.videoURL || d.audioURL));
-      const terminal = (result.errors || []).find(e => e.taskUUID === body.taskUUID && !/not.?found|not.?ready|not.?available|processing/i.test(String(e.code || '') + ' ' + String(e.message || '')));
+      const failure = taskFailure(result,body.taskUUID);
+      const terminal = failure && !pendingResult(failure);
       if (output || terminal) {
         receipt.status = output ? 'complete' : 'error'; receipt.result = result;
         await store.setJSON(receiptKey, receipt);
       }
-      return json(result, upstream.ok ? 200 : upstream.status);
+      return json(result, upstream.ok || task.taskType==='getResponse' && failure && pendingResult(failure) ? 200 : upstream.status);
     } catch (e) {
       const storageFailure = storageErrorResponse(e);
       if (storageFailure) return storageFailure;

@@ -3,6 +3,7 @@ import {DocumentaryStore} from './storage.js';
 import {filename} from './core.js';
 import {fetchMedia,joinNarration,recognizeAudio,parseSRT} from './narration-media.js?v=20261027-audio-recovery2';
 import {assembleNarrated} from './narration-assemble.js';
+import {pendingResult,taskFailure,waitExpired} from './task-status.js?v=20261027-plan-wait';
 const $=id=>document.getElementById(id),store=new DocumentaryStore(),memory=new Map(),urls=new Map();
 let previewSequence=0,audioPreviewSequence=0;
 let project=newNarrationProject(),connection=null,busy=false,controller=null,selected=1,started=0,timer,token='',retry=false,finalBlob=null,musicBlob=null,persistTimer;
@@ -12,8 +13,8 @@ const notice=(text,error=false)=>{$('notice').textContent=text;$('notice').hidde
 function activity(text,progress){$('activity').textContent=text;$('workProgress').hidden=!busy;if(Number.isFinite(progress)){$('workProgress').value=progress;$('workProgress').max=1;}else $('workProgress').removeAttribute('value');}
 function endpoint(path,options){return globalThis.craftushAPI?globalThis.craftushAPI(path,options):fetch(path,options);}
 async function request(path,body,signal){
- let r;try{r=await endpoint(path,{method:'POST',headers:{'content-type':'application/json','x-team-code':$('teamCode').value.trim()},body:JSON.stringify(body),signal});}catch(e){if(signal?.aborted)throw e;throw Object.assign(new Error('Connection interrupted. Resume to check the existing task.'),{uncertain:true});}
- const data=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(data.errors?.[0]?.message||'The service could not complete this request.'),{uncertain:r.status>=500,accessDenied:r.status===401||r.status===403});return data;
+ let r,data;try{const bounded=signal?AbortSignal.any([signal,AbortSignal.timeout(65000)]):AbortSignal.timeout(65000);r=await endpoint(path,{method:'POST',headers:{'content-type':'application/json','x-team-code':$('teamCode').value.trim()},body:JSON.stringify(body),signal:bounded});data=await r.json();}catch(e){if(signal?.aborted)throw e;throw Object.assign(new Error('The connection did not return a response. Resume to check the existing request; it will not be submitted twice.'),{uncertain:true});}
+ if(!r.ok)throw Object.assign(new Error(data.errors?.[0]?.message||'The service could not complete this request.'),{uncertain:r.status>=500,accessDenied:r.status===401||r.status===403});return data;
 }
 function session(body,signal){return request('/api/documentary-session',{...body,projectToken:token},signal);}
 async function save(){project.updated=new Date().toISOString();await store.put('narration-project',structuredClone(project));}
@@ -32,7 +33,11 @@ function render(){
  $('scriptStatus').textContent=scriptApproved(project)?'Approved':'Draft';$('scriptCount').textContent=project.script?`${project.script.split(/\s+/).length} words · ${project.script.length.toLocaleString()} characters · saved on this device`:'Write a script, then review or revise it.';
  $('revision').innerHTML='<option value="">Choose a saved version</option>'+project.revisions.map((r,i)=>`<option value="${i}">Version ${i+1} · ${esc(new Date(r.date).toLocaleString())}</option>`).join('');
  $('audioMeta').textContent=project.audio?.duration?`${project.audio.duration.toFixed(2)} seconds · ${VOICES[project.audioModel].label} · ${project.audio.words.length} timed words`:scriptApproved(project)?'Generate narration for the selected voice to enable audio analysis.':'Approve the script to generate narration.';
- $('planSummary').textContent=n?`${project.plan.shotCount} shots · ${n} requests`:'Waiting for audio';
+ const planning=project.tasks.plan;
+ $('planSummary').textContent=n?`${project.plan.shotCount} shots · ${n} requests`:planning&&['submitted','processing'].includes(planning.status)&&busy?'Planning shots':planning?.status==='error'?'Request failed':planning&&['paused','uncertain'].includes(planning.status)?'Request paused':project.audio?.reviewed?'Audio ready':'Waiting for audio';
+ $('planStatus').textContent=n?'Shot plan saved.':planning?(planning.error||planning.providerStatus||'Ready to check the existing shot request.'):project.audio?.reviewed?'Audio timings are ready. Create the shot plan.':'Finish narration analysis in Voiceover first.';
+ $('planRequest').textContent=planning?`Request: ${planning.id} · Started: ${new Date(planning.started).toLocaleString()}${planning.checked?' · Last checked: '+new Date(planning.checked).toLocaleTimeString():''}`:'No shot planning request submitted.';
+ const canRestartPlan=!n&&project.audio?.reviewed&&planning&&['uncertain','error'].includes(planning.status);$('newPlanRequest').hidden=!canRestartPlan;$('newPlanHelp').hidden=!canRestartPlan;$('newPlanRequest').disabled=busy||!canRestartPlan;
  $('videoPercent').textContent=n?Math.round(count/n*100)+'%':'0%';$('videoProgress').value=n?count/n*100:0;
  $('slotSummary').textContent=n?`${n} active · ${100-n} disabled · ${count} ready. ${project.concurrency} requests can run at once.`:'All 100 slots are disabled until a timed plan is ready.';
  $('slotGrid').innerHTML=Array.from({length:100},(_,i)=>{const index=i+1,r=project.plan?.requests[i],task=project.tasks['video-'+index],clip=project.clips[index];const state=clip?'done':task?.status==='error'?'failed':['processing','submitted'].includes(task?.status)?'working':'';return `<button data-slot="${index}" ${r?'':'disabled'} class="${state} ${index===selected?'active':''}" aria-label="Video slot ${index}: ${!r?'disabled':clip?'saved':task?.status||'waiting'}">${String(index).padStart(2,'0')}<small>${r?(clip?'Saved':r.duration.toFixed(1)+'s'):'Off'}</small></button>`;}).join('');
@@ -69,20 +74,27 @@ async function execute(slot,body,type){
  project.tasks[slot]=task;
  const isNew=task.status==='queued';const signal=controller.signal;let dispatched=false;
  try{
-  check();await save();check();const start=Date.now();let wait=2000,failures=0;
-  while(Date.now()-start<3600000){
+  check();await save();check();const start=Date.now(),budget=type==='text'?300000:3600000;let wait=2000,failures=0,missing=0;
+  while(Date.now()-start<budget){
    check();let result;
    try{
-    const recoverOnly=!isNew||dispatched;task.status=recoverOnly?'processing':'submitted';await save();check();dispatched=true;
+    const recoverOnly=!isNew||dispatched;task.status=recoverOnly?'processing':'submitted';task.error='';task.providerStatus=recoverOnly?'Checking the existing Runware request…':'Submitting the request to Runware…';await save();check();render();dispatched=true;
     result=await request('/api/documentary',{...body,taskUUID:task.id,recoverOnly,...(token?{projectToken:token}:{})},signal);
     check();failures=0;
+    task.checked=new Date().toISOString();
+    const error=taskFailure(result,task.id);if(error&&!pendingResult(error))throw new Error(error.message||'Runware could not complete this request.');
     const output=(result.data||[]).find(x=>x.taskUUID===task.id&&(type==='audio'?x.audioURL:type==='video'?x.videoURL:typeof x.text==='string'&&x.text));
-    if(output){if(Number.isFinite(output.cost)&&output.cost>=0)project.ledger[task.id]=output.cost;task.status='complete';await save();if(output.finishReason==='length')throw new Error('The model response was truncated. Retry with a shorter documentary or script.');return output;}
-    const error=(result.errors||[]).find(x=>!x.taskUUID||x.taskUUID===task.id);if(error&&!/not.?found|not.?ready|not.?available|processing/i.test(error.code+' '+error.message))throw new Error(error.message);
-   }catch(e){if(!e.uncertain||signal.aborted)throw e;task.status='uncertain';task.error=e.message;if(++failures>=6)throw e;await save();}
+    if(output){if(Number.isFinite(output.cost)&&output.cost>=0)project.ledger[task.id]=output.cost;task.status='complete';task.error='';task.providerStatus='Complete';await save();if(output.finishReason==='length')throw new Error('The model response was truncated. Retry with a shorter documentary or script.');return output;}
+    const state=(result.data||[]).find(x=>x.taskUUID===task.id);
+    task.error='';task.providerStatus=error?String(error.message||'Runware has not returned this result yet.').slice(0,300):state?.status==='processing'?'Runware reports processing. Waiting for the completed response.':'Request submitted. Waiting for Runware to report its status.';
+    if(Number.isFinite(state?.progress))task.providerStatus+=` ${Math.max(0,Math.min(100,state.progress))}% reported.`;
+    if(error&&/notfound/i.test(String(error.code).replace(/[^a-z]/gi,''))){if(++missing>=3)throw Object.assign(new Error('Runware cannot find this request after repeated checks. The workflow is paused. Resume checks the same ID; no new paid request has been submitted.'),{uncertain:true,pausedWait:true});}else missing=0;
+    await save();
+   }catch(e){if(!e.uncertain||e.pausedWait||signal.aborted)throw e;task.status='uncertain';task.error=e.message;if(++failures>=6)throw e;await save();}
+   if(waitExpired(task,type)||Date.now()-start>=budget)break;
    render();await sleep(wait,signal);wait=Math.min(10000,wait*1.3);
   }
-  throw Object.assign(new Error('This task is still pending. Resume later to check its original task ID.'),{uncertain:true});
+  throw Object.assign(new Error(type==='text'?'Runware has not returned this text request within 5 minutes. Waiting is paused. Your script and narration are saved. Resume checks the same request ID without submitting it again.':'This task is still pending. Resume later to check its original task ID.'),{uncertain:true});
  }catch(e){task.status=e.accessDenied?(isNew?'queued':'uncertain'):signal.aborted?(dispatched?'paused':'queued'):e.uncertain?'uncertain':'error';task.error=e.message;await save();throw e;}
 }
 function base(){return {script:project.script,approvedScript:project.approvedScript};}
@@ -168,6 +180,7 @@ $('writeScript').onclick=()=>run(()=>write(false));$('refineScript').onclick=()=
 $('saveScript').onclick=()=>guarded(async()=>{changedScript();await save();render();notice('Script saved. Approval is required after any change.');});
 $('approveScript').onclick=()=>run(async()=>{changedScript();approveScript(project);await save();await continueProduction();});
 $('generateVoice').onclick=()=>run(ensureVoice);$('analyzeAudio').onclick=()=>run(async()=>{await analyze();await ensurePlan();});$('planShots').onclick=()=>run(ensurePlan);
+$('newPlanRequest').onclick=()=>run(async()=>{if(project.plan||!project.audio?.reviewed||!['uncertain','error'].includes(project.tasks.plan?.status))throw new Error('Resume the current shot request first.');const previous=project.tasks.plan;project.tasks['plan@'+previous.id]=previous;delete project.tasks.plan;await save();await ensurePlan();});
 for(const id of ['continueVideos','generateVideos'])$(id).onclick=()=>run(async()=>{await generateVideos();await assemble();});
 $('retryFailed').onclick=()=>run(async()=>{await continueProduction();},{retries:true});$('retryClip').onclick=()=>run(()=>generateVideos([selected]),{retries:true});
 $('resumeStage').onclick=()=>run(async()=>{if(!scriptApproved(project)){await write(!!project.script&&!!project.feedback);}else await continueProduction();},{retries:true});
