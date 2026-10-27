@@ -149,6 +149,7 @@ async function clipBlob(index){
 }
 async function videoBody(index){
  const body={action:'narration-video',...base(),audioDuration:project.audio.duration,plan:project.plan,scene:index},task=project.tasks['video-'+index];
+ if(task?.status==='error'&&retry)return {...body,promptVersion:2};
  // Resume older jobs with exactly the body that owns their UUID; stronger
  // prompts apply to new submissions and explicit scene regeneration.
  if(task){const candidates=[body,{...body,promptVersion:1},{...body,promptVersion:2}];if(task.seed!==undefined)candidates.push({...body,promptVersion:2,seed:task.seed},{...body,promptVersion:1,seed:task.seed});for(const candidate of candidates)if(task.fingerprint===await fingerprint(candidate))return candidate;}

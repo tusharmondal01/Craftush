@@ -55,3 +55,8 @@ test('each deliberate regeneration gets a fresh variation while a new video uses
  try{await f.trigger('regenerateScene');const first=f.calls[0];await f.trigger('regenerateScene');assert.equal(f.calls.length,2);assert.notEqual(f.calls[1].taskUUID,first.taskUUID);assert.notEqual(f.calls[1].seed,first.seed);assert.equal(f.calls[1].recoverOnly,false);}finally{f.close()}
  const fresh=completedProject();delete fresh.clips[1];delete fresh.tasks['video-1'];const next=await narrationFixture({project:fresh,media:mediaFor(fresh),reply});try{await next.trigger('generateVideos');assert.equal(next.calls.length,1);assert.equal(next.calls[0].promptVersion,2);assert.equal(next.calls[0].recoverOnly,false);}finally{next.close()}
 });
+
+test('an explicit retry of a failed old video upgrades the new attempt while retaining its failed UUID in history',async()=>{
+ const p=completedProject();delete p.clips[1];const body={action:'narration-video',script,approvedScript:script,audioDuration:6,plan:p.plan,scene:1},old=p.tasks['video-1'].id;p.tasks['video-1'].fingerprint=createHash('sha256').update(JSON.stringify(body)).digest('hex');p.tasks['video-1'].status='error';p.tasks['video-1'].error='Provider failed';
+ const f=await narrationFixture({project:p,media:mediaFor(p),reply});try{await f.trigger('retryClip');assert.equal(f.calls.length,1);assert.notEqual(f.calls[0].taskUUID,old);assert.equal(f.calls[0].promptVersion,2);assert.equal(f.calls[0].recoverOnly,false);assert(Object.values(f.read().tasks).some(t=>t.id===old));}finally{f.close()}
+});
