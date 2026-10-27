@@ -11,7 +11,7 @@ import {until,deferred} from './helpers/documentary-fixture.mjs';
 const script='Hello world. Our story.';
 const plan={continuity:'Same forest at dawn',requests:[{shots:[{start:0,end:1.7,narration:'Hello',visual:'Dawn over a forest'},{start:1.7,end:3,narration:'world.',visual:'A wide forest view'}]},{shots:[{start:3,end:6,narration:'Our story.',visual:'A deer walks beneath trees'}]}]};
 const base=()=>({taskUUID:crypto.randomUUID(),script,approvedScript:script});
-test('long speech chunks preserve the exact script within Gemini and Fish limits',()=>{for(const [model,config] of Object.entries(VOICES)){const original=('यह हमारी कहानी है। This is a connected thought. ').repeat(300).trim();const chunks=audioChunks(original,model);assert(chunks.length>1);assert(chunks.every(c=>c.length<=config.limit));assert.equal(chunks.join(' ').replace(/\s+/g,' '),original.replace(/\s+/g,' '));}});
+test('long speech chunks preserve the exact script within Gemini and Fish limits',()=>{for(const [model,config] of Object.entries(VOICES)){const original=('यह हमारी कहानी है। This is a connected thought. ').repeat(300).trim();const chunks=audioChunks(original,model);assert(chunks.length>1);assert(chunks.every(c=>(config.limitUnit==='bytes'?new TextEncoder().encode(c).length:c.length)<=config.limit));assert.equal(chunks.join(' ').replace(/\s+/g,' '),original.replace(/\s+/g,' '));}});
 test('Claude requires exact approval and actual reviewed timestamps; video tasks reject disabled slots',()=>{
  assert.throws(()=>buildNarrationTask({...base(),action:'narration-voice',approvedScript:'old',audioModel:Object.keys(VOICES)[0],chunk:0}),/Approve/);
  const gemini=buildNarrationTask({...base(),action:'narration-voice',audioModel:Object.keys(VOICES)[0],chunk:0});assert.equal(gemini.speech.voice,'Charon');assert.equal(gemini.speech.text,script);assert.equal(gemini.outputFormat,'WAV');
@@ -83,4 +83,16 @@ test('reopened projects with changed voice or model recover without the old pend
   const reopened=await narrationFixture({project:saved,reply:b=>({data:[{taskUUID:b.taskUUID,audioURL:'https://am.runware.ai/audio/test.wav'}]})});
   try{await reopened.trigger('generateVoice');assert.equal(reopened.calls.length,1);assert.notEqual(reopened.calls[0].taskUUID,oldID);assert.equal(reopened.calls[0].recoverOnly,false);assert.equal(reopened.el('notice').className,'notice');assert(reopened.read().audio.key);assert(Object.values(reopened.read().tasks).some(t=>t.id===oldID));}finally{reopened.close()}
  }
+});
+
+test('Gemini splits Hindi by UTF-8 bytes and every backend speech request preserves all text',()=>{
+ const model='google:gemini@3.1-flash-tts';const original=('टाइटैनिक की उस रात की कहानी। Ocean 🌊 और जहाज़। ').repeat(70).trim();assert(original.length<4000);assert(new TextEncoder().encode(original).length>4000);
+ const chunks=audioChunks(original,model);assert(chunks.length>1);assert.equal(chunks.join(' ').replace(/\s+/g,' '),original.replace(/\s+/g,' '));
+ for(let chunk=0;chunk<chunks.length;chunk++){const task=buildNarrationTask({...base(),script:original,approvedScript:original,action:'narration-voice',audioModel:model,chunk});assert.equal(task.speech.text,chunks[chunk]);assert(new TextEncoder().encode(task.speech.text).length<=4000);assert(!task.speech.text.includes('�'));}
+ assert.equal(audioChunks('a'.repeat(4000),model).length,1);
+});
+test('old rejected narration parts get new IDs when byte-safe chunk contents change',async()=>{
+ const p=newNarrationProject();p.script=script;approveScript(p);const wait=deferred();const old=await narrationFixture({project:p,reply:()=>wait.promise});let saved,id;
+ try{const run=old.trigger('generateVoice');await until(()=>old.calls.length===1);id=old.calls[0].taskUUID;old.trigger('stop');await run;saved=old.read();saved.tasks['voice-0'].fingerprint='f'.repeat(64);saved.tasks['voice-0'].status='error';saved.tasks['voice-0'].error='Invalid speech[text]: maximum 4000 bytes';}finally{old.close()}
+ const f=await narrationFixture({project:saved,reply:b=>({data:[{taskUUID:b.taskUUID,audioURL:'https://am.runware.ai/audio/test.wav'}]})});try{await f.trigger('generateVoice');assert.notEqual(f.calls[0].taskUUID,id);assert.equal(f.calls[0].chunkText,script);assert.equal(f.calls[0].recoverOnly,false);assert(f.read().audio.key);}finally{f.close()}
 });

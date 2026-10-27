@@ -5,7 +5,7 @@ export const FPS = 30;
 export const TEXT_MODEL = 'anthropic:claude@sonnet-4.6';
 export const VIDEO_MODEL = 'pixverse:1@8';
 export const VOICES = {
-  'google:gemini@3.1-flash-tts': { label: 'Gemini 3.1 Flash TTS', voice: 'Charon', limit: 4000 },
+  'google:gemini@3.1-flash-tts': { label: 'Gemini 3.1 Flash TTS', voice: 'Charon', limit: 4000, limitUnit: 'bytes' },
   'fishaudio:s2.1@pro': { label: 'Fish Audio S2.1 Pro', voice: 'bf322df2096a46f18c579d0baa36f41d', limit: 3000 },
 };
 export function newUUID() {
@@ -25,13 +25,20 @@ export function scriptText(value) {
   return value.trim();
 }
 export function audioChunks(text, model) {
-  const limit = VOICES[model]?.limit;
+  const config = VOICES[model], limit = config?.limit;
   if (!limit) throw new Error('Choose Gemini or Fish Audio.');
+  const encoder = new TextEncoder(), size = value => config.limitUnit === 'bytes' ? encoder.encode(value).length : value.length;
   let rest = scriptText(text), chunks = [];
-  while (rest.length > limit) {
-    const head = rest.slice(0, limit), matches = [...head.matchAll(/[।.!?]\s+|\n+/g)];
+  while (size(rest) > limit) {
+    let head = '', used = 0;
+    for (const character of rest) {
+      const length = size(character);
+      if (used + length > limit) break;
+      head += character; used += length;
+    }
+    const matches = [...head.matchAll(/[।.!?]\s+|\n+/g)];
     let cut = matches.at(-1)?.index;
-    if (cut !== undefined && cut > limit / 3) cut += matches.at(-1)[0].length;
+    if (cut !== undefined && cut > head.length / 3) cut += matches.at(-1)[0].length;
     else cut = head.lastIndexOf(' ');
     if (cut < 1) throw new Error('Add punctuation or spaces to this long narration section.');
     chunks.push(rest.slice(0, cut).trim()); rest = rest.slice(cut).trim();

@@ -1,4 +1,4 @@
-import {newUUID,VERSION,VOICES,MAX_REQUESTS,scriptText,audioChunks,object,validWords,validatePlan,videoPrompt,newNarrationProject,restoreNarrationProject,invalidateNarration,approveScript,scriptApproved} from './narration-core.js?v=20261027-voice-recovery';
+import {newUUID,VERSION,VOICES,MAX_REQUESTS,scriptText,audioChunks,object,validWords,validatePlan,videoPrompt,newNarrationProject,restoreNarrationProject,invalidateNarration,approveScript,scriptApproved} from './narration-core.js?v=20261027-tts-bytes';
 import {DocumentaryStore} from './storage.js';
 import {filename} from './core.js';
 import {fetchMedia,joinNarration,recognizeAudio,parseSRT} from './narration-media.js';
@@ -101,7 +101,7 @@ async function ensureVoice(){
   project.audio.key||=newUUID();await cache(project.audio.key,restored.blob);await save();await showAudio();return;
  }
  const chunks=audioChunks(project.script,project.audioModel),blobs=[],audioURLs=[];
- for(let i=0;i<chunks.length;i++){check();activity(`Generating narration · part ${i+1}/${chunks.length}`);const out=await execute('voice-'+i,{action:'narration-voice',...base(),audioModel:project.audioModel,voice:project.voice,chunk:i},'audio');audioURLs.push(out.audioURL);const key=project.tasks['voice-'+i].id;let blob=await media(key);if(!blob){blob=await fetchMedia(out.audioURL,{type:'audio',teamCode:$('teamCode').value,signal:controller.signal});await cache(key,blob);}blobs.push(blob);}
+ for(let i=0;i<chunks.length;i++){check();activity(`Generating narration · part ${i+1}/${chunks.length}`);const out=await execute('voice-'+i,{action:'narration-voice',...base(),audioModel:project.audioModel,voice:project.voice,chunk:i,chunkText:chunks[i]},'audio');audioURLs.push(out.audioURL);const key=project.tasks['voice-'+i].id;let blob=await media(key);if(!blob){blob=await fetchMedia(out.audioURL,{type:'audio',teamCode:$('teamCode').value,signal:controller.signal});await cache(key,blob);}blobs.push(blob);}
  activity('Joining and measuring the narration…');const joined=await joinNarration(blobs,controller.signal),key=newUUID();await cache(key,joined.blob);project.audio={key,duration:joined.duration,urls:audioURLs,words:[],reviewed:false,source:'audio'};project.plan=null;project.clips={};project.final=null;finalBlob=null;await save();await showAudio();render();
 }
 async function analyze(){
