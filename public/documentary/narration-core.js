@@ -115,10 +115,19 @@ export function packPlanRequests(input,duration,words=[]){
   }
   return validatePlan({...value,requests},duration);
 }
-export function videoPrompt(plan, index) {
+export function videoPrompt(plan, index,{version=2}={}) {
   const r = plan.requests[index - 1]; if (!r) throw new Error('This generation slot is disabled.');
-  const prompt = `Premium photorealistic cinematic documentary, 9:16, physically plausible action, consistent subjects and period details. No captions, readable text, logos, music or speech. A separate approved narration track is added during editing.\nContinuity: ${plan.continuity}\n` +
+  const legacy = `Premium photorealistic cinematic documentary, 9:16, physically plausible action, consistent subjects and period details. No captions, readable text, logos, music or speech. A separate approved narration track is added during editing.\nContinuity: ${plan.continuity}\n` +
     r.shots.map(s => `Shot ${s.shot}, ${(s.start-r.start).toFixed(2)}–${(s.end-r.start).toFixed(2)}s: ${s.visual} Camera: ${s.camera}. Context only, do not speak: ${s.narration}`).join('\n') + '\nHard cuts only at the specified shot boundaries. Hold the last composition through the remaining generation time. Avoid morphing, anatomical errors and unrelated filler.';
+  if(version===1){if(legacy.length>5000)throw new Error(`Request ${index} exceeds PixVerse's prompt limit. Shorten its visual notes in the plan.`);return legacy;}
+  const shots=r.shots.map(s=>`Shot ${s.shot}, ${(s.start-r.start).toFixed(2)}–${(s.end-r.start).toFixed(2)}s. Narration meaning (visual reference only, never speak or display): ${s.narration}\nVisual: ${s.visual}\nCamera: ${s.camera}.`).join('\n');
+  const direction='Cinematic photorealistic documentary, vertical 9:16. RELEVANCE: every shot must depict the subject, action, location and meaning of its own narration line. The narration is authoritative when visual notes conflict. Use literal, specific visual evidence for concrete claims; visual metaphor only for an abstract idea. Do not replace named subjects with generic scenery, random objects or unrelated spectacle. QUALITY: convincing anatomy, expressive natural performance, detailed real materials, grounded physical motion, coherent scale and perspective. Motivated cinematic light, controlled highlights, rich natural colour and clean subject separation. Deliberate framing, stable intentional camera movement, believable depth of field; keep the key action visible and legible. CONTINUITY: preserve character identity, clothing, props, geography, period and lighting between connected shots. One clear action per shot. No temporal flicker, warping, melting faces, extra limbs, sliding feet or random visual changes.';
+  const end='Hard cuts only at the specified shot boundaries. No morphing between scenes. Hold the last composition through any remaining generation time. Silent footage: no dialogue, lip-sync, music, captions, readable text, watermarks or logos. Narration is added separately.';
+  let prompt=`${direction}\nContinuity: ${plan.continuity}\n${shots}\n${end}`;
+  // Preserve all scene content when a near-limit existing plan leaves less
+  // room for style instructions. Never shorten its narration or visual notes.
+  if(prompt.length>5000)prompt=`Photorealistic cinema, 9:16. Show each narration line's exact subject, action and setting; narration outranks conflicting visual notes. Real anatomy, physics, textures, motivated light, stable camera. Keep identities and period consistent. No unrelated filler.\nContinuity: ${plan.continuity}\n${shots}\nHard cuts at stated times; hold final frame. Silent. No morphing, flicker, text, logos or music.`;
+  if(prompt.length>5000&&legacy.length<=5000)prompt=legacy.replace('Premium photorealistic cinematic documentary, 9:16, physically plausible action, consistent subjects and period details.','Photorealistic cinema, 9:16. Match the narration subject, action and setting. Realistic motion, light and period details.');
   if (prompt.length > 5000) throw new Error(`Request ${index} exceeds PixVerse's prompt limit. Shorten its visual notes in the plan.`);
   return prompt;
 }
@@ -143,7 +152,7 @@ export function restoreNarrationProject(input) {
     if (input.plan) { p.plan = validatePlan(input.plan,p.audio.duration); p.plan.requests.forEach(r => videoPrompt(p.plan,r.index)); }
   }
   for (const [id, t] of Object.entries(input.tasks || {})) if (UUID.test(t?.id || '') && typeof t.fingerprint === 'string' && t.fingerprint.length === 64 && ['queued','submitted','processing','paused','uncertain','complete','error'].includes(t.status)) p.tasks[id] = { id:t.id, fingerprint:t.fingerprint, status:t.status, started:String(t.started||''), error:String(t.error||'').slice(0,600) };
-  for(const [id,t] of Object.entries(p.tasks)){const saved=input.tasks[id];if(typeof saved.providerStatus==='string')t.providerStatus=saved.providerStatus.slice(0,300);if(Number.isFinite(Date.parse(saved.checked)))t.checked=new Date(saved.checked).toISOString();}
+  for(const [id,t] of Object.entries(p.tasks)){const saved=input.tasks[id];if(typeof saved.providerStatus==='string')t.providerStatus=saved.providerStatus.slice(0,300);if(Number.isFinite(Date.parse(saved.checked)))t.checked=new Date(saved.checked).toISOString();if([1,2].includes(saved.promptVersion))t.promptVersion=saved.promptVersion;if(Number.isInteger(saved.seed)&&saved.seed>=0&&saved.seed<=2147483647)t.seed=saved.seed;}
   for (const task of Object.values(p.tasks)) if (task.status === 'error' && task.error.includes('This task is not registered with Documentary Studio.')) task.status = 'uncertain';
   for (const [id, cost] of Object.entries(input.ledger || {})) if (UUID.test(id) && Number.isFinite(cost) && cost>=0) p.ledger[id] = cost;
   if(p.plan) for(const r of p.plan.requests) { const c=input.clips?.[r.index]; if(c?.url||UUID.test(c?.key||'')) p.clips[r.index] = {url:c.url?mediaURL(c.url,'video'):'',key:UUID.test(c.key||'')?c.key:'',taskUUID:UUID.test(c.taskUUID||'')?c.taskUUID:''}; }

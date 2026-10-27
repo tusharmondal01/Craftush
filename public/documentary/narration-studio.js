@@ -1,4 +1,4 @@
-import {newUUID,VERSION,VOICES,MAX_REQUESTS,scriptText,audioChunks,object,validWords,validatePlan,packPlanRequests,videoPrompt,newNarrationProject,restoreNarrationProject,invalidateNarration,approveScript,scriptApproved} from './narration-core.js?v=20261027-planner-margins';
+import {newUUID,VERSION,VOICES,MAX_REQUESTS,scriptText,audioChunks,object,validWords,validatePlan,packPlanRequests,videoPrompt,newNarrationProject,restoreNarrationProject,invalidateNarration,approveScript,scriptApproved} from './narration-core.js?v=20261027-scene-regenerate';
 import {DocumentaryStore} from './storage.js';
 import {filename} from './core.js';
 import {fetchMedia,joinNarration,recognizeAudio,parseSRT} from './narration-media.js?v=20261027-audio-recovery2';
@@ -41,7 +41,7 @@ function render(){
  $('videoPercent').textContent=n?Math.round(count/n*100)+'%':'0%';$('videoProgress').value=n?count/n*100:0;
  $('slotSummary').textContent=n?`${n} active · ${100-n} disabled · ${count} ready. ${project.concurrency} requests can run at once.`:'All 100 slots are disabled until a timed plan is ready.';
  $('slotGrid').innerHTML=Array.from({length:100},(_,i)=>{const index=i+1,r=project.plan?.requests[i],task=project.tasks['video-'+index],clip=project.clips[index];const state=clip?'done':task?.status==='error'?'failed':['processing','submitted'].includes(task?.status)?'working':'';return `<button data-slot="${index}" ${r?'':'disabled'} class="${state} ${index===selected?'active':''}" aria-label="Video slot ${index}: ${!r?'disabled':clip?'saved':task?.status||'waiting'}">${String(index).padStart(2,'0')}<small>${r?(clip?'Saved':r.duration.toFixed(1)+'s'):'Off'}</small></button>`;}).join('');
- const r=project.plan?.requests[selected-1];$('selectedTitle').textContent=r?`Request ${selected} · ${r.shots.length} shots`:'Select an active slot';$('selectedShots').textContent=r?`${r.start.toFixed(2)} → ${r.end.toFixed(2)}s · Generate ${r.generationSeconds}s, use ${r.duration.toFixed(2)}s`:'';$('selectedPrompt').value=r?videoPrompt(project.plan,selected):'';
+ const r=project.plan?.requests[selected-1],replacement=project.tasks['regenerate-'+selected],displayTask=busy&&replacement?replacement:project.tasks['video-'+selected];$('selectedTitle').textContent=r?`Request ${selected} · ${r.shots.length} shots`:'Select an active slot';$('selectedShots').textContent=r?`${r.start.toFixed(2)} → ${r.end.toFixed(2)}s · Generate ${r.generationSeconds}s, use ${r.duration.toFixed(2)}s`:'';$('selectedPrompt').value=r?videoPrompt(project.plan,selected,{version:displayTask?displayTask.promptVersion||1:2}):'';
  $('exportSummary').textContent=n?`${count}/${n} required clips ready. Final duration: ${project.audio.duration.toFixed(2)} seconds. ${100-n} disabled slots will be ignored.`:'Create the timed shot plan first.';
  $('shotTimeline').innerHTML=project.plan?project.plan.requests.flatMap(r=>r.shots).map(s=>`<span title="Shot ${s.shot}: ${s.start.toFixed(2)}–${s.end.toFixed(2)}s" style="flex:${s.duration}"></span>`).join(''):'';
  $('shotList').innerHTML=project.plan?project.plan.requests.map(r=>`<div class="shot-row"><b>REQUEST ${r.index}<br>${r.duration.toFixed(2)}s</b><div>${r.shots.map(s=>`<p><strong>Shot ${s.shot}</strong> · ${s.start.toFixed(2)}–${s.end.toFixed(2)}s</p><p lang="hi">${esc(s.narration)}</p><small>${esc(s.visual)}</small>`).join('')}</div></div>`).join(''):'';
@@ -51,6 +51,9 @@ function render(){
  $('generateVoice').disabled=busy||!scriptApproved(project);$('analyzeAudio').disabled=busy||!project.audio?.duration;$('planShots').disabled=busy||!project.audio?.words.length;
  for(const id of ['continueVideos','generateVideos','retryFailed','downloadPlan'])$(id).disabled=(id!=='downloadPlan'&&busy)||!n;
  $('assemble').disabled=busy||!n||count!==n;$('downloadFinal').disabled=!finalBlob;$('downloadScript').disabled=!project.script;$('downloadAudio').disabled=!project.audio?.key;$('saveClip').disabled=!project.clips[selected];$('retryClip').disabled=busy||project.tasks['video-'+selected]?.status!=='error';
+ const replacementPending=replacement&&replacement.status!=='error'&&project.clips[selected]?.taskUUID!==replacement.id;
+ $('regenerateScene').disabled=busy||!r||!project.clips[selected];$('regenerateScene').textContent=replacementPending?'Resume selected scene':'Regenerate selected scene';
+ $('regenerateHint').textContent=r&&project.clips[selected]?`Scene ${String(selected).padStart(2,'0')} selected · ${r.shots.length} shot${r.shots.length===1?'':'s'} in this clip. ${replacementPending?'Resume checks the existing regeneration request.':'Regeneration uses Runware credits.'} The current clip stays saved until the replacement is ready.`:'Select a completed video tile below to regenerate only that clip using Runware credits.';
  $('stop').hidden=!busy;$('stop').disabled=!!controller?.signal.aborted;$('workProgress').hidden=!busy;
  $('handoff').hidden=true;if(!project.audio?.duration)$('analysisStatus').textContent='Complete narration for the selected voice to enable audio analysis.';else if(!busy&&!project.audio.words?.length)$('analysisStatus').textContent='Narration ready. Analyze audio to measure word timings and plan shots.';void showAudio();void preview();
 }
@@ -72,6 +75,7 @@ async function execute(slot,body,type){
  if(slot==='plan'&&task?.status==='error'&&!retry)task.status='uncertain';
  if(task?.status==='error'){if(!retry)throw new Error(task.error+' Use Retry failed tasks to submit a new attempt.');task=null;}
  if(!task)task={id:newUUID(),fingerprint:signature,status:'queued',started:new Date().toISOString()};
+ if(body.action==='narration-video'){task.promptVersion=body.promptVersion||1;if(body.seed!==undefined)task.seed=body.seed;}
  project.tasks[slot]=task;
  const isNew=task.status==='queued';const signal=controller.signal;let dispatched=false;
  try{
@@ -143,10 +147,30 @@ async function clipBlob(index){
  const clip=project.clips[index];if(!clip)throw new Error(`Video ${index} is not ready.`);let blob=await media(clip.key);if(blob)return blob;if(!clip.url)throw new Error(`Video ${index} must be uploaded again.`);
  blob=await fetchMedia(clip.url,{teamCode:$('teamCode').value,signal:controller?.signal});clip.key||=newUUID();await cache(clip.key,blob);await save();return blob;
 }
+async function videoBody(index){
+ const body={action:'narration-video',...base(),audioDuration:project.audio.duration,plan:project.plan,scene:index},task=project.tasks['video-'+index];
+ // Resume older jobs with exactly the body that owns their UUID; stronger
+ // prompts apply to new submissions and explicit scene regeneration.
+ if(task){const candidates=[body,{...body,promptVersion:1},{...body,promptVersion:2}];if(task.seed!==undefined)candidates.push({...body,promptVersion:2,seed:task.seed},{...body,promptVersion:1,seed:task.seed});for(const candidate of candidates)if(task.fingerprint===await fingerprint(candidate))return candidate;}
+ return {...body,promptVersion:2};
+}
+async function regenerateScene(index){
+ if(!project.plan?.requests[index-1]||!project.clips[index])throw new Error('Select a completed video tile to regenerate.');
+ const slot='regenerate-'+index,previous=project.tasks[slot],uncommitted=previous&&previous.status!=='error'&&project.clips[index].taskUUID!==previous.id;
+ let seed=uncommitted?previous.seed:undefined;
+ if(!Number.isInteger(seed)){const oldSeed=previous?.seed??project.tasks['video-'+index]?.seed??42;seed=crypto.getRandomValues(new Uint32Array(1))[0]&2147483647;if(seed===oldSeed)seed=(seed+1)%2147483648;}
+ activity(`Regenerating scene ${index} only. Your current clip is kept until its replacement is saved…`);
+ const out=await execute(slot,{action:'narration-video',...base(),audioDuration:project.audio.duration,plan:project.plan,scene:index,promptVersion:2,seed},'video'),task=project.tasks[slot];
+ let blob=await media(task.id);if(!blob){blob=await fetchMedia(out.videoURL,{teamCode:$('teamCode').value,signal:controller.signal});await cache(task.id,blob);}check();
+ await store.put('narration-archive-'+project.id+'-scene-'+index+'-'+task.id,structuredClone(project));
+ const oldTask=project.tasks['video-'+index];if(oldTask)project.tasks['video-'+index+'@'+oldTask.id]=oldTask;
+ project.tasks['video-'+index]=task;project.clips[index]={url:out.videoURL,taskUUID:task.id,key:task.id};project.final=null;finalBlob=null;$('finalMeta').textContent='';
+ await save();render();activity(`Scene ${index} regenerated and saved.`);notice(`Scene ${index} replaced. Rebuild the final cut to include it.`);
+}
 async function generateVideos(indices){
  if(!project.plan)throw new Error('Create the timed shot plan first.');setStage('videos');await statusCheckpoint();const slots=indices||project.plan.requests.map(r=>r.index);let cursor=0;const problems=[];
  const worker=async()=>{while(cursor<slots.length&&!controller.signal.aborted){const i=slots[cursor++];try{
-  if(!project.clips[i]){activity(`Generating planned clips · ${ready()} of ${project.plan.requestCount} ready`);const out=await execute('video-'+i,{action:'narration-video',...base(),audioDuration:project.audio.duration,plan:project.plan,scene:i},'video');project.clips[i]={url:out.videoURL,taskUUID:project.tasks['video-'+i].id,key:project.tasks['video-'+i].id};await save();}
+  if(!project.clips[i]){activity(`Generating planned clips · ${ready()} of ${project.plan.requestCount} ready`);const out=await execute('video-'+i,await videoBody(i),'video');project.clips[i]={url:out.videoURL,taskUUID:project.tasks['video-'+i].id,key:project.tasks['video-'+i].id};await save();}
   await clipBlob(i);await statusCheckpoint();render();
  }catch(e){if(controller.signal.aborted)return;problems.push(`Clip ${i}: ${e.message}`);}}};
  await Promise.all(Array.from({length:Math.min(project.concurrency,slots.length)},worker));check();if(problems.length)throw new Error(problems[0]);activity(`${ready()} video clips saved. Disabled slots were skipped.`);
@@ -185,6 +209,7 @@ $('generateVoice').onclick=()=>run(ensureVoice);$('analyzeAudio').onclick=()=>ru
 $('newPlanRequest').onclick=()=>run(async()=>{if(project.plan||!project.audio?.reviewed||!['uncertain','error'].includes(project.tasks.plan?.status))throw new Error('Resume the current shot request first.');const previous=project.tasks.plan;project.tasks['plan@'+previous.id]=previous;delete project.tasks.plan;await save();await ensurePlan();});
 for(const id of ['continueVideos','generateVideos'])$(id).onclick=()=>run(async()=>{await generateVideos();await assemble();});
 $('retryFailed').onclick=()=>run(async()=>{await continueProduction();},{retries:true});$('retryClip').onclick=()=>run(()=>generateVideos([selected]),{retries:true});
+$('regenerateScene').onclick=()=>run(()=>regenerateScene(selected));
 $('resumeStage').onclick=()=>run(async()=>{if(!scriptApproved(project)){await write(!!project.script&&!!project.feedback);}else await continueProduction();},{retries:true});
 $('assemble').onclick=()=>run(assemble,{provider:false});$('stop').onclick=()=>{controller?.abort();if(project.mode==='chatgpt'&&token)session({action:'stop'}).catch(()=>{});render();};
 $('savePlan').onclick=()=>guarded(async()=>{const plan=validatePlan($('planJson').value,project.audio?.duration);plan.requests.forEach(r=>videoPrompt(plan,r.index));if(JSON.stringify(plan)!==JSON.stringify(project.plan)){await store.put('narration-archive-'+project.id+'-'+Date.now(),structuredClone(project));project.plan=plan;project.clips={};project.final=null;finalBlob=null;}await save();render();});

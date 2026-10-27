@@ -41,7 +41,9 @@ export function buildNarrationTask(body,{legacyPlanner=false}={}) {
     const plan=validatePlan(body.plan,body.audioDuration);
     if(!Number.isInteger(body.scene)||body.scene<1||body.scene>plan.requestCount)throw new Error('This video generation slot is disabled.');
     const request=plan.requests[body.scene-1];
-    return {...base,taskType:'videoInference',model:VIDEO_MODEL,width:720,height:1280,duration:request.generationSeconds,seed:42,positivePrompt:videoPrompt(plan,body.scene),settings:{audio:false,multiClip:request.shots.length>1},outputType:'URL',outputFormat:'MP4',outputQuality:95};
+    if(body.promptVersion!==undefined&&![1,2].includes(body.promptVersion))throw new Error('Unsupported video prompt version.');
+    const seed=body.seed??42;if(!Number.isInteger(seed)||seed<0||seed>2147483647)throw new Error('Invalid video variation seed.');
+    return {...base,taskType:'videoInference',model:VIDEO_MODEL,width:720,height:1280,duration:request.generationSeconds,seed,positivePrompt:videoPrompt(plan,body.scene,{version:body.promptVersion||1}),settings:{audio:false,multiClip:request.shots.length>1},outputType:'URL',outputFormat:'MP4',outputQuality:95};
   }
   throw new Error('Unknown narration-first action.');
 }

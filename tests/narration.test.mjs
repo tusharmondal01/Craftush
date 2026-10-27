@@ -21,7 +21,7 @@ test('Claude requires exact approval and actual reviewed timestamps; video tasks
  const request=buildNarrationTask({...base(),action:'narration-video',audioDuration:6,plan,scene:1});assert.equal(request.settings.audio,false);assert.equal(request.settings.multiClip,true);assert.equal(request.duration,3);assert.equal(request.model,'pixverse:1@8');
  assert.throws(()=>buildNarrationTask({...base(),action:'narration-video',audioDuration:6,plan,scene:3}),/disabled/);
  for(const mutate of [p=>p.requests[1].shots[0].start=4,p=>p.requests[1].shots[0].end=7,p=>p.requests[1].shots[0].end=5]){const p=structuredClone(plan);mutate(p);assert.throws(()=>validatePlan(p,6));}
- assert.throws(()=>validatePlan({requests:Array(101).fill(plan.requests[0])},6));assert.match(videoPrompt(normalized,1),/Context only, do not speak/);
+ assert.throws(()=>validatePlan({requests:Array(101).fill(plan.requests[0])},6));assert.match(videoPrompt(normalized,1),/visual reference only, never speak or display/);
 });
 test('fractional shot boundaries do not accumulate frame drift',()=>{const p={requests:Array.from({length:80},(_,i)=>({shots:[{start:i*1.11,end:(i+1)*1.11,narration:'word',visual:'Relevant landscape'}]}))};const result=validatePlan(p,88.8);assert.equal(result.requests.reduce((n,r)=>n+r.frames,0),2664);});
 test('script review pauses before voice; repeat feedback uses the last revision; approval completes only active clips',async()=>{

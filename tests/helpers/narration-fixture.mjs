@@ -5,7 +5,7 @@ import {parseHTML} from 'linkedom';
 import * as core from '../../public/documentary/narration-core.js';
 import * as taskStatus from '../../public/documentary/task-status.js';
 import {filename} from '../../public/documentary/core.js';
-export async function narrationFixture({project,media={},reply,join,recognize,assemble,configured=true,teamCode=''}={}){
+export async function narrationFixture({project,media={},reply,join,recognize,assemble,fetchMedia:fetchMediaImpl,configured=true,teamCode=''}={}){
  const html=await readFile(new URL('../../public/documentary/index.html',import.meta.url),'utf8');
  const source=await readFile(new URL('../../public/documentary/narration-studio.js',import.meta.url),'utf8');
  const {document}=parseHTML(html),records=new Map(Object.entries(media)),calls=[],requests=[],timers=new Set(),intervals=new Set();
@@ -16,7 +16,7 @@ export async function narrationFixture({project,media={},reply,join,recognize,as
  let replyHandler=reply;
  const transport=async(url,options={})=>{if(!options.method)return Response.json({configured,enabled:true,codeRequired:!!teamCode});const body=JSON.parse(options.body);requests.push({url,body});if(url!=='/api/documentary')throw new Error('Unexpected ChatGPT dependency: '+url);if(body.action==='check-access')return options.headers['x-team-code']===teamCode||!teamCode?Response.json({ok:true}):Response.json({errors:[{message:'Wrong team access code. Ask your admin for the current code.'}]},{status:401});calls.push(body);if(options.signal?.aborted)throw new DOMException('Stopped','AbortError');let stop;const aborted=new Promise((_,reject)=>{stop=()=>reject(new DOMException('Stopped','AbortError'));options.signal?.addEventListener('abort',stop,{once:true})});try{const value=await Promise.race([Promise.resolve(replyHandler?.(body)||{data:[]}),aborted]);return value instanceof Response?value:Response.json(value)}finally{options.signal?.removeEventListener('abort',stop)}};
  const context=vm.createContext({...core,...taskStatus,filename,DocumentaryStore:Store,document,fetch:transport,crypto:webcrypto,console,structuredClone,URL,Blob,Response,TextEncoder,TextDecoder,DOMException,AbortController,AbortSignal,
- fetchMedia:async()=>new Blob(['fixture media']),joinNarration:join||asyncJoin,recognizeAudio:recognize||asyncRecognize,parseSRT:()=>[],assembleNarrated:assemble||asyncAssemble,
+ fetchMedia:fetchMediaImpl||(async()=>new Blob(['fixture media'])),joinNarration:join||asyncJoin,recognizeAudio:recognize||asyncRecognize,parseSRT:()=>[],assembleNarrated:assemble||asyncAssemble,
  navigator:{locks:{request:async(n,o,fn)=>fn({name:n})}},history:{replaceState(){}},
  setTimeout(fn,ms){const t=setTimeout(()=>{timers.delete(t);fn()},ms>=1800?2:ms);timers.add(t);return t},clearTimeout(t){timers.delete(t);clearTimeout(t)},setInterval(fn,ms){const t=setInterval(fn,ms);intervals.add(t);return t},clearInterval(t){intervals.delete(t);clearInterval(t)}});
  vm.runInContext(await readFile(new URL('../../public/visuals/narration-alignment.js',import.meta.url),'utf8'),context);
