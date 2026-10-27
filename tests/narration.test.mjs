@@ -96,3 +96,9 @@ test('old rejected narration parts get new IDs when byte-safe chunk contents cha
  try{const run=old.trigger('generateVoice');await until(()=>old.calls.length===1);id=old.calls[0].taskUUID;old.trigger('stop');await run;saved=old.read();saved.tasks['voice-0'].fingerprint='f'.repeat(64);saved.tasks['voice-0'].status='error';saved.tasks['voice-0'].error='Invalid speech[text]: maximum 4000 bytes';}finally{old.close()}
  const f=await narrationFixture({project:saved,reply:b=>({data:[{taskUUID:b.taskUUID,audioURL:'https://am.runware.ai/audio/test.wav'}]})});try{await f.trigger('generateVoice');assert.notEqual(f.calls[0].taskUUID,id);assert.equal(f.calls[0].chunkText,script);assert.equal(f.calls[0].recoverOnly,false);assert(f.read().audio.key);}finally{f.close()}
 });
+
+test('voice changes clear stale playable audio and analysis enables only for completed current narration',async()=>{
+ const p=newNarrationProject();p.script=script;approveScript(p);p.audio={key:crypto.randomUUID(),duration:6,urls:[],words:[],reviewed:false};
+ const f=await narrationFixture({project:p,media:{['narration-media-'+p.audio.key]:new Blob(['old narration'])},reply:b=>({data:[{taskUUID:b.taskUUID,audioURL:'https://am.runware.ai/audio/test.wav'}]})});
+ try{assert.equal(f.el('audioPreview').hidden,false);assert.equal(f.el('analyzeAudio').disabled,false);await f.change('voice','Achird');assert.equal(f.el('audioPreview').hidden,true);assert.equal(f.el('audioPreview').getAttribute('src'),null);assert.equal(f.el('analyzeAudio').disabled,true);assert.match(f.el('audioMeta').textContent,/selected voice/);await f.trigger('generateVoice');assert.equal(f.el('audioPreview').hidden,false);assert.equal(f.el('analyzeAudio').disabled,false);assert.equal(f.el('downloadAudio').disabled,false);assert.equal(f.calls[0].voice,'Achird');}finally{f.close()}
+});

@@ -4,7 +4,7 @@ import {filename} from './core.js';
 import {fetchMedia,joinNarration,recognizeAudio,parseSRT} from './narration-media.js';
 import {assembleNarrated} from './narration-assemble.js';
 const $=id=>document.getElementById(id),store=new DocumentaryStore(),memory=new Map(),urls=new Map();
-let previewSequence=0;
+let previewSequence=0,audioPreviewSequence=0;
 let project=newNarrationProject(),connection=null,busy=false,controller=null,selected=1,started=0,timer,token='',retry=false,finalBlob=null,musicBlob=null,persistTimer;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const check=()=>{if(controller?.signal.aborted)throw new DOMException('Workflow stopped.','AbortError');};
@@ -31,7 +31,7 @@ function render(){
  const n=project.plan?.requestCount||0,count=ready();$('readyCount').textContent=`${count} / ${n}`;$('cost').textContent='$'+Object.values(project.ledger).reduce((a,c)=>a+c,0).toFixed(4);
  $('scriptStatus').textContent=scriptApproved(project)?'Approved':'Draft';$('scriptCount').textContent=project.script?`${project.script.split(/\s+/).length} words · ${project.script.length.toLocaleString()} characters · saved on this device`:'Write a script, then review or revise it.';
  $('revision').innerHTML='<option value="">Choose a saved version</option>'+project.revisions.map((r,i)=>`<option value="${i}">Version ${i+1} · ${esc(new Date(r.date).toLocaleString())}</option>`).join('');
- $('audioMeta').textContent=project.audio?.duration?`${project.audio.duration.toFixed(2)} seconds · ${VOICES[project.audioModel].label} · ${project.audio.words.length} timed words`:'Approve the script to generate narration.';
+ $('audioMeta').textContent=project.audio?.duration?`${project.audio.duration.toFixed(2)} seconds · ${VOICES[project.audioModel].label} · ${project.audio.words.length} timed words`:scriptApproved(project)?'Generate narration for the selected voice to enable audio analysis.':'Approve the script to generate narration.';
  $('planSummary').textContent=n?`${project.plan.shotCount} shots · ${n} requests`:'Waiting for audio';
  $('videoPercent').textContent=n?Math.round(count/n*100)+'%':'0%';$('videoProgress').value=n?count/n*100:0;
  $('slotSummary').textContent=n?`${n} active · ${100-n} disabled · ${count} ready. ${project.concurrency} requests can run at once.`:'All 100 slots are disabled until a timed plan is ready.';
@@ -47,10 +47,10 @@ function render(){
  for(const id of ['continueVideos','generateVideos','retryFailed','downloadPlan'])$(id).disabled=(id!=='downloadPlan'&&busy)||!n;
  $('assemble').disabled=busy||!n||count!==n;$('downloadFinal').disabled=!finalBlob;$('downloadScript').disabled=!project.script;$('downloadAudio').disabled=!project.audio?.key;$('saveClip').disabled=!project.clips[selected];$('retryClip').disabled=busy||project.tasks['video-'+selected]?.status!=='error';
  $('stop').hidden=!busy;$('stop').disabled=!!controller?.signal.aborted;$('workProgress').hidden=!busy;
- $('handoff').hidden=true;void preview();
+ $('handoff').hidden=true;if(!project.audio?.duration)$('analysisStatus').textContent='Complete narration for the selected voice to enable audio analysis.';void showAudio();void preview();
 }
 async function preview(){const sequence=++previewSequence;const clip=project.clips[selected],isFinal=project.stage==='export'&&finalBlob;const blob=isFinal?finalBlob:await media(clip?.key);if(sequence!==previewSequence)return;const url=blob?objectURL(isFinal?project.final.key:clip.key,blob):clip?.url;const player=$('previewVideo');$('previewEmpty').hidden=!!url;player.hidden=!url;$('previewHeading').textContent=isFinal?'Final documentary':`Video request ${selected}`;if(url&&player.getAttribute('src')!==url){player.src=url;player.load();}if(!url)player.removeAttribute('src');}
-async function showAudio(){const blob=await media(project.audio?.key);$('audioPreview').hidden=!blob;if(blob)$('audioPreview').src=objectURL(project.audio.key,blob);}
+async function showAudio(){const sequence=++audioPreviewSequence,key=project.audio?.key,blob=await media(key);if(sequence!==audioPreviewSequence)return;const player=$('audioPreview');player.hidden=!blob;if(blob){const url=objectURL(key,blob);if(player.getAttribute('src')!==url)player.src=url;}else{player.pause();player.removeAttribute('src');player.load();}}
 async function connectionCheck(){try{const r=await endpoint('/api/documentary',{cache:'no-store'});const data=await r.json();if(!r.ok)throw new Error(data.errors?.[0]?.message||'Backend unavailable.');connection=data;$('teamCodeWrap').hidden=!data.codeRequired;$('connectionStatus').textContent=!data.enabled?'Disabled by admin':data.configured?'Runware connected · website generation ready':'Add your Runware key in Admin';}catch(e){connection=null;$('connectionStatus').textContent='Connection unavailable';notice(e.message,true);}render();}
 async function connectSession(force=false){
  if(token&&!force){await session({action:'resume'});return;}
