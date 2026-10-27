@@ -1,7 +1,7 @@
 import {newUUID,VERSION,VOICES,MAX_REQUESTS,scriptText,audioChunks,object,validWords,validatePlan,videoPrompt,newNarrationProject,restoreNarrationProject,invalidateNarration,approveScript,scriptApproved} from './narration-core.js?v=20261027-access-flow';
 import {DocumentaryStore} from './storage.js';
 import {filename} from './core.js';
-import {fetchMedia,joinNarration,recognizeAudio,parseSRT} from './narration-media.js?v=20261027-timestamps';
+import {fetchMedia,joinNarration,recognizeAudio,parseSRT} from './narration-media.js?v=20261027-audio-recovery2';
 import {assembleNarrated} from './narration-assemble.js';
 const $=id=>document.getElementById(id),store=new DocumentaryStore(),memory=new Map(),urls=new Map();
 let previewSequence=0,audioPreviewSequence=0;
@@ -110,6 +110,7 @@ async function analyze(){
  const blob=await media(project.audio.key);if(!blob)throw new Error('The narration is missing from this device. Resume voiceover to download it again.');
  activity('Analyzing the actual narration…');const found=await recognizeAudio(blob,{signal:controller.signal,onProgress:text=>{activity(text);$('analysisStatus').textContent=text;}});
  project.audio.words=found.words;project.audio.source='audio';$('wordTimings').value=JSON.stringify(found.words,null,2);
+ if(!found.words.length){project.audio.reviewed=false;await save();$('transcriptReview').open=true;$('analysisStatus').textContent='No reliable word timings found. Your narration is saved.';throw new Error('Speech timing could not be measured. Retry Analyze audio, or import an SRT made from this exact narration. You do not need to regenerate the voiceover.');}
  const normalized=globalThis.CraftushAlignment.fromWords(found.words.map(w=>({text:w.text,timestamp:[w.start,w.end]})),project.audio.duration);
  const match=globalThis.CraftushAlignment.align([{text:project.script}],normalized,{duration:project.audio.duration});
  project.audio.coverage=match.coverage;project.audio.reviewed=match.coverage>=.9&&!found.requiresReview;

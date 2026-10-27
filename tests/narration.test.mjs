@@ -121,3 +121,9 @@ test('incomplete audio timing preserves valid words and blocks paid shot plannin
  const f=await narrationFixture({project:p,media:{['narration-media-'+p.audio.key]:new Blob(['audio'])},recognize:async()=>({words,requiresReview:true,issues:[{text:'uncertain word'}]})});
  try{await f.trigger('analyzeAudio');assert.equal(f.read().audio.words.length,4);assert.equal(f.read().audio.reviewed,false);assert.equal(f.el('transcriptReview').open,true);assert.match(f.el('analysisStatus').textContent,/uncertain word/);assert.equal(f.calls.length,0);assert.equal(f.read().plan,null);assert(f.records.get('narration-project').audio.words.length);}finally{f.close()}
 });
+
+test('no reliable speech timings keeps narration available and stops before paid planning',async()=>{
+ const p=newNarrationProject();p.script=script;approveScript(p);p.audio={key:crypto.randomUUID(),duration:6,urls:[],words:[],reviewed:false};
+ const f=await narrationFixture({project:p,media:{['narration-media-'+p.audio.key]:new Blob(['audio'])},recognize:async()=>({words:[],requiresReview:true,issues:[{text:'Speech near 0s'}]})});
+ try{await f.trigger('analyzeAudio');assert.equal(f.read().audio.key,p.audio.key);assert.equal(f.read().audio.reviewed,false);assert.equal(f.el('analyzeAudio').disabled,false);assert.match(f.el('notice').textContent,/do not need to regenerate/);assert.equal(f.calls.length,0);assert.equal(f.read().plan,null);}finally{f.close()}
+});
