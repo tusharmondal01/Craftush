@@ -43,7 +43,7 @@ function zipFiles(bytes) {
   return files;
 }
 
-test('dashboard preserves Cursor Studio fifth and adds Image Generator sixth', async () => {
+test('dashboard removes Thumbnail and Cursor panels while keeping Documentary fourth and Image Generator sixth', async () => {
   const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
   const { document, CustomEvent } = parseHTML(html);
   const main = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)].find(match => match[2].includes('async function loadConfig'))[2];
@@ -55,16 +55,16 @@ test('dashboard preserves Cursor Studio fifth and adds Image Generator sixth', a
   vm.runInContext(main, context);
   await new Promise(resolve => setImmediate(resolve));
   const slides = [...document.querySelectorAll('#track .slide')];
-  assert.deepEqual(slides.map(slide => slide.dataset.id), ['thumbnail', 'visuals', 'comfy', 'documentary', 'cursor', 'images']);
-  assert.equal(slides[4].querySelector('.open').getAttribute('href'), '/cursor/');
-  assert.equal(slides[5].querySelector('.open').getAttribute('href'), '/images/');
-  assert.equal(slides[4].querySelector('.open').hidden, false);
-  assert.equal(slides[4].querySelector('.title').textContent, 'Cursor Studio');
-  assert.equal(slides[5].querySelector('.title').textContent, 'Image Generator');
-  assert.equal(slides[4].querySelector('.tag').textContent, '05 · Screen & mobile editor');
-  assert.equal(slides[5].querySelector('.tag').textContent, '06 · Image Generator');
-  assert(slides[4].querySelector('.motion-stage'));
-  assert.match(document.getElementById('studioHeading').textContent, /Six creative tools/);
+  assert.deepEqual(slides.map(slide => slide.dataset.id), ['visuals', 'comfy', 'documentary', 'batch', 'images']);
+  assert.equal(slides[3].querySelector('.open').getAttribute('href'), '/batch-images/');
+  assert.equal(slides[4].querySelector('.open').getAttribute('href'), '/images/');
+  assert.equal(slides[3].querySelector('.open').hidden, false);
+  assert.equal(slides[3].querySelector('.title').textContent, 'Batch Images');
+  assert.equal(slides[4].querySelector('.title').textContent, 'Image Generator');
+  assert.equal(slides[2].querySelector('.tag').textContent, '04 · Runware documentary');
+  assert.equal(slides[4].querySelector('.tag').textContent, '06 · Image Generator');
+  assert(slides[3].querySelector('.motion-stage'));
+  assert.match(document.getElementById('studioHeading').textContent, /Five creative tools/);
 });
 
 test('the Pages build preserves the recording modules, sample and both ZIP downloads', async () => {
@@ -72,7 +72,8 @@ test('the Pages build preserves the recording modules, sample and both ZIP downl
   try {
     await buildPages({ destination: directory, backendURL: 'https://craftush.tushar-mondal.workers.dev' });
     const homepage = parseHTML(await readFile(join(directory, 'index.html'), 'utf8')).document;
-    assert.equal(homepage.querySelector('[data-id="cursor"] .open').getAttribute('href'), '/Craftush/cursor/');
+    assert.equal(homepage.querySelector('[data-id="cursor"]'), null);
+    assert.equal(homepage.querySelector('[data-id="batch"] .open').getAttribute('href'), '/Craftush/batch-images/');
     const page = parseHTML(await readFile(join(directory, 'cursor/index.html'), 'utf8')).document;
     assert.equal(page.querySelector('a.brand').getAttribute('href'), '/Craftush/');
     assert.match(page.querySelector('script[type="module"]').getAttribute('src'), /^app\.js(?:\?|$)/);

@@ -13,6 +13,7 @@ import { withRuntime } from '../netlify/lib/runtime-context.js';
 import { cloudflareStore } from './storage.js';
 import { publicRateLimits, requestRateLimiter } from './rate-limit.js';
 import { createImageRequestsHandler } from './image-requests.js';
+import batchImageMedia from '../netlify/edge-functions/batch-image-media.js';
 export { CraftushStorage } from './storage.js';
 
 const mcp = createChatGPTMCP(bridge, {
@@ -27,6 +28,7 @@ const routes = new Map([
   ['/api/documentary', documentary], ['/api/documentary-media', media],
   ['/api/chatgpt-bridge', bridge], ['/api/chatgpt-mcp', mcp],
   ['/api/image-requests', imageRequests],
+  ['/api/batch-image-media', batchImageMedia],
 ]);
 const error = (code, message, status) => json({ errors: [{ code, message }] }, status);
 
@@ -92,6 +94,7 @@ export default {
             const blocked = await limiter.imageRequests(request.method === 'POST', owner);
             if (blocked) return headersFor(blocked, origin);
           }
+          if(path==='/api/batch-image-media'){const blocked=await limiter.imageRequests(false);if(blocked)return headersFor(blocked,origin);}
           if (path === '/api/visuals-automation' || path === '/api/documentary-session') { const blocked = await limiter.imageRequests(false); if (blocked) return headersFor(blocked, origin); }
           response = await handler(request);
         }

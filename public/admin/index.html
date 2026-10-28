@@ -411,8 +411,8 @@ $('#textResults').addEventListener('click', e => { const b = e.target.closest('b
 // ---------- dashboard ----------
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const kb = n => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
-const TOOL_LINKS = { thumbnail: '/thumbnail', visuals: '/visuals/', comfy: '/comfy/', documentary: '/documentary/', images: '/images/' };
-const TOOL_NAMES = { thumbnail: '01 · Thumbnail generator', visuals: '02 · Stunning Visuals', comfy: '03 · Idea to Video', documentary: '04 · Documentary Studio', images: '06 · Image Generator' };
+const TOOL_LINKS = { thumbnail: '/thumbnail', visuals: '/visuals/', comfy: '/comfy/', documentary: '/documentary/', images: '/images/', batch: '/batch-images/' };
+const TOOL_NAMES = { visuals: '02 · Stunning Visuals', comfy: '03 · Idea to Video', documentary: '04 · Documentary Studio', batch: '05 · Batch Images', images: '06 · Image Generator' };
 let lastView = null;
 
 function renderDashboard(v){
@@ -432,12 +432,12 @@ function renderDashboard(v){
 
   const t = d.thumb;
   $('#thumbPill').textContent = t ? 'Uploaded' : 'Not set'; $('#thumbPill').className = 'pill ' + (t ? 'on' : 'off');
-  $('#thumbInfo').innerHTML = t ? `Current file <b>${esc(t.fileName)}</b> · ${kb(t.size)} · uploaded ${when(t.updated)}` : 'No file yet. The first card shows “Not set up yet” until you upload one.';
+  $('#thumbInfo').innerHTML = t ? `Current file <b>${esc(t.fileName)}</b> · ${kb(t.size)} · uploaded ${when(t.updated)}` : 'No file yet. Thumbnail Generator is no longer listed on the dashboard.';
   $('#removeThumb').disabled = !t;
 
   const f = d.comfyFile, m = v.comfy;
   $('#comfyPill').textContent = f ? 'Uploaded' : 'Not set'; $('#comfyPill').className = 'pill ' + (f ? 'on' : 'off');
-  $('#comfyInfo').innerHTML = f ? `Current workflow <b>${esc(f.fileName)}</b> · ${f.nodes} nodes · uploaded ${when(f.updated)}` : 'No workflow yet. The third card shows “Not set up yet” until you upload one.';
+  $('#comfyInfo').innerHTML = f ? `Current workflow <b>${esc(f.fileName)}</b> · ${f.nodes} nodes · uploaded ${when(f.updated)}` : 'No workflow yet. The Idea to Video card shows “Not set up yet” until you upload one.';
   $('#removeWorkflow').disabled = !f;
   $('#comfySettings').hidden = !m;
   if (!m) return;

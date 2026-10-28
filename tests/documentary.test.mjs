@@ -128,7 +128,7 @@ test('large non-range media responses and redirects are rejected before bufferin
 test('dashboard defaults preserve existing tools and include the image request queue', async () => {
   const { dashboardView } = await import('../netlify/lib/shared.js');
   const view = dashboardView({ dashboard: { cards: { visuals: { title: 'My visuals' }, documentary: { enabled: false } } } });
-  assert.deepEqual(Object.keys(view.cards), ['thumbnail', 'visuals', 'comfy', 'documentary', 'images']); assert.equal(view.cards.visuals.title, 'My visuals'); assert.equal(view.cards.documentary.enabled, false); assert.equal(view.available.documentary, true); assert.equal(view.available.images, true);
+  assert.deepEqual(Object.keys(view.cards), ['thumbnail', 'visuals', 'comfy', 'documentary', 'images', 'batch']); assert.equal(view.cards.visuals.title, 'My visuals'); assert.equal(view.cards.documentary.enabled, false); assert.equal(view.available.documentary, true); assert.equal(view.available.images, true);
   assert.equal(publicWorkflow().totalSeconds, 156);
 });
 

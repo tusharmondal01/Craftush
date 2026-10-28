@@ -141,6 +141,7 @@ export const DEFAULT_CARDS = {
   comfy: { title: "Idea to Video", desc: "Describe an idea and your ComfyUI workflow turns it into a video.", enabled: true },
   documentary: { title: "Documentary Studio", desc: "Create a cinematic Hinglish documentary with Runware. Preview scenes, add music and save the final video.", enabled: true },
   images: { title: "Image Generator", desc: "Submit single or bulk image requests. The connected studio computer generates them with ImageGen and returns the finished files.", enabled: true },
+  batch: { title: "Batch Images", desc: "Upload your image prompts as JSON. Generate with Runware, then download 1.jpg, 2.jpg and the rest together in a ZIP.", enabled: true },
 };
 
 export function dashboardView(settings) {
@@ -149,7 +150,7 @@ export function dashboardView(settings) {
   for (const id of Object.keys(DEFAULT_CARDS)) cards[id] = { ...DEFAULT_CARDS[id], ...((d.cards || {})[id] || {}) };
   return {
     cards,
-    available: { thumbnail: !!d.thumb, visuals: true, comfy: !!d.comfyFile, documentary: true, images: true },
+    available: { thumbnail: !!d.thumb, visuals: true, comfy: !!d.comfyFile, documentary: true, images: true, batch: true },
     thumb: d.thumb || null,
     comfyFile: d.comfyFile || null,
   };
