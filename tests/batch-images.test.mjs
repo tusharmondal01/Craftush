@@ -20,6 +20,26 @@ test('invalid or oversized JSON is rejected completely before generation',()=>{
  const b=batchOf(2);b.items[1].prompt='a'.repeat(32001);let calls=0;
  return assert.rejects(()=>runImages(b,{...opts(),relay:async()=>{calls++;}}),/Image 2/).then(()=>assert.equal(calls,0));
 });
+test('a 135-entry converted storyboard imports its 43 prompts without headings or motion notes',()=>{
+ const lines=[],names=[],prompts=[];
+ for(let i=1;i<=43;i++){
+  if([1,9,25,27,38,42].includes(i))lines.push('SECTION '+i);
+  const name=`S${i} · Seg ${i}–${i+1} · 0:03–0:06.5 · Wide establishing`,prompt=`Exact image ${i}: natural light, visible subject and accurate setting.`,motion='Motion: slow push-in · In: cross-dissolve · Overlay: drifting mist · SFX: wind';
+  names.push(name);prompts.push(prompt);lines.push(name,'Prompt: '+prompt,motion);
+ }
+ assert.equal(lines.length,135);const items=parseImages(JSON.stringify(lines));assert.equal(items.length,43);assert.deepEqual(items.map(i=>i.name),names);assert.deepEqual(items.map(i=>i.prompt),prompts);assert.deepEqual(items.map(i=>i.filename),Array.from({length:43},(_,i)=>`${i+1}.jpg`));
+ assert(items.every(i=>!i.prompt.includes('Motion:')&&!i.name.startsWith('SECTION')));
+});
+test('storyboard import rejects missing or ambiguous prompts instead of silently dropping scenes',()=>{
+ for(const lines of [
+  ['S1 · Seg 1 · wide','S2 · Seg 2 · close','Prompt: A detailed second scene.'],
+  ['S1 · Seg 1 · wide','Prompt: A detailed first scene.','S2 · Seg 2 · close','Motion: pan up'],
+  ['S1 · Seg 1 · wide','Prompt: A detailed first scene.','Prompt: Another image without a title.'],
+  ['S1 · Seg 1 · wide','Prompt: A detailed first scene.','An unlabeled second image description that must not silently disappear.']
+ ])assert.throws(()=>parseImages(lines),/missing|without a scene|Unrecognized/);
+ const tooMany=Array.from({length:101},(_,i)=>[`S${i+1} · Seg ${i+1} · wide`,'Prompt: A precise scene description.','Motion: pan up']).flat();assert.throws(()=>parseImages(tooMany),/Found 101 image prompts/);
+ assert.deepEqual(parseImages(['A clear natural photograph.','A second relevant image.']).map(i=>i.prompt),['A clear natural photograph.','A second relevant image.']);
+});
 test('image tasks keep exact prompts, unique UUIDs and native model settings; credentials cannot come from JSON',()=>{
  const i=parseImages([{name:'Name',prompt:'Keep this exact prompt.',apiKey:'do-not-use',model:'untrusted:123@1',uploadEndpoint:'https://evil.test'}])[0];i.taskUUID=crypto.randomUUID();
  const t=imageTask(i,imageSettings({model:'openai:gpt-image@2',shape:'vertical'}));assert.equal(t.positivePrompt,'Keep this exact prompt.');assert.equal(t.model,'openai:gpt-image@2');assert.equal(t.taskUUID,i.taskUUID);assert.equal(t.outputFormat,'JPG');assert.equal(t.outputType,'URL');assert.equal(t.deliveryMethod,'async');assert.deepEqual(t.settings,{quality:'high',background:'opaque'});assert.equal(t.apiKey,undefined);assert.equal(t.uploadEndpoint,undefined);assert.deepEqual([t.width,t.height],[1024,1536]);

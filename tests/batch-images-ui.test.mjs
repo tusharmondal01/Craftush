@@ -36,3 +36,11 @@ test('network recovery in the actual page uses the saved task UUIDs, not duplica
 test('invalid JSON leaves the previous batch intact and never dispatches generation',async()=>{
  const b=await browser();await b.json(2);const id=b.read().id;b.$('jsonText').value='{"images":[{"name":"Missing prompt"}]}';await b.click('useJSON');assert.equal(b.read().id,id);assert.match(b.$('notice').textContent,/needs a prompt/);assert.equal(b.calls.length,0);
 });
+test('attaching a converted storyboard file previews and exports only its 43 image prompts',async()=>{
+ const b=await browser(),lines=[];
+ for(let i=1;i<=43;i++){if([1,9,25,27,38,42].includes(i))lines.push('SECTION '+i);lines.push(`S${i} · Seg ${i} · 0:00–0:03 · Wide view`,`Prompt: Exact relevant visual for scene ${i}.`,'Motion: slow push-in · Overlay: mist · SFX: wind');}
+ const text=JSON.stringify(lines);b.$('jsonFile').files=[{name:'converted.json',size:Buffer.byteLength(text),text:async()=>text}];await b.$('jsonFile').onchange();
+ assert.match(b.$('batchTitle').textContent,/converted · 43 images/);assert.equal(b.$('grid').querySelectorAll('.image-card').length,43);assert.equal(b.calls.length,0);
+ await b.click('start');assert.equal(b.calls.length,4);assert.equal(b.calls.flat().length,43);assert(b.calls.flat().every(t=>t.positivePrompt.startsWith('Exact relevant visual')));assert.equal(b.read().items.at(-1).filename,'43.jpg');assert.equal(b.downloads.length,1);
+ const zip=Buffer.from(await b.downloads[0].blob.arrayBuffer());assert.equal(zip.readUInt16LE(zip.length-12),43);
+});

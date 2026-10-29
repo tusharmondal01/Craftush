@@ -2,6 +2,29 @@ export const MAX_IMAGES=100,CHUNK_SIZE=12;
 const plain=value=>value&&typeof value==='object'&&!Array.isArray(value);
 const key=value=>String(value).toLowerCase().replace(/[\s_-]/g,'');
 const field=(row,names)=>Object.entries(row).find(([k])=>names.includes(key(k)))?.[1];
+const sceneTitle=/^\s*S\d+\s*[·|:.-]\s*Seg(?:ment)?\b/i;
+const promptLine=/^\s*Prompt\s*:\s*([\s\S]*)$/i;
+function storyboardImages(lines){
+ const images=[];let title=null;
+ for(const [index,line] of lines.entries()){
+  const text=line.trim();if(!text)continue;
+  if(sceneTitle.test(text)){
+   if(title!==null)throw new Error(`Scene “${title}” is missing its Prompt: entry.`);
+   title=text;continue;
+  }
+  const match=promptLine.exec(text);
+  if(match){
+   if(title===null)throw new Error(`Storyboard entry ${index+1} has a Prompt: without a scene title.`);
+   images.push({name:title,prompt:match[1]});title=null;continue;
+  }
+  // Editing instructions and standalone section labels are not image prompts.
+  if(/^(?:Motion|In|Out|Overlay|SFX|Text|Graphics)\s*:/i.test(text))continue;
+  if(text.length<=100&&(/^[\p{L}\p{N}\s&/()+–-]+$/u.test(text)&&text===text.toUpperCase()||/^#{1,6}\s+/.test(text)))continue;
+  throw new Error(`Unrecognized storyboard entry ${index+1}. Put each image description after Prompt: and editing notes after Motion:.`);
+ }
+ if(title!==null)throw new Error(`Scene “${title}” is missing its Prompt: entry.`);
+ return images;
+}
 export function parseImages(input){
  let value=input;
  if(typeof value==='string'){if(value.length>8*1048576)throw new Error('Choose a JSON file smaller than 8 MB.');try{value=JSON.parse(value);}catch{throw new Error('This is not valid JSON. Download the example to see the format.');}}
@@ -16,7 +39,11 @@ export function parseImages(input){
   else if(typeof field(value,['prompt','imageprompt','positiveprompt'])==='string')value=[value];
   else if(Object.values(value).every(v=>typeof v==='string'))value=Object.entries(value).map(([name,prompt])=>({name,prompt}));
  }
- if(!Array.isArray(value)||!value.length||value.length>MAX_IMAGES)throw new Error('Your JSON must contain 1–100 image prompts. Use an array or an object with an images array.');
+ // A converted storyboard is a flat list of titles, Prompt: entries and motion
+ // notes. Normalize it before applying the image count limit, never send the
+ // notes or section headings to the provider as separate images.
+ if(Array.isArray(value)&&value.every(row=>typeof row==='string')&&value.some(row=>sceneTitle.test(row))&&value.some(row=>promptLine.test(row)))value=storyboardImages(value);
+ if(!Array.isArray(value)||!value.length||value.length>MAX_IMAGES)throw new Error(`Your JSON must contain 1–100 image prompts.${Array.isArray(value)&&value.length>MAX_IMAGES?` Found ${value.length} image prompts.`:''} Use an image list or a storyboard with scene titles and Prompt: entries.`);
  return value.map((row,i)=>{
   const prompt=typeof row==='string'?row:plain(row)?field(row,['prompt','imageprompt','positiveprompt']):null;
   const name=plain(row)?field(row,['name','imagename','filename','title']):null;

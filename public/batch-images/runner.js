@@ -1,4 +1,4 @@
-import {CHUNK_SIZE,imageTask,acceptResults,imageURL} from './core.js?v=20261028-batch1';
+import {CHUNK_SIZE,imageTask,acceptResults,imageURL} from './core.js?v=20261029-storyboard1';
 const stop=signal=>{if(signal?.aborted)throw new DOMException('Batch stopped.','AbortError');};
 export const chunk=list=>Array.from({length:Math.ceil(list.length/CHUNK_SIZE)},(_,i)=>list.slice(i*CHUNK_SIZE,(i+1)*CHUNK_SIZE));
 export async function runImages(batch,{relay,save,saveImage,uuid=()=>crypto.randomUUID(),signal,onChange=()=>{},wait=(ms)=>new Promise((resolve,reject)=>{const stop=()=>{clearTimeout(timer);reject(new DOMException('Batch stopped.','AbortError'));};const timer=setTimeout(()=>{signal?.removeEventListener('abort',stop);resolve();},ms);signal?.addEventListener('abort',stop,{once:true});}),maxWait=15*60000,retryFailed=false}={}){

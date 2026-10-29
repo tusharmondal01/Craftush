@@ -1,5 +1,5 @@
-import {parseImages,imageSettings,imageZip} from './core.js?v=20261028-batch1';
-import {runImages,downloadImage} from './runner.js?v=20261028-batch1';
+import {parseImages,imageSettings,imageZip} from './core.js?v=20261029-storyboard1';
+import {runImages,downloadImage} from './runner.js?v=20261029-storyboard1';
 import {DocumentaryStore} from '../documentary/storage.js';
 const $=id=>document.getElementById(id),store=new DocumentaryStore(),objectURLs=new Map();
 let batch=null,busy=false,packing=false,controller=null,connected=false,enabled=true,index=[];
