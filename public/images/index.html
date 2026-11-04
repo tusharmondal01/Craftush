@@ -133,6 +133,13 @@
           <details id="ownerControls" class="owner-controls" hidden>
             <summary>Advanced recovery controls</summary>
             <p class="help">Finished folders are shared in your Codex chat. These owner controls are available if a request needs attention.</p>
+            <form id="recoveryForm">
+              <label class="field">Reviewed recovery receipt <textarea id="recoveryReceipt" rows="5" placeholder="Paste the recovery receipt prepared in your Codex chat"></textarea></label>
+              <p class="help">Keeps saved images and the original attempt history. No images are uploaded. Generation still requires a fresh start in chat.</p>
+              <label><input id="authorizeConnectionRetry" type="checkbox"> I authorize retrying the connection-failed image identified in this receipt.</label>
+              <button id="recoverBatch" type="submit">Apply reviewed recovery</button>
+              <p id="recoveryMessage" class="message" role="status" aria-live="polite"></p>
+            </form>
             <form id="statusForm">
               <div class="form-grid"><label class="field">Request status <select id="ownerStatus"><option value="queued">Queued</option><option value="in_progress">Generating</option><option value="completed">Completed</option><option value="needs_attention">Needs attention</option><option value="cancelled">Cancelled</option></select></label><label class="field">Owner's note <textarea id="ownerNotes" rows="2" maxlength="4000" placeholder="Optional update for your team"></textarea></label></div>
               <button id="saveStatus" type="submit">Save status and note</button><p id="statusMessage" class="message" role="status" aria-live="polite"></p>
