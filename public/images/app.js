@@ -777,6 +777,23 @@
     }
   });
 
+  $('recoveryForm').addEventListener('submit', async event => {
+    event.preventDefault();
+    if (!currentRequest || role !== 'owner' || deliveryBusy || statusBusy || bulkDownloadBusy) return;
+    statusBusy = true;
+    $('recoverBatch').disabled = true;
+    try {
+      const receipt = JSON.parse($('recoveryReceipt').value);
+      if (receipt.requestId !== currentRequest.id || !Array.isArray(receipt.items)) throw new Error('The receipt must match this exact request.');
+      const payload = { requestId: receipt.requestId, recoveryId: receipt.recoveryId, batchId: receipt.batchId, evidenceFingerprint: receipt.evidenceFingerprint, items: receipt.items, authorizeConnectionRetry: $('authorizeConnectionRetry').checked };
+      const result = await request('recoverBatch', payload);
+      if (result.recovered !== true || result.requestId !== receipt.requestId || result.recoveryId !== receipt.recoveryId) throw new Error('The recovery acknowledgement did not match.');
+      message('recoveryMessage', 'Recovery recorded. Saved images are preserved; continue generation in your Codex chat.', 'success');
+      await loadQueue();
+    } catch (error) { message('recoveryMessage', error.message + ' Keep this receipt unchanged when checking or retrying its acknowledgement.', 'error'); }
+    finally { statusBusy = false; $('recoverBatch').disabled = false; }
+  });
+
   $('statusForm').addEventListener('submit', async event => {
     event.preventDefault();
     if (!currentRequest || role !== 'owner' || deliveryBusy || statusBusy || bulkDownloadBusy) return;
